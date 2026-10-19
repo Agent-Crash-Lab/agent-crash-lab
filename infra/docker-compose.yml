@@ -52,6 +52,14 @@ services:
       MCP_URL: http://mcp-server:8081/mcp
       LLM_API_KEY: ${LLM_API_KEY}
       LLM_MODEL: ${LLM_MODEL:-}
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-}
+      AGENT_PROJECT_ROOT: /project
+      AGENT_STATE_DIR: /state
+    volumes:
+      - agent_state:/state
+      - ../config:/project/config:ro
+      - ../contracts:/project/contracts:ro
+      - ../fixtures:/project/fixtures:ro
     ports:
       - "${AGENTS_PORT:-8090}:8090"
     depends_on:
@@ -102,3 +110,4 @@ services:
 
 volumes:
   pgdata:
+  agent_state:

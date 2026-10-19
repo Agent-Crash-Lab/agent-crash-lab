@@ -1,0 +1,23 @@
+# Local smoke environment. MCP/Harness remain in the integration Compose file.
+# Requires Docker Compose >= 2.24.4 for !reset / !override.
+name: agent-crash-lab-dev
+
+services:
+  postgres:
+    ports: !override
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+
+  agents:
+    depends_on: !reset {}
+    ports: !override
+      - "127.0.0.1:${AGENTS_PORT:-8090}:8090"
+
+  frontend:
+    depends_on: !reset {}
+    ports: !override
+      - "127.0.0.1:${FRONTEND_PORT:-5173}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
