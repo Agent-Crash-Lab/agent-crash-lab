@@ -1,145 +1,136 @@
-"""Deterministic purchase reference flow, independent of LLM and MCP transport."""
+"""Async reference purchase workflow; B0/B1 use identical Agent behavior."""
 
 from typing import Any, TypedDict
-from uuid import uuid4
 
-from langgraph.checkpoint.base import BaseCheckpointSaver
-from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
-from langgraph.types import Command, interrupt
-from pydantic import ValidationError
+from langgraph.types import interrupt
 
-from agents.models import ApprovalDecision, OrderReceipt, PurchaseRequest, PurchaseResult
-from agents.tools.business import BusinessTools, ToolRejected
+from agents.models import ApprovalDecision, PurchaseRequest, PurchaseResult
+from agents.tools.business import ToolError
 
 
 class PurchaseState(TypedDict, total=False):
     request: dict[str, Any]
     inventory: int
     approval: dict[str, Any]
-    calls: list[dict[str, Any]]
     result: dict[str, Any]
 
 
-def result(request: PurchaseRequest, outcome: str, message: str) -> dict[str, Any]:
-    return PurchaseResult(
-        request_id=request.request_id, outcome=outcome, message=message
-    ).model_dump()
+def build_purchase_graph(ctx, checkpointer):
+    def result(request, outcome, message, order_id=None):
+        return {
+            "result": PurchaseResult(
+                request_id=request.request_id,
+                outcome=outcome,
+                order_id=order_id,
+                message=message,
+            ).model_dump()
+        }
 
-
-def build_purchase_graph(tools: BusinessTools, checkpointer: BaseCheckpointSaver):
-    def prepare(state: PurchaseState) -> dict[str, Any]:
+    async def prepare(state):
+        ctx.step("purchase.prepare")
         request = PurchaseRequest.model_validate(state["request"])
         try:
-            inventory = tools.get_inventory(request)
-            if type(inventory) is not int or inventory < 0:
-                raise ToolRejected("Invalid inventory response")
-            if inventory >= request.quantity:
-                return {
-                    "inventory": inventory,
-                    "result": result(
-                        request, "NEEDS_INPUT", "재고가 충분합니다. 발주 필요 여부를 확인해주세요."
-                    ),
-                }
-            supplier_available = tools.get_supplier(request)
-            if type(supplier_available) is not bool or not supplier_available:
-                raise ToolRejected("Supplier unavailable or invalid response")
-        except (TimeoutError, ToolRejected):
-            return {"result": result(request, "FAILED", "재고·공급업체 조회에 실패했습니다.")}
-        return {"inventory": inventory}
+            stock = await ctx.call(
+                "get_inventory",
+                {
+                    "part_id": request.part_id,
+                    "plant_id": request.plant_id,
+                },
+            )
+            available = stock["available_quantity"]
+            if (
+                stock["part_id"] != request.part_id
+                or stock["plant_id"] != request.plant_id
+                or stock["unit"] != "EA"
+                or type(available) is not int
+                or available < 0
+                or type(stock.get("inventory_version")) is not int
+                or stock["inventory_version"] < 1
+            ):
+                raise ToolError("INVALID_RESPONSE")
+            if available >= request.quantity:
+                return result(
+                    request, "NEEDS_INPUT", "재고가 충분합니다. 발주 필요 여부를 확인해주세요."
+                )
+            supplier = await ctx.call("get_supplier", {"supplier_id": request.supplier_id})
+            if (
+                supplier["supplier_id"] != request.supplier_id
+                or supplier["status"] != "ACTIVE"
+                or supplier["currency"] != request.currency
+                or type(supplier["unit_price_minor"]) is not int
+                or supplier["unit_price_minor"] != request.unit_price_minor
+                or type(supplier.get("supplier_version")) is not int
+                or supplier["supplier_version"] < 1
+            ):
+                raise ToolError("INVALID_RESPONSE")
+        except (ToolError, KeyError, TypeError):
+            return result(request, "FAILED", "재고·공급업체 조회 결과를 확인하지 못했습니다.")
+        return {"inventory": available}
 
-    def approval(state: PurchaseState) -> dict[str, Any]:
-        request = PurchaseRequest.model_validate(state["request"])
-        # This node re-executes on resume. Keep all external effects in other nodes.
+    async def approval(state):
+        # interrupt nodes restart on resume; keep writes outside this node.
         decision = ApprovalDecision.model_validate(
             interrupt(
                 {
-                    "status": "WAITING_APPROVAL",
-                    "proposal": request.model_dump(),
-                    "inventory": state["inventory"],
+                    "request": state["request"],
+                    "payload_hash": PurchaseRequest.model_validate(state["request"]).payload_hash(),
                 }
             )
         )
-        if decision.request_id != request.request_id:
-            raise ValueError("Approval request_id does not match the pending request")
-        update: dict[str, Any] = {"approval": decision.model_dump()}
+        ctx.step("purchase.approval")
+        request = PurchaseRequest.model_validate(state["request"])
+        if (
+            decision.request_id != request.request_id
+            or decision.payload_hash != request.payload_hash()
+        ):
+            raise ValueError("Approval does not match the pending payload")
+        update = {"approval": decision.model_dump(mode="json")}
         if decision.decision == "REJECTED":
-            update["result"] = result(request, "REJECTED", "담당자가 발주를 거절했습니다.")
+            update.update(result(request, "REJECTED", "담당자가 발주를 거절했습니다."))
         return update
 
-    def create(state: PurchaseState) -> dict[str, Any]:
+    async def create(state):
+        ctx.step("purchase.create")
         request = PurchaseRequest.model_validate(state["request"])
         decision = ApprovalDecision.model_validate(state["approval"])
-        if decision.decision != "APPROVED" or decision.approval_id is None:
-            raise ValueError("Order creation requires approval")
-        calls = []
-        for attempt in range(2):
-            call = {
-                "tool_call_id": str(uuid4()),
-                "tool": "create_purchase_order",
-                "run_id": request.run_id,
-                "request_id": request.request_id,
-                "approval_id": decision.approval_id,
-                "attempt": attempt + 1,
-                "payload": request.model_dump(),
-            }
-            calls.append(call)
-            try:
-                receipt = OrderReceipt.model_validate(
-                    tools.create_purchase_order(request, decision.approval_id)
-                )
-            except TimeoutError:
-                call["status"] = "TIMEOUT"
-                continue
-            except ToolRejected:
-                call["status"] = "REJECTED"
-                # An earlier timeout may already have committed the order.
-                outcome = "UNKNOWN" if attempt else "FAILED"
-                return {
-                    "calls": calls,
-                    "result": result(
-                        request,
-                        outcome,
-                        "발주 생성 요청이 거부되었습니다. "
-                        "이전 타임아웃이 있다면 저장 여부는 미확정입니다.",
-                    ),
+        if decision.decision != "APPROVED":
+            raise ValueError("Creation requires approval")
+        try:
+            receipt = await ctx.call(
+                "create_purchase_order",
+                {
+                    "request": request.model_dump(),
+                    "approval_id": decision.approval_id,
+                },
+            )
+            if (
+                receipt.get("request_id") != request.request_id
+                or not isinstance(receipt.get("order_id"), str)
+                or not receipt["order_id"].strip()
+                or receipt.get("status") != "CREATED"
+                or type(receipt.get("committed_version")) is not int
+                or receipt["committed_version"] != request.request_version
+            ):
+                raise ToolError("INVALID_RESPONSE")
+        except ToolError as error:
+            ambiguous = ctx.store.get(ctx.run_id).get("write_ambiguous")
+            outcome = (
+                "UNKNOWN"
+                if ambiguous
+                or error.code
+                in {
+                    "INVALID_RESPONSE",
+                    "PROTOCOL_ERROR",
+                    "TRANSPORT_ERROR",
+                    "ADAPTER_ERROR",
                 }
-            except ValidationError:
-                call["status"] = "INVALID_RECEIPT"
-                return {
-                    "calls": calls,
-                    "result": result(
-                        request,
-                        "UNKNOWN",
-                        "도구 응답 형식이 잘못되어 생성 결과를 확인할 수 없습니다.",
-                    ),
-                }
-            if receipt.request_id != request.request_id:
-                call["status"] = "INVALID_RECEIPT"
-                return {
-                    "calls": calls,
-                    "result": result(
-                        request,
-                        "UNKNOWN",
-                        "요청과 다른 생성 결과를 받아 완료 여부를 확인할 수 없습니다.",
-                    ),
-                }
-            call["status"] = "SUCCEEDED"
-            return {
-                "calls": calls,
-                "result": PurchaseResult(
-                    request_id=request.request_id,
-                    outcome="SUCCEEDED",
-                    order_id=receipt.order_id,
-                    message=f"승인된 부품 {request.quantity}개 발주를 확인했습니다.",
-                ).model_dump(),
-            }
-        return {
-            "calls": calls,
-            "result": result(
-                request, "UNKNOWN", "응답을 확인하지 못했습니다. 실제 발주 상태 확인이 필요합니다."
-            ),
-        }
+                else "FAILED"
+            )
+            return result(request, outcome, "생성 결과를 확인하지 못했습니다. 코드: " + error.code)
+        return result(
+            request, "SUCCEEDED", "승인된 발주 생성 응답을 확인했습니다.", receipt["order_id"]
+        )
 
     graph = StateGraph(PurchaseState)
     graph.add_node("prepare", prepare)
@@ -150,58 +141,3 @@ def build_purchase_graph(tools: BusinessTools, checkpointer: BaseCheckpointSaver
     graph.add_conditional_edges("approval", lambda state: END if "result" in state else "create")
     graph.add_edge("create", END)
     return graph.compile(checkpointer=checkpointer)
-
-
-class PurchaseAgent:
-    """Python entry point for serial local execution, not an authenticated API.
-
-    The caller must obtain approval from the trusted server. An approval_id here
-    is only a reference; validating approver identity/payload belongs to that server.
-    """
-
-    def __init__(self, tools: BusinessTools, checkpointer: BaseCheckpointSaver | None = None):
-        # shortcut: local-only memory; inject a durable saver before deployed integration.
-        self.graph = build_purchase_graph(
-            tools, checkpointer if checkpointer is not None else InMemorySaver()
-        )
-
-    @staticmethod
-    def _config(run_id: str) -> dict[str, Any]:
-        if not run_id.strip():
-            raise ValueError("run_id must not be empty")
-        return {"configurable": {"thread_id": run_id}}
-
-    def start(self, request: PurchaseRequest) -> dict[str, Any]:
-        config = self._config(request.run_id)
-        if self.graph.get_state(config).values:
-            raise ValueError("run_id already exists; use resume for pending approval")
-        self.graph.invoke({"request": request.model_dump(), "calls": []}, config)
-        return self.status(request.run_id)
-
-    def resume(self, run_id: str, decision: ApprovalDecision) -> dict[str, Any]:
-        config = self._config(run_id)
-        snapshot = self.graph.get_state(config)
-        if snapshot.next != ("approval",):
-            raise ValueError("Run is not waiting for approval")
-        if decision.request_id != snapshot.values["request"]["request_id"]:
-            raise ValueError("Approval request_id does not match the pending request")
-        self.graph.invoke(Command(resume=decision.model_dump()), config)
-        return self.status(run_id)
-
-    def status(self, run_id: str) -> dict[str, Any]:
-        snapshot = self.graph.get_state(self._config(run_id))
-        if not snapshot.values:
-            raise ValueError("Unknown run_id")
-        state = snapshot.values
-        status = (
-            "COMPLETED"
-            if "result" in state
-            else ("WAITING_APPROVAL" if snapshot.next == ("approval",) else "ERROR")
-        )
-        return {
-            "run_id": run_id,
-            "status": status,
-            "proposal": state["request"],
-            "result": state.get("result"),
-            "calls": state.get("calls", []),
-        }

@@ -1,41 +1,87 @@
-"""Run a mock purchase flow: uv run --locked python -m agents.demo."""
+"""Offline CLI examples for the same runtime used by the HTTP API."""
 
 import argparse
+import asyncio
 import json
+from datetime import UTC, datetime
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
-from agents.graph.purchase import PurchaseAgent
-from agents.models import ApprovalDecision, PurchaseRequest
-from agents.tools.mock import MockBusinessTools
+from agents.config import Settings
+from agents.models import PurchaseRequest, ResumeRequest, StartRequest
+from agents.runtime import Runtime
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Local mock demo; no actual order is created")
+async def wait(runtime, run_id):
+    while runtime.status(run_id)["status"] in {"PREPARING", "RUNNING"}:
+        await asyncio.sleep(0.01)
+    return runtime.status(run_id)
+
+
+async def demo(scenario):
+    settings = Settings()
+    with TemporaryDirectory() as temporary:
+        settings.agent_state_dir = Path(temporary)
+        runtime = await Runtime(settings).open()
+        try:
+            if scenario.startswith("ia"):
+                body = StartRequest(
+                    run_id="demo-investigation",
+                    agent_kind="INVESTIGATION_AGENT",
+                    target_run_id="demo-target",
+                    fixture_id=scenario + "-v1",
+                )
+            else:
+                seed = json.loads(
+                    (
+                        settings.agent_project_root
+                        / "fixtures/drafts/manufacturing-qa/purchase-seed.json"
+                    ).read_text()
+                )
+                request = PurchaseRequest.model_validate(seed["seed"]["request"])
+                fixture = (
+                    "purchase-" + scenario if scenario.startswith("timeout") else "purchase-normal"
+                )
+                body = StartRequest(run_id="demo-purchase", request=request, fixture_id=fixture)
+            await runtime.start(body)
+            run = await wait(runtime, body.run_id)
+            if run["status"] == "WAITING_APPROVAL":
+                print(json.dumps(run, ensure_ascii=False, indent=2))
+                await runtime.resume(
+                    body.run_id,
+                    ResumeRequest(
+                        request_id=body.request.request_id,
+                        approval_id="AP-MOCK",
+                        decision="REJECTED" if scenario == "rejected" else "APPROVED",
+                        payload_hash=body.request.payload_hash(),
+                        approver_id="mock-approver",
+                        decided_at=datetime.now(UTC),
+                    ),
+                )
+                run = await wait(runtime, body.run_id)
+            print(json.dumps(run, ensure_ascii=False, indent=2))
+            if run["status"] == "ERROR":
+                raise SystemExit(1)
+        finally:
+            await runtime.close()
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Mock data only; no business writes or LLM calls")
     parser.add_argument(
         "--scenario",
-        choices=["approved", "rejected", "timeout-once", "timeout-always"],
         default="approved",
+        choices=[
+            "approved",
+            "rejected",
+            "timeout-once",
+            "timeout-always",
+            "ia01",
+            "ia02",
+            "ia03",
+        ],
     )
-    args = parser.parse_args()
-    responses = []
-    if args.scenario in {"timeout-once", "timeout-always"}:
-        responses.append(TimeoutError("mock timeout"))
-    if args.scenario == "timeout-always":
-        responses.append(TimeoutError("mock timeout"))
-    agent = PurchaseAgent(MockBusinessTools(responses=responses))
-    request = PurchaseRequest(
-        run_id="demo-run",
-        request_id="demo-request",
-        part_id="PART-A",
-        supplier_id="SUP-01",
-        quantity=100,
-    )
-    print(json.dumps(agent.start(request), ensure_ascii=False, indent=2))
-    decision = ApprovalDecision(
-        request_id=request.request_id,
-        decision="REJECTED" if args.scenario == "rejected" else "APPROVED",
-        approval_id=None if args.scenario == "rejected" else "mock-approval",
-    )
-    print(json.dumps(agent.resume(request.run_id, decision), ensure_ascii=False, indent=2))
+    asyncio.run(demo(parser.parse_args().scenario))
 
 
 if __name__ == "__main__":

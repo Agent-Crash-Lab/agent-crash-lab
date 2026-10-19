@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from agents.config import Settings
-from agents.server import app
+from agents.server import create_app
 
 
 @pytest.mark.parametrize(
@@ -27,8 +27,8 @@ def test_dependency_import(module_name: str) -> None:
     assert import_module(module_name) is not None
 
 
-def test_health_without_external_services() -> None:
-    with TestClient(app) as client:
+def test_health_without_external_services(settings) -> None:
+    with TestClient(create_app(settings)) as client:
         response = client.get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
@@ -37,9 +37,11 @@ def test_health_without_external_services() -> None:
 def test_settings_from_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MCP_URL", "http://mcp-server:8081/mcp")
     monkeypatch.setenv("LLM_API_KEY", "test-key")
+    monkeypatch.setenv("LLM_MODEL", "test-model")
     settings = Settings(_env_file=None)
     assert str(settings.mcp_url) == "http://mcp-server:8081/mcp"
     assert settings.llm_api_key.get_secret_value() == "test-key"
+    assert settings.llm_model == "test-model"
     assert "test-key" not in repr(settings)
 
 
