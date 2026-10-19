@@ -51,6 +51,7 @@ services:
     environment:
       MCP_URL: http://mcp-server:8081/mcp
       LLM_API_KEY: ${LLM_API_KEY}
+      LLM_MODEL: ${LLM_MODEL:-}
     ports:
       - "${AGENTS_PORT:-8090}:8090"
     depends_on:
@@ -70,6 +71,7 @@ services:
       MCP_URL: http://mcp-server:8081
       AGENT_URL: http://agents:8090
       LLM_API_KEY: ${LLM_API_KEY}
+      LLM_MODEL: ${LLM_MODEL:-}
     ports:
       - "${HARNESS_PORT:-8000}:8000"
     volumes:

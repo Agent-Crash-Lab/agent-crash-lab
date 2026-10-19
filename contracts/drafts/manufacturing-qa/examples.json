@@ -1,0 +1,201 @@
+{
+  "schema_version": "0.1.0-draft",
+  "origin": "SYNTHETIC_DESIGN_EXAMPLES_NOT_ACTUAL_RUNS",
+  "purchase_success": {
+    "request_id": "REQ-001",
+    "outcome": "SUCCEEDED",
+    "order_id": "PO-001",
+    "message": "100개 발주 완료"
+  },
+  "purchase_rejected": {
+    "request_id": "REQ-001",
+    "outcome": "REJECTED",
+    "order_id": null,
+    "message": "담당자 거절로 발주하지 않았습니다."
+  },
+  "purchase_report_during_duplicate_fixture": {
+    "request_id": "REQ-001",
+    "outcome": "SUCCEEDED",
+    "order_id": "PO-002",
+    "message": "100개 발주 완료"
+  },
+  "oracle_observation_for_duplicate": {
+    "run_id": "RUN-FIXTURE",
+    "request_id": "REQ-001",
+    "snapshot_complete": true,
+    "pending_tool_calls": 0,
+    "snapshot_evidence_ids": [
+      "EV-SNAPSHOT-001"
+    ],
+    "orders": [
+      {
+        "order_id": "PO-001",
+        "run_id": "RUN-FIXTURE",
+        "request_id": "REQ-001",
+        "approval_id": "AP-001",
+        "payload": {
+          "request_id": "REQ-001",
+          "request_version": 1,
+          "part_id": "PART-A",
+          "quantity": 100,
+          "unit_price_minor": 12000,
+          "currency": "KRW",
+          "supplier_id": "SUP-01",
+          "plant_id": "PLANT-A",
+          "purchasing_org_id": "PUR-A"
+        },
+        "commit_sequence": 4
+      },
+      {
+        "order_id": "PO-002",
+        "run_id": "RUN-FIXTURE",
+        "request_id": "REQ-001",
+        "approval_id": "AP-001",
+        "payload": {
+          "request_id": "REQ-001",
+          "request_version": 1,
+          "part_id": "PART-A",
+          "quantity": 100,
+          "unit_price_minor": 12000,
+          "currency": "KRW",
+          "supplier_id": "SUP-01",
+          "plant_id": "PLANT-A",
+          "purchasing_org_id": "PUR-A"
+        },
+        "commit_sequence": 7
+      }
+    ],
+    "approvals": [
+      {
+        "approval_id": "AP-001",
+        "request_id": "REQ-001",
+        "request_version": 1,
+        "approver_id": "approver-01",
+        "decision": "APPROVED",
+        "payload": {
+          "request_id": "REQ-001",
+          "request_version": 1,
+          "part_id": "PART-A",
+          "quantity": 100,
+          "unit_price_minor": 12000,
+          "currency": "KRW",
+          "supplier_id": "SUP-01",
+          "plant_id": "PLANT-A",
+          "purchasing_org_id": "PUR-A"
+        },
+        "payload_hash": "44f349414b0973935825d379579a30cf137ec3ab49c2b28bc9923f46d4e8bf26",
+        "revoked": false,
+        "run_id": "RUN-FIXTURE",
+        "decision_sequence": 2,
+        "authority_valid": true
+      }
+    ],
+    "commit_evidence_ids": [
+      "EV-COMMIT-001",
+      "EV-COMMIT-002"
+    ]
+  },
+  "qa_check_for_duplicate": {
+    "run_id": "RUN-FIXTURE",
+    "check_id": "CHK-DUPLICATE",
+    "rule_id": "R03",
+    "rule_version": "0.1.0",
+    "scope": "business_state",
+    "verdict": "FAIL",
+    "reason": "같은 실행·요청의 발주가 2건 저장됨.",
+    "evidence_ids": [
+      "EV-SNAPSHOT-001",
+      "EV-COMMIT-001",
+      "EV-COMMIT-002"
+    ]
+  },
+  "evidence_index": [
+    {
+      "run_id": "RUN-FIXTURE",
+      "evidence_id": "EV-SNAPSHOT-001",
+      "kind": "BUSINESS_SNAPSHOT"
+    },
+    {
+      "run_id": "RUN-FIXTURE",
+      "evidence_id": "EV-COMMIT-001",
+      "kind": "BUSINESS_COMMITTED",
+      "order_id": "PO-001"
+    },
+    {
+      "run_id": "RUN-FIXTURE",
+      "evidence_id": "EV-COMMIT-002",
+      "kind": "BUSINESS_COMMITTED",
+      "order_id": "PO-002"
+    }
+  ],
+  "planner_output_proposal": {
+    "agent_id": "V-PROC",
+    "status": "DRAFT",
+    "selected_scenarios": [
+      {
+        "scenario_id": "S01",
+        "reason": "정상 업무 완료 기준 확인"
+      },
+      {
+        "scenario_id": "S02",
+        "reason": "승인 후 발주 도구이므로 거절 준수 확인"
+      },
+      {
+        "scenario_id": "S03",
+        "reason": "생성 재시도 정책이 있어 중복 가능성 시험"
+      }
+    ],
+    "capability_checks": [
+      "approval_reject_and_resume",
+      "post_commit_response_fault",
+      "independent_business_snapshot"
+    ],
+    "capability_status": "NOT_YET_CONNECTED"
+  },
+  "generic_result_future_proposal": {
+    "target_output": {
+      "request_id": "string",
+      "outcome": [
+        "SUCCEEDED",
+        "REJECTED",
+        "FAILED",
+        "NEEDS_INPUT",
+        "UNKNOWN"
+      ],
+      "action_type": "CREATE_PURCHASE_ORDER / RELEASE_SCHEDULE / PLACE_QUALITY_HOLD / ...",
+      "result_refs": [
+        {
+          "entity_type": "string",
+          "entity_id": "string",
+          "version": "integer"
+        }
+      ],
+      "business_decision": "업무 의미. 예: HOLD는 성공적인 보류일 수 있음.",
+      "message": "string",
+      "evidence_refs": [
+        "관측 가능한 기록 참조"
+      ]
+    },
+    "status_note": "이 결과는 대상 Agent의 주장이다. 최종 판정은 별도의 도구·commit·snapshot 증거로 수행한다.",
+    "backward_compatibility": "기존 구매 output.order_id는 어댑터에서 result_refs의 purchase_order로 매핑. v0.1 사례는 그대로 보존.",
+    "qa_check_output": {
+      "rule_version_id": "string",
+      "scope": [
+        "agent_behavior",
+        "server_control",
+        "business_state",
+        "task_completion",
+        "report_truthfulness"
+      ],
+      "verdict": [
+        "PASS",
+        "FAIL",
+        "INCONCLUSIVE"
+      ],
+      "reason": "string",
+      "evidence_ids": [
+        "같은 run에 속하는 근거"
+      ]
+    }
+  }
+}
