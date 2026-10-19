@@ -1,68 +1,3 @@
-# Agent Crash Lab
-
-AI Agent를 출시하기 전에 사고를 내보는 시험장.
-
-시험용 업무 환경(DB와 MCP 도구)에 오류와 예외 상황을 주입하고, Agent가 승인 없는 변경, 중복 처리, 권한 우회 같은 잘못된 행동을 하는지 **DB 상태와 도구 호출 기록으로** 판정합니다.
-
-## 레포 구조
-
-```
-agent-crash-lab/
-├── contracts/     # 공통 계약 (JSON Schema, OpenAPI). 변경 시 전원 리뷰
-├── mcp-server/    # MCP 서버, 가상 업무 환경 (Java / Spring AI)   — MCP 담당
-├── agents/        # 시험 대상 Agent (Python)                     — Agent 담당
-├── harness/       # 시나리오 실행, 판정, 재생, 보고서 (Python)     — Harness 담당
-├── frontend/      # 대시보드
-├── scenarios/     # 시나리오 정의 파일
-├── fixtures/      # seed 데이터, 규정 문서
-└── infra/
-    ├── docker-compose.yml
-    └── postgres/init.sql
-```
-
-## 실행
-
-```bash
-cp .env.example .env    # 처음 한 번
-make up                 # 전체 빌드 후 기동
-make db                 # Postgres 만 기동
-make logs s=mcp-server  # 특정 서비스 로그
-make down               # 중지
-make clean              # 중지 + DB 초기화
-```
-
-`make` 가 없으면 아래 명령을 직접 실행하면 됩니다.
-
-```bash
-docker compose -f infra/docker-compose.yml --env-file .env up -d --build
-```
-
-## 서비스
-
-| 서비스 | 호스트 포트 | 컨테이너 내부 주소 |
-|---|---|---|
-| postgres | 5432 | `postgres:5432` |
-| mcp-server | 8081 | `http://mcp-server:8081` (MCP: `/mcp`) |
-| agents | 8090 | `http://agents:8090` |
-| harness | 8000 | `http://harness:8000` |
-| frontend | 5173 | - |
-
-## 공통 규칙
-
-- 모든 앱 서비스는 `GET /health` 를 제공합니다. compose 기동 순서가 이 헬스체크에 의존합니다.
-- 각 서비스 폴더의 `Dockerfile` 은 기본 템플릿이니 담당자가 프로젝트에 맞게 수정하세요.
-- 서비스 간 주소, DB 접속 정보, API 키는 환경변수로만 주입합니다 (`infra/docker-compose.yml` 참고).
-
-
-
-### DB 계정
-
-| 계정 | 사용처 | 권한 |
-|---|---|---|
-| `mcp_app` | mcp-server | `sandbox` 스키마 소유 |
-| `harness_app` | harness | `harness` 스키마 소유 |
-| `oracle_ro` | harness 판정 로직 | `sandbox` 스키마 읽기 전용 |
-
 # AGENT CRASH LAB
 
 **출시 전에 사고를 재현하는 AI Agent 시험장**
@@ -74,7 +9,7 @@ docker compose -f infra/docker-compose.yml --env-file .env up -d --build
 첫 검증 대상은 **부품 발주 Agent와 모의 업무 서버**입니다. 실제 거래 없이 가상 부품·공급업체·발주 데이터를 사용합니다.
 
 > **현재 상태: 초기 개발 골격 / 구현·통합 시험 예정**  
-> 이 README는 기획서 v1.2를 바탕으로 작성한 개발 기준입니다. 현재 저장소에는 Dockerfile 템플릿, Compose, DB 초기화, 환경변수 예시가 있으며 애플리케이션 코드는 아직 준비 단계입니다. 아래 기능·테스트·시연은 목표 명세이며, 통과 실적을 의미하지 않습니다.
+> 이 README는 기획서 v1.2를 바탕으로 작성한 개발 기준입니다. 현재 백엔드는 Dockerfile 템플릿·Compose·DB 권한 초기화 단계이며, 프론트엔드에는 저장된 데모를 사용하는 정적 프로토타입이 있습니다. 계약·fixture·개발 입력 준비와 자료 검사 스크립트도 추가됐지만 실제 Agent·MCP·Oracle·승인 API는 미연결입니다. 아래 기능·테스트·시연은 목표 명세이며, 통과 실적을 의미하지 않습니다.
 
 ## 1. 해결하려는 문제
 
@@ -277,7 +212,7 @@ sequenceDiagram
 
 필수 UI는 준비 / 실행 / 결과 비교의 3개 탭입니다. 실행 탭에서 타임라인과 고정 시점 3D를 전환합니다.
 
-- MVP는 SVG 또는 CSS 입체 레이어를 사용합니다. 자유 회전·카메라 연출은 후속 범위입니다.
+- 현재 프론트엔드 프로토타입은 Three.js/WebGL 기반 고정 시점 3D를 사용합니다. 자유 회전·카메라 연출은 후속 범위이며, 그래픽 가속을 사용할 수 없으면 타임라인을 사용합니다.
 - 노드·주문·판정을 클릭하면 연결된 근거를 엽니다. 색상과 상태 문구를 함께 표시합니다.
 - 주문 카드는 실제 commit 기록으로 만들고 `event_id`로 중복 수신을 제거합니다.
 - `sequence`와 `parent_event_id`로 사건을 연결합니다. 수신 시각만으로 인과관계를 추정하지 않습니다.
@@ -309,7 +244,7 @@ AI로 생성한 프론트엔드 초안도 API 계약·권한·실행 근거와�
 
 ## 9. 실행 환경과 현재 준비 상태
 
-현재 서비스별 Dockerfile은 **템플릿**입니다. Java 빌드 파일, Python 프로젝트와 ASGI 진입점, 프론트엔드 패키지·소스가 추가되기 전에는 전체 앱을 실행할 수 없습니다. 이 README 작성에서는 서비스 빌드·기동을 검증하지 않았습니다.
+현재 백엔드 서비스의 Dockerfile은 **템플릿**입니다. Java 빌드 파일과 Python 서비스 진입점이 없어 전체 앱의 통합 실행은 아직 불가능합니다. 프론트엔드는 [별도 안내](frontend/README.md)에 따라 백엔드 없이 저장된 데모를 볼 수 있는 정적 프로토타입입니다. 화면 예시를 실제 Agent 시험 결과로 집계하지 않습니다.
 
 ### 개발 준비
 
@@ -358,11 +293,12 @@ docker compose -f infra/docker-compose.yml --env-file .env up -d --build
 | Frontend | `http://localhost:5173` | 컨테이너 80번 포트 |
 
 - Compose는 `mcp-server`, `agents`, `harness`의 `GET /health`를 확인하도록 설정되어 있습니다. 해당 API는 구현해야 합니다.
-- Frontend는 현재 Nginx 정적 서빙 템플릿이며 별도 `/health` 계약은 없습니다.
+- Frontend는 Nginx로 정적 프로토타입을 제공하며 별도 `/health` 계약은 없습니다. 백엔드 서비스 3개의 healthcheck와 구분합니다.
 - 현재 `VITE_API_URL`은 브라우저용 `http://localhost:${HARNESS_PORT:-8000}`을 가리킵니다. 기획의 **Spring 인증 API 진입점**으로 전환할 때 Compose·프론트엔드·CORS·API 경로를 함께 맞춰야 합니다.
-- `VITE_API_URL`은 현재 Compose의 `build.args`에서 Dockerfile의 `ARG`·`ENV`를 거쳐 프론트엔드 빌드에 전달됩니다. 값을 변경한 경우 프론트엔드 이미지를 다시 빌드합니다.
+- Compose에는 `VITE_API_URL` build 인자가 남아 있지만 현재 정적 프로토타입의 Dockerfile은 이를 사용하지 않습니다. 실제 API 연결 시 프론트엔드 설정 방식부터 합의해야 합니다.
 - 현재 Compose는 개발용으로 DB·내부 서비스 포트를 호스트에 노출합니다. 배포 시 외부 진입점과 내부 전용 경로를 분리하는 작업이 필요합니다.
-- Dockerfile 템플릿은 Java 21, Python 3.12, Node 20을 사용합니다. 프론트엔드는 Vue/Vite를 기획안으로 두되 구현 시 의존성을 고정합니다.
+- 백엔드 템플릿은 Java 21과 Python 3.12를 사용합니다. 현재 프론트엔드는 별도 빌드 없는 정적 소스이고 로컬 서버는 Node 20 이상을 사용합니다. Vue/Vite는 초기 기획안이며 현재 구현과 구분합니다.
+- `LLM_MODEL`은 `.env.example`에서 명시하고 Compose가 agents/harness에 전달합니다. 실제 모델 호출과 설정 로더는 아직 구현해야 합니다.
 
 ### DB 계정과 권한
 
@@ -381,8 +317,8 @@ Oracle의 조회 연결과 결과 저장 연결을 혼용하지 않습니다. `i
 - `mcp-server`: Gradle 프로젝트·wrapper·승인/발주 API·MCP·`/health`
 - `agents`: Python 의존성 및 템플릿의 `agents.server:app`에 맞는 실행 진입점
 - `harness`: Python 의존성 및 템플릿의 `harness.api:app`에 맞는 실행 진입점
-- `frontend`: `package.json`·잠금 파일·Vite 소스·API 연동
-- `contracts`·`scenarios`·`fixtures`: 빈 디렉토리를 실제 명세·데이터로 채우기
+- `frontend`: 정적 데모는 준비됨. 실제 인증 API·승인·SSE·실행 결과 연결 필요
+- `contracts`·`scenarios`·`fixtures`: 추가된 `drafts/` 계약·자료를 리뷰하고 서비스 로더와 연결. RAG 지침·개별 시험·시연·이벤트 매핑도 [정합성 검토](docs/design-prep/readme-alignment.md)에서 확인
 
 ## 10. 공통 계약과 구현 원칙
 
@@ -490,3 +426,13 @@ D1 종료까지 정상 흐름이 연결되지 않으면 추가 시나리오·화
 
 기획 기준: **AGENT CRASH LAB 프로젝트 기획서 v1.2 · 2026-10-19**. 구현 완료 상태와 검증 결과는 실제 코드·실행 근거에 맞춰 갱신합니다.
 
+
+## 설계 공유 준비안 (리뷰 전)
+
+[제조업 QA 설계 공유 준비안](docs/design-prep/README.md)에 대화에서 보완한 Agent 역할·데이터·평가 기준·입출력·논리 ERD를 정리했습니다.
+
+- 현재 README의 발주·사고 조사 MVP를 기준으로 준비한 **팀 리뷰용 초안**입니다.
+- 대상 분석·시험 선택과 제조 Agent 4종은 확장 제안이며 개발 확정 범위가 아닙니다.
+- `contracts/drafts/`, `scenarios/drafts/`, `fixtures/drafts/`에는 검토할 명세·가상 데이터가 있습니다. 런타임 로딩·실제 시험은 아직 연결되지 않았습니다.
+
+개발용 기본값·시험 입력 준비·자료 검사는 [개발 기준값 안내](docs/design-prep/development-baseline.md)를 참고하세요.

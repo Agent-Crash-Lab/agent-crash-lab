@@ -1,0 +1,1209 @@
+{
+  "source_id": "SRC-BPI2019",
+  "data_kind": "real_anonymized_event_log_subset",
+  "collected_at": "2026-10-19T05:45:56.660890+00:00",
+  "citation": "van Dongen, B.F. (2019). BPI Challenge 2019. 4TU.Centre for Research Data. 10.4121/uuid:d06aff4b-79f0-45e6-8ec8-e19730c248f1",
+  "doi": "10.4121/uuid:d06aff4b-79f0-45e6-8ec8-e19730c248f1",
+  "download_url": "https://data.4tu.nl/file/35ed7122-966a-484e-a0e1-749b64e3366d/864493d1-3a58-47f6-ad6f-27f95f995828",
+  "description_url": "https://icpmconference.org/2019/icpm-2019/contests-challenges/bpi-challenge-2019/",
+  "retrieval": {
+    "http_status": 206,
+    "content_range": "bytes 0-131071/728558522",
+    "received_bytes": 131072,
+    "received_range_sha256": "834defc17444f2a5052c1c0d2e1a1b8000aa018de86b94414fde930894b637b0"
+  },
+  "sampling": {
+    "method": "first_10_complete_traces_in_first_131072_bytes",
+    "representative": false,
+    "selection_label": "파일 선두의 구매 항목 10개. 무작위·대표 표본이 아님."
+  },
+  "limitations": [
+    "공식 설명상 발주·송장 승인 워크플로는 제외되어 있다. 일부 SRM 승인 대기 상태명만으로 승인자·내용·권한 전체를 검증할 수 없다.",
+    "AI Agent 대화, MCP 호출, 응답 유실 정보와 Agent 행동 정답을 제공하지 않는다.",
+    "표본의 반복 입고·송장 이벤트를 중복 발주 위반으로 해석하지 않는다.",
+    "원본 식별자는 이미 익명화되어 있으며 원본 시간과 값은 변환 없이 보존했다."
+  ],
+  "source_metadata": {
+    "doi": "10.4121/uuid:d06aff4b-79f0-45e6-8ec8-e19730c248f1",
+    "url": "https://data.4tu.nl/articles/_/12715853/1",
+    "titles": [
+      {
+        "title": "BPI Challenge 2019"
+      }
+    ],
+    "creators": [
+      {
+        "name": "van Dongen, Boudewijn",
+        "nameType": "Personal",
+        "givenName": "Boudewijn",
+        "familyName": "van Dongen",
+        "nameIdentifiers": [
+          {
+            "nameIdentifier": "0000-0002-3978-6464",
+            "nameIdentifierScheme": "https://orcid.org/"
+          }
+        ],
+        "affiliation": []
+      }
+    ],
+    "publicationYear": 2019,
+    "publisher": "4TU.Centre for Research Data",
+    "rightsList": [
+      {
+        "rights": "Creative Commons Attribution 4.0 International",
+        "rightsUri": "https://creativecommons.org/licenses/by/4.0/legalcode",
+        "schemeUri": "https://spdx.org/licenses/",
+        "rightsIdentifier": "cc-by-4.0",
+        "rightsIdentifierScheme": "SPDX"
+      }
+    ]
+  },
+  "trace_count": 10,
+  "event_count": 132,
+  "traces": [
+    {
+      "attributes": {
+        "Spend area text": "CAPEX & SOCS",
+        "Company": "companyID_0000",
+        "Document Type": "EC Purchase order",
+        "Sub spend area text": "Facility Management",
+        "Purchasing Document": "2000000000",
+        "Purch. Doc. Category name": "Purchase order",
+        "Vendor": "vendorID_0000",
+        "Item Type": "Standard",
+        "Item Category": "3-way match, invoice before GR",
+        "Spend classification text": "NPR",
+        "Source": "sourceSystemID_0000",
+        "Name": "vendor_0000",
+        "GR-Based Inv. Verif.": false,
+        "Item": "00001",
+        "concept:name": "2000000000_00001",
+        "Goods Receipt": true
+      },
+      "events": [
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Created",
+          "Cumulative net worth (EUR)": 298.0,
+          "time:timestamp": "2018-01-02T12:53:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Complete",
+          "Cumulative net worth (EUR)": 298.0,
+          "time:timestamp": "2018-01-02T13:53:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Awaiting Approval",
+          "Cumulative net worth (EUR)": 298.0,
+          "time:timestamp": "2018-01-02T13:53:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Document Completed",
+          "Cumulative net worth (EUR)": 298.0,
+          "time:timestamp": "2018-01-02T13:53:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: In Transfer to Execution Syst.",
+          "Cumulative net worth (EUR)": 298.0,
+          "time:timestamp": "2018-01-02T13:53:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Ordered",
+          "Cumulative net worth (EUR)": 298.0,
+          "time:timestamp": "2018-01-02T13:53:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Change was Transmitted",
+          "Cumulative net worth (EUR)": 298.0,
+          "time:timestamp": "2018-01-02T13:53:00.000Z"
+        },
+        {
+          "User": "user_000",
+          "org:resource": "user_000",
+          "concept:name": "Create Purchase Order Item",
+          "Cumulative net worth (EUR)": 298.0,
+          "time:timestamp": "2018-01-02T13:53:00.000Z"
+        },
+        {
+          "User": "NONE",
+          "org:resource": "NONE",
+          "concept:name": "Vendor creates invoice",
+          "Cumulative net worth (EUR)": 298.0,
+          "time:timestamp": "2018-01-02T22:59:00.000Z"
+        },
+        {
+          "User": "user_000",
+          "org:resource": "user_000",
+          "concept:name": "Record Goods Receipt",
+          "Cumulative net worth (EUR)": 298.0,
+          "time:timestamp": "2018-03-06T06:44:00.000Z"
+        },
+        {
+          "User": "user_001",
+          "org:resource": "user_001",
+          "concept:name": "Record Invoice Receipt",
+          "Cumulative net worth (EUR)": 298.0,
+          "time:timestamp": "2018-03-06T07:53:00.000Z"
+        },
+        {
+          "User": "user_002",
+          "org:resource": "user_002",
+          "concept:name": "Clear Invoice",
+          "Cumulative net worth (EUR)": 298.0,
+          "time:timestamp": "2018-03-29T13:06:00.000Z"
+        }
+      ]
+    },
+    {
+      "attributes": {
+        "Spend area text": "Marketing",
+        "Company": "companyID_0000",
+        "Document Type": "EC Purchase order",
+        "Sub spend area text": "Marketing Support Services",
+        "Purchasing Document": "2000000001",
+        "Purch. Doc. Category name": "Purchase order",
+        "Vendor": "vendorID_0001",
+        "Item Type": "Service",
+        "Item Category": "3-way match, invoice after GR",
+        "Spend classification text": "NPR",
+        "Source": "sourceSystemID_0000",
+        "Name": "vendor_0001",
+        "GR-Based Inv. Verif.": true,
+        "Item": "00001",
+        "concept:name": "2000000001_00001",
+        "Goods Receipt": true
+      },
+      "events": [
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Created",
+          "Cumulative net worth (EUR)": 557.0,
+          "time:timestamp": "2018-01-03T08:49:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Complete",
+          "Cumulative net worth (EUR)": 557.0,
+          "time:timestamp": "2018-01-03T09:49:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Awaiting Approval",
+          "Cumulative net worth (EUR)": 557.0,
+          "time:timestamp": "2018-01-03T09:49:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Document Completed",
+          "Cumulative net worth (EUR)": 557.0,
+          "time:timestamp": "2018-01-03T09:49:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Ordered",
+          "Cumulative net worth (EUR)": 557.0,
+          "time:timestamp": "2018-01-03T09:49:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: In Transfer to Execution Syst.",
+          "Cumulative net worth (EUR)": 557.0,
+          "time:timestamp": "2018-01-03T09:49:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Change was Transmitted",
+          "Cumulative net worth (EUR)": 557.0,
+          "time:timestamp": "2018-01-03T09:49:00.000Z"
+        },
+        {
+          "User": "user_000",
+          "org:resource": "user_000",
+          "concept:name": "Create Purchase Order Item",
+          "Cumulative net worth (EUR)": 557.0,
+          "time:timestamp": "2018-01-03T09:49:00.000Z"
+        },
+        {
+          "User": "NONE",
+          "org:resource": "NONE",
+          "concept:name": "Vendor creates invoice",
+          "Cumulative net worth (EUR)": 557.0,
+          "time:timestamp": "2018-01-10T22:59:00.000Z"
+        },
+        {
+          "User": "user_000",
+          "org:resource": "user_000",
+          "concept:name": "Record Goods Receipt",
+          "Cumulative net worth (EUR)": 557.0,
+          "time:timestamp": "2018-01-16T12:09:00.000Z"
+        },
+        {
+          "User": "NONE",
+          "org:resource": "NONE",
+          "concept:name": "Record Service Entry Sheet",
+          "Cumulative net worth (EUR)": 557.0,
+          "time:timestamp": "2018-01-16T12:09:00.000Z"
+        },
+        {
+          "User": "user_004",
+          "org:resource": "user_004",
+          "concept:name": "Record Invoice Receipt",
+          "Cumulative net worth (EUR)": 557.0,
+          "time:timestamp": "2018-01-16T14:44:00.000Z"
+        },
+        {
+          "User": "user_005",
+          "org:resource": "user_005",
+          "concept:name": "Clear Invoice",
+          "Cumulative net worth (EUR)": 557.0,
+          "time:timestamp": "2018-03-08T12:21:00.000Z"
+        },
+        {
+          "User": "user_003",
+          "org:resource": "user_003",
+          "concept:name": "SRM: In Transfer to Execution Syst.",
+          "Cumulative net worth (EUR)": 557.0,
+          "time:timestamp": "2019-01-17T10:58:00.000Z"
+        },
+        {
+          "User": "user_003",
+          "org:resource": "user_003",
+          "concept:name": "SRM: Transfer Failed (E.Sys.)",
+          "Cumulative net worth (EUR)": 557.0,
+          "time:timestamp": "2019-01-17T10:58:00.000Z"
+        }
+      ]
+    },
+    {
+      "attributes": {
+        "Spend area text": "Marketing",
+        "Company": "companyID_0000",
+        "Document Type": "EC Purchase order",
+        "Sub spend area text": "Digital Marketing",
+        "Purchasing Document": "2000000002",
+        "Purch. Doc. Category name": "Purchase order",
+        "Vendor": "vendorID_0002",
+        "Item Type": "Service",
+        "Item Category": "3-way match, invoice after GR",
+        "Spend classification text": "NPR",
+        "Source": "sourceSystemID_0000",
+        "Name": "vendor_0002",
+        "GR-Based Inv. Verif.": true,
+        "Item": "00001",
+        "concept:name": "2000000002_00001",
+        "Goods Receipt": true
+      },
+      "events": [
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Created",
+          "Cumulative net worth (EUR)": 76210.0,
+          "time:timestamp": "2018-01-04T13:17:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Complete",
+          "Cumulative net worth (EUR)": 76210.0,
+          "time:timestamp": "2018-01-04T14:17:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Awaiting Approval",
+          "Cumulative net worth (EUR)": 76210.0,
+          "time:timestamp": "2018-01-04T14:17:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Document Completed",
+          "Cumulative net worth (EUR)": 76210.0,
+          "time:timestamp": "2018-01-04T14:17:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Ordered",
+          "Cumulative net worth (EUR)": 76210.0,
+          "time:timestamp": "2018-01-04T14:17:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: In Transfer to Execution Syst.",
+          "Cumulative net worth (EUR)": 76210.0,
+          "time:timestamp": "2018-01-04T14:17:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Change was Transmitted",
+          "Cumulative net worth (EUR)": 76210.0,
+          "time:timestamp": "2018-01-04T14:17:00.000Z"
+        },
+        {
+          "User": "user_000",
+          "org:resource": "user_000",
+          "concept:name": "Create Purchase Order Item",
+          "Cumulative net worth (EUR)": 76210.0,
+          "time:timestamp": "2018-01-04T14:17:00.000Z"
+        },
+        {
+          "User": "user_000",
+          "org:resource": "user_000",
+          "concept:name": "Record Goods Receipt",
+          "Cumulative net worth (EUR)": 76210.0,
+          "time:timestamp": "2018-02-06T14:53:00.000Z"
+        },
+        {
+          "User": "NONE",
+          "org:resource": "NONE",
+          "concept:name": "Record Service Entry Sheet",
+          "Cumulative net worth (EUR)": 76210.0,
+          "time:timestamp": "2018-02-06T14:53:00.000Z"
+        },
+        {
+          "User": "NONE",
+          "org:resource": "NONE",
+          "concept:name": "Vendor creates invoice",
+          "Cumulative net worth (EUR)": 76210.0,
+          "time:timestamp": "2018-02-06T22:59:00.000Z"
+        },
+        {
+          "User": "user_000",
+          "org:resource": "user_000",
+          "concept:name": "Cancel Goods Receipt",
+          "Cumulative net worth (EUR)": 76210.0,
+          "time:timestamp": "2018-02-08T10:19:00.000Z"
+        },
+        {
+          "User": "user_000",
+          "org:resource": "user_000",
+          "concept:name": "Record Goods Receipt",
+          "Cumulative net worth (EUR)": 76210.0,
+          "time:timestamp": "2018-08-16T10:20:00.000Z"
+        },
+        {
+          "User": "NONE",
+          "org:resource": "NONE",
+          "concept:name": "Record Service Entry Sheet",
+          "Cumulative net worth (EUR)": 76210.0,
+          "time:timestamp": "2018-08-16T10:20:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "Record Invoice Receipt",
+          "Cumulative net worth (EUR)": 76210.0,
+          "time:timestamp": "2018-08-16T10:41:00.000Z"
+        },
+        {
+          "User": "user_002",
+          "org:resource": "user_002",
+          "concept:name": "Clear Invoice",
+          "Cumulative net worth (EUR)": 76210.0,
+          "time:timestamp": "2018-08-16T13:03:00.000Z"
+        },
+        {
+          "User": "user_003",
+          "org:resource": "user_003",
+          "concept:name": "SRM: In Transfer to Execution Syst.",
+          "Cumulative net worth (EUR)": 76210.0,
+          "time:timestamp": "2019-01-17T10:59:00.000Z"
+        },
+        {
+          "User": "user_003",
+          "org:resource": "user_003",
+          "concept:name": "SRM: Transfer Failed (E.Sys.)",
+          "Cumulative net worth (EUR)": 76210.0,
+          "time:timestamp": "2019-01-17T10:59:00.000Z"
+        }
+      ]
+    },
+    {
+      "attributes": {
+        "Spend area text": "Enterprise Services",
+        "Company": "companyID_0000",
+        "Document Type": "EC Purchase order",
+        "Sub spend area text": "Office Supplies",
+        "Purchasing Document": "2000000003",
+        "Purch. Doc. Category name": "Purchase order",
+        "Vendor": "vendorID_0003",
+        "Item Type": "Standard",
+        "Item Category": "3-way match, invoice before GR",
+        "Spend classification text": "NPR",
+        "Source": "sourceSystemID_0000",
+        "Name": "vendor_0003",
+        "GR-Based Inv. Verif.": false,
+        "Item": "00001",
+        "concept:name": "2000000003_00001",
+        "Goods Receipt": true
+      },
+      "events": [
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Created",
+          "Cumulative net worth (EUR)": 28.0,
+          "time:timestamp": "2018-01-08T06:21:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Complete",
+          "Cumulative net worth (EUR)": 28.0,
+          "time:timestamp": "2018-01-08T07:21:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Awaiting Approval",
+          "Cumulative net worth (EUR)": 28.0,
+          "time:timestamp": "2018-01-08T07:21:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Document Completed",
+          "Cumulative net worth (EUR)": 28.0,
+          "time:timestamp": "2018-01-08T07:21:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: In Transfer to Execution Syst.",
+          "Cumulative net worth (EUR)": 28.0,
+          "time:timestamp": "2018-01-08T07:21:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Ordered",
+          "Cumulative net worth (EUR)": 28.0,
+          "time:timestamp": "2018-01-08T07:21:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Change was Transmitted",
+          "Cumulative net worth (EUR)": 28.0,
+          "time:timestamp": "2018-01-08T07:21:00.000Z"
+        },
+        {
+          "User": "user_000",
+          "org:resource": "user_000",
+          "concept:name": "Create Purchase Order Item",
+          "Cumulative net worth (EUR)": 28.0,
+          "time:timestamp": "2018-01-08T07:21:00.000Z"
+        },
+        {
+          "User": "NONE",
+          "org:resource": "NONE",
+          "concept:name": "Vendor creates invoice",
+          "Cumulative net worth (EUR)": 28.0,
+          "time:timestamp": "2018-01-08T22:59:00.000Z"
+        },
+        {
+          "User": "user_000",
+          "org:resource": "user_000",
+          "concept:name": "Record Goods Receipt",
+          "Cumulative net worth (EUR)": 28.0,
+          "time:timestamp": "2018-01-12T13:14:00.000Z"
+        },
+        {
+          "User": "user_001",
+          "org:resource": "user_001",
+          "concept:name": "Record Invoice Receipt",
+          "Cumulative net worth (EUR)": 28.0,
+          "time:timestamp": "2018-02-12T15:58:00.000Z"
+        },
+        {
+          "User": "user_005",
+          "org:resource": "user_005",
+          "concept:name": "Clear Invoice",
+          "Cumulative net worth (EUR)": 28.0,
+          "time:timestamp": "2018-03-08T12:21:00.000Z"
+        }
+      ]
+    },
+    {
+      "attributes": {
+        "Spend area text": "Enterprise Services",
+        "Company": "companyID_0000",
+        "Document Type": "EC Purchase order",
+        "Sub spend area text": "Office Supplies",
+        "Purchasing Document": "2000000003",
+        "Purch. Doc. Category name": "Purchase order",
+        "Vendor": "vendorID_0003",
+        "Item Type": "Standard",
+        "Item Category": "3-way match, invoice before GR",
+        "Spend classification text": "NPR",
+        "Source": "sourceSystemID_0000",
+        "Name": "vendor_0003",
+        "GR-Based Inv. Verif.": false,
+        "Item": "00002",
+        "concept:name": "2000000003_00002",
+        "Goods Receipt": true
+      },
+      "events": [
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Created",
+          "Cumulative net worth (EUR)": 37.0,
+          "time:timestamp": "2018-01-08T06:21:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Complete",
+          "Cumulative net worth (EUR)": 37.0,
+          "time:timestamp": "2018-01-08T07:21:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Awaiting Approval",
+          "Cumulative net worth (EUR)": 37.0,
+          "time:timestamp": "2018-01-08T07:21:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Document Completed",
+          "Cumulative net worth (EUR)": 37.0,
+          "time:timestamp": "2018-01-08T07:21:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: In Transfer to Execution Syst.",
+          "Cumulative net worth (EUR)": 37.0,
+          "time:timestamp": "2018-01-08T07:21:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Ordered",
+          "Cumulative net worth (EUR)": 37.0,
+          "time:timestamp": "2018-01-08T07:21:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Change was Transmitted",
+          "Cumulative net worth (EUR)": 37.0,
+          "time:timestamp": "2018-01-08T07:21:00.000Z"
+        },
+        {
+          "User": "user_000",
+          "org:resource": "user_000",
+          "concept:name": "Create Purchase Order Item",
+          "Cumulative net worth (EUR)": 37.0,
+          "time:timestamp": "2018-01-08T07:21:00.000Z"
+        },
+        {
+          "User": "NONE",
+          "org:resource": "NONE",
+          "concept:name": "Vendor creates invoice",
+          "Cumulative net worth (EUR)": 37.0,
+          "time:timestamp": "2018-01-08T22:59:00.000Z"
+        },
+        {
+          "User": "user_000",
+          "org:resource": "user_000",
+          "concept:name": "Record Goods Receipt",
+          "Cumulative net worth (EUR)": 37.0,
+          "time:timestamp": "2018-01-12T13:14:00.000Z"
+        },
+        {
+          "User": "user_001",
+          "org:resource": "user_001",
+          "concept:name": "Record Invoice Receipt",
+          "Cumulative net worth (EUR)": 37.0,
+          "time:timestamp": "2018-02-12T15:58:00.000Z"
+        },
+        {
+          "User": "user_005",
+          "org:resource": "user_005",
+          "concept:name": "Clear Invoice",
+          "Cumulative net worth (EUR)": 37.0,
+          "time:timestamp": "2018-03-08T12:21:00.000Z"
+        }
+      ]
+    },
+    {
+      "attributes": {
+        "Spend area text": "Enterprise Services",
+        "Company": "companyID_0000",
+        "Document Type": "EC Purchase order",
+        "Sub spend area text": "Office Supplies",
+        "Purchasing Document": "2000000003",
+        "Purch. Doc. Category name": "Purchase order",
+        "Vendor": "vendorID_0003",
+        "Item Type": "Standard",
+        "Item Category": "3-way match, invoice before GR",
+        "Spend classification text": "NPR",
+        "Source": "sourceSystemID_0000",
+        "Name": "vendor_0003",
+        "GR-Based Inv. Verif.": false,
+        "Item": "00003",
+        "concept:name": "2000000003_00003",
+        "Goods Receipt": true
+      },
+      "events": [
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Created",
+          "Cumulative net worth (EUR)": 44.0,
+          "time:timestamp": "2018-01-08T06:21:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Complete",
+          "Cumulative net worth (EUR)": 44.0,
+          "time:timestamp": "2018-01-08T07:21:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Awaiting Approval",
+          "Cumulative net worth (EUR)": 44.0,
+          "time:timestamp": "2018-01-08T07:21:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Document Completed",
+          "Cumulative net worth (EUR)": 44.0,
+          "time:timestamp": "2018-01-08T07:21:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: In Transfer to Execution Syst.",
+          "Cumulative net worth (EUR)": 44.0,
+          "time:timestamp": "2018-01-08T07:21:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Ordered",
+          "Cumulative net worth (EUR)": 44.0,
+          "time:timestamp": "2018-01-08T07:21:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Change was Transmitted",
+          "Cumulative net worth (EUR)": 44.0,
+          "time:timestamp": "2018-01-08T07:21:00.000Z"
+        },
+        {
+          "User": "user_000",
+          "org:resource": "user_000",
+          "concept:name": "Create Purchase Order Item",
+          "Cumulative net worth (EUR)": 44.0,
+          "time:timestamp": "2018-01-08T07:21:00.000Z"
+        },
+        {
+          "User": "NONE",
+          "org:resource": "NONE",
+          "concept:name": "Vendor creates invoice",
+          "Cumulative net worth (EUR)": 44.0,
+          "time:timestamp": "2018-01-08T22:59:00.000Z"
+        },
+        {
+          "User": "user_000",
+          "org:resource": "user_000",
+          "concept:name": "Record Goods Receipt",
+          "Cumulative net worth (EUR)": 44.0,
+          "time:timestamp": "2018-01-12T13:14:00.000Z"
+        },
+        {
+          "User": "user_001",
+          "org:resource": "user_001",
+          "concept:name": "Record Invoice Receipt",
+          "Cumulative net worth (EUR)": 44.0,
+          "time:timestamp": "2018-02-12T15:58:00.000Z"
+        },
+        {
+          "User": "user_005",
+          "org:resource": "user_005",
+          "concept:name": "Clear Invoice",
+          "Cumulative net worth (EUR)": 44.0,
+          "time:timestamp": "2018-03-08T12:21:00.000Z"
+        }
+      ]
+    },
+    {
+      "attributes": {
+        "Spend area text": "CAPEX & SOCS",
+        "Company": "companyID_0000",
+        "Document Type": "EC Purchase order",
+        "Sub spend area text": "Facility Management",
+        "Purchasing Document": "2000000004",
+        "Purch. Doc. Category name": "Purchase order",
+        "Vendor": "vendorID_0000",
+        "Item Type": "Standard",
+        "Item Category": "3-way match, invoice before GR",
+        "Spend classification text": "NPR",
+        "Source": "sourceSystemID_0000",
+        "Name": "vendor_0000",
+        "GR-Based Inv. Verif.": false,
+        "Item": "00001",
+        "concept:name": "2000000004_00001",
+        "Goods Receipt": true
+      },
+      "events": [
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Created",
+          "Cumulative net worth (EUR)": 166.0,
+          "time:timestamp": "2018-01-08T06:21:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Complete",
+          "Cumulative net worth (EUR)": 166.0,
+          "time:timestamp": "2018-01-08T07:21:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Awaiting Approval",
+          "Cumulative net worth (EUR)": 166.0,
+          "time:timestamp": "2018-01-08T07:21:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Document Completed",
+          "Cumulative net worth (EUR)": 166.0,
+          "time:timestamp": "2018-01-08T07:21:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: In Transfer to Execution Syst.",
+          "Cumulative net worth (EUR)": 166.0,
+          "time:timestamp": "2018-01-08T07:21:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Ordered",
+          "Cumulative net worth (EUR)": 166.0,
+          "time:timestamp": "2018-01-08T07:21:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Change was Transmitted",
+          "Cumulative net worth (EUR)": 166.0,
+          "time:timestamp": "2018-01-08T07:21:00.000Z"
+        },
+        {
+          "User": "user_000",
+          "org:resource": "user_000",
+          "concept:name": "Create Purchase Order Item",
+          "Cumulative net worth (EUR)": 166.0,
+          "time:timestamp": "2018-01-08T07:21:00.000Z"
+        },
+        {
+          "User": "NONE",
+          "org:resource": "NONE",
+          "concept:name": "Vendor creates invoice",
+          "Cumulative net worth (EUR)": 166.0,
+          "time:timestamp": "2018-01-08T22:59:00.000Z"
+        },
+        {
+          "User": "user_000",
+          "org:resource": "user_000",
+          "concept:name": "Record Goods Receipt",
+          "Cumulative net worth (EUR)": 166.0,
+          "time:timestamp": "2018-01-12T13:13:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "Record Invoice Receipt",
+          "Cumulative net worth (EUR)": 166.0,
+          "time:timestamp": "2018-03-05T15:30:00.000Z"
+        },
+        {
+          "User": "user_002",
+          "org:resource": "user_002",
+          "concept:name": "Clear Invoice",
+          "Cumulative net worth (EUR)": 166.0,
+          "time:timestamp": "2018-03-29T13:06:00.000Z"
+        }
+      ]
+    },
+    {
+      "attributes": {
+        "Spend area text": "Workforce Services",
+        "Company": "companyID_0000",
+        "Document Type": "EC Purchase order",
+        "Sub spend area text": "HR Services",
+        "Purchasing Document": "2000000005",
+        "Purch. Doc. Category name": "Purchase order",
+        "Vendor": "vendorID_0004",
+        "Item Type": "Standard",
+        "Item Category": "3-way match, invoice before GR",
+        "Spend classification text": "NPR",
+        "Source": "sourceSystemID_0000",
+        "Name": "vendor_0004",
+        "GR-Based Inv. Verif.": false,
+        "Item": "00001",
+        "concept:name": "2000000005_00001",
+        "Goods Receipt": true
+      },
+      "events": [
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Created",
+          "Cumulative net worth (EUR)": 433.0,
+          "time:timestamp": "2018-01-08T09:08:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Complete",
+          "Cumulative net worth (EUR)": 433.0,
+          "time:timestamp": "2018-01-08T10:08:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Awaiting Approval",
+          "Cumulative net worth (EUR)": 433.0,
+          "time:timestamp": "2018-01-08T10:08:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Document Completed",
+          "Cumulative net worth (EUR)": 433.0,
+          "time:timestamp": "2018-01-08T10:08:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: In Transfer to Execution Syst.",
+          "Cumulative net worth (EUR)": 433.0,
+          "time:timestamp": "2018-01-08T10:09:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Ordered",
+          "Cumulative net worth (EUR)": 433.0,
+          "time:timestamp": "2018-01-08T10:09:00.000Z"
+        },
+        {
+          "User": "user_000",
+          "org:resource": "user_000",
+          "concept:name": "Create Purchase Order Item",
+          "Cumulative net worth (EUR)": 433.0,
+          "time:timestamp": "2018-01-08T10:09:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Change was Transmitted",
+          "Cumulative net worth (EUR)": 433.0,
+          "time:timestamp": "2018-01-08T10:09:00.000Z"
+        },
+        {
+          "User": "NONE",
+          "org:resource": "NONE",
+          "concept:name": "Vendor creates invoice",
+          "Cumulative net worth (EUR)": 433.0,
+          "time:timestamp": "2018-01-08T22:59:00.000Z"
+        },
+        {
+          "User": "NONE",
+          "org:resource": "NONE",
+          "concept:name": "Vendor creates debit memo",
+          "Cumulative net worth (EUR)": 433.0,
+          "time:timestamp": "2018-01-08T22:59:00.000Z"
+        },
+        {
+          "User": "user_000",
+          "org:resource": "user_000",
+          "concept:name": "Record Goods Receipt",
+          "Cumulative net worth (EUR)": 433.0,
+          "time:timestamp": "2018-01-19T08:09:00.000Z"
+        },
+        {
+          "User": "user_006",
+          "org:resource": "user_006",
+          "concept:name": "Record Invoice Receipt",
+          "Cumulative net worth (EUR)": 433.0,
+          "time:timestamp": "2018-04-03T04:26:00.000Z"
+        },
+        {
+          "User": "user_002",
+          "org:resource": "user_002",
+          "concept:name": "Clear Invoice",
+          "Cumulative net worth (EUR)": 433.0,
+          "time:timestamp": "2018-04-05T13:51:00.000Z"
+        },
+        {
+          "User": "user_007",
+          "org:resource": "user_007",
+          "concept:name": "Cancel Invoice Receipt",
+          "Cumulative net worth (EUR)": 433.0,
+          "time:timestamp": "2018-08-02T07:15:00.000Z"
+        },
+        {
+          "User": "user_007",
+          "org:resource": "user_007",
+          "concept:name": "Record Invoice Receipt",
+          "Cumulative net worth (EUR)": 433.0,
+          "time:timestamp": "2018-08-02T07:17:00.000Z"
+        },
+        {
+          "User": "user_007",
+          "org:resource": "user_007",
+          "concept:name": "Clear Invoice",
+          "Cumulative net worth (EUR)": 433.0,
+          "time:timestamp": "2018-08-02T07:19:00.000Z"
+        }
+      ]
+    },
+    {
+      "attributes": {
+        "Spend area text": "Workforce Services",
+        "Company": "companyID_0000",
+        "Document Type": "EC Purchase order",
+        "Sub spend area text": "HR Services",
+        "Purchasing Document": "2000000005",
+        "Purch. Doc. Category name": "Purchase order",
+        "Vendor": "vendorID_0004",
+        "Item Type": "Service",
+        "Item Category": "3-way match, invoice after GR",
+        "Spend classification text": "NPR",
+        "Source": "sourceSystemID_0000",
+        "Name": "vendor_0004",
+        "GR-Based Inv. Verif.": true,
+        "Item": "00002",
+        "concept:name": "2000000005_00002",
+        "Goods Receipt": true
+      },
+      "events": [
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Created",
+          "Cumulative net worth (EUR)": 86.0,
+          "time:timestamp": "2018-01-08T09:08:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Complete",
+          "Cumulative net worth (EUR)": 86.0,
+          "time:timestamp": "2018-01-08T10:08:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Awaiting Approval",
+          "Cumulative net worth (EUR)": 86.0,
+          "time:timestamp": "2018-01-08T10:08:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Document Completed",
+          "Cumulative net worth (EUR)": 86.0,
+          "time:timestamp": "2018-01-08T10:08:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: In Transfer to Execution Syst.",
+          "Cumulative net worth (EUR)": 86.0,
+          "time:timestamp": "2018-01-08T10:09:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Ordered",
+          "Cumulative net worth (EUR)": 86.0,
+          "time:timestamp": "2018-01-08T10:09:00.000Z"
+        },
+        {
+          "User": "user_000",
+          "org:resource": "user_000",
+          "concept:name": "Create Purchase Order Item",
+          "Cumulative net worth (EUR)": 86.0,
+          "time:timestamp": "2018-01-08T10:09:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Change was Transmitted",
+          "Cumulative net worth (EUR)": 86.0,
+          "time:timestamp": "2018-01-08T10:09:00.000Z"
+        }
+      ]
+    },
+    {
+      "attributes": {
+        "Spend area text": "Marketing",
+        "Company": "companyID_0000",
+        "Document Type": "EC Purchase order",
+        "Sub spend area text": "Advertising",
+        "Purchasing Document": "2000000006",
+        "Purch. Doc. Category name": "Purchase order",
+        "Vendor": "vendorID_0005",
+        "Item Type": "Service",
+        "Item Category": "3-way match, invoice after GR",
+        "Spend classification text": "NPR",
+        "Source": "sourceSystemID_0000",
+        "Name": "vendor_0005",
+        "GR-Based Inv. Verif.": true,
+        "Item": "00001",
+        "concept:name": "2000000006_00001",
+        "Goods Receipt": true
+      },
+      "events": [
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Created",
+          "Cumulative net worth (EUR)": 37819.0,
+          "time:timestamp": "2018-01-08T10:33:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Complete",
+          "Cumulative net worth (EUR)": 37819.0,
+          "time:timestamp": "2018-01-08T11:33:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Awaiting Approval",
+          "Cumulative net worth (EUR)": 37819.0,
+          "time:timestamp": "2018-01-08T11:33:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Document Completed",
+          "Cumulative net worth (EUR)": 37819.0,
+          "time:timestamp": "2018-01-08T11:33:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: In Transfer to Execution Syst.",
+          "Cumulative net worth (EUR)": 37819.0,
+          "time:timestamp": "2018-01-08T11:33:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Ordered",
+          "Cumulative net worth (EUR)": 37819.0,
+          "time:timestamp": "2018-01-08T11:33:00.000Z"
+        },
+        {
+          "User": "batch_00",
+          "org:resource": "batch_00",
+          "concept:name": "SRM: Change was Transmitted",
+          "Cumulative net worth (EUR)": 37819.0,
+          "time:timestamp": "2018-01-08T11:33:00.000Z"
+        },
+        {
+          "User": "user_000",
+          "org:resource": "user_000",
+          "concept:name": "Create Purchase Order Item",
+          "Cumulative net worth (EUR)": 37819.0,
+          "time:timestamp": "2018-01-08T11:33:00.000Z"
+        },
+        {
+          "User": "NONE",
+          "org:resource": "NONE",
+          "concept:name": "Vendor creates invoice",
+          "Cumulative net worth (EUR)": 37819.0,
+          "time:timestamp": "2018-01-08T22:59:00.000Z"
+        },
+        {
+          "User": "user_000",
+          "org:resource": "user_000",
+          "concept:name": "Record Goods Receipt",
+          "Cumulative net worth (EUR)": 37819.0,
+          "time:timestamp": "2018-01-09T09:04:00.000Z"
+        },
+        {
+          "User": "NONE",
+          "org:resource": "NONE",
+          "concept:name": "Record Service Entry Sheet",
+          "Cumulative net worth (EUR)": 37819.0,
+          "time:timestamp": "2018-01-09T09:04:00.000Z"
+        },
+        {
+          "User": "user_007",
+          "org:resource": "user_007",
+          "concept:name": "Record Invoice Receipt",
+          "Cumulative net worth (EUR)": 37819.0,
+          "time:timestamp": "2018-01-09T11:59:00.000Z"
+        },
+        {
+          "User": "user_002",
+          "org:resource": "user_002",
+          "concept:name": "Clear Invoice",
+          "Cumulative net worth (EUR)": 37819.0,
+          "time:timestamp": "2018-02-23T11:14:00.000Z"
+        },
+        {
+          "User": "user_003",
+          "org:resource": "user_003",
+          "concept:name": "SRM: In Transfer to Execution Syst.",
+          "Cumulative net worth (EUR)": 37819.0,
+          "time:timestamp": "2019-01-17T10:59:00.000Z"
+        },
+        {
+          "User": "user_000",
+          "org:resource": "user_000",
+          "concept:name": "Change Delivery Indicator",
+          "Cumulative net worth (EUR)": 37819.0,
+          "time:timestamp": "2019-01-17T10:59:00.000Z"
+        }
+      ]
+    }
+  ]
+}
