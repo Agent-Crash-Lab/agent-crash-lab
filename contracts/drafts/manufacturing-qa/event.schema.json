@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Run event — review draft",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "run_id",
+    "event_id",
+    "sequence",
+    "event_type",
+    "actor_id",
+    "node_id",
+    "producer",
+    "occurred_at",
+    "parent_event_id",
+    "tool_call_id",
+    "evidence_ids",
+    "payload"
+  ],
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "event_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "event_type": {
+      "type": "string",
+      "minLength": 1
+    },
+    "actor_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "producer": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "node_id": {
+      "enum": [
+        "agent",
+        "investigator",
+        "mcp",
+        "guide",
+        "db",
+        "oracle",
+        "harness",
+        "fault"
+      ]
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "parent_event_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "tool_call_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "evidence_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "payload": {
+      "type": "object"
+    }
+  },
+  "description": "event_type은 실제 수집 사건. 도착 시각 대신 sequence·parent·호출·commit 연결을 사용. JSON의 producer 문자열만으로 신뢰성을 보장하지 않음."
+}

@@ -1,0 +1,13 @@
+{
+  "name": "agent-crash-lab-console",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "description": "README 기반 Agent Crash Lab 검사 콘솔 프로토타입",
+  "scripts": {
+    "dev": "node server.mjs",
+    "start": "node server.mjs",
+    "check": "node --check dist/app.js && node --check dist/registry.js && node --check dist/topology.js && node --check dist/topologies.js && node --check dist/registration.js && node --check dist/scene.js && node --check server.mjs",
+    "test": "node --test tests/*.test.mjs"
+  }
+}

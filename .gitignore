@@ -30,3 +30,9 @@ dist/
 
 # Logs
 *.log
+
+# 개발 입력 묶음/로컬 실행 기록 (소스 fixture와 구분)
+artifacts/local-runs/
+AGENT_CRASH_LAB_Project_Proposal_v1.2.pdf
+
+.gitignore

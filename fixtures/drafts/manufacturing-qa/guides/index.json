@@ -1,0 +1,52 @@
+{
+  "status": "DRAFT_NOT_RAG_INDEX",
+  "documents": [
+    {
+      "document_id": "approval-policy",
+      "version": "v1",
+      "title": "승인·내용 일치",
+      "body_path": "approval-policy.md",
+      "source_ids": [
+        "SRC-SAP-WORKFLOW"
+      ],
+      "status": "TEAM_POLICY_DRAFT_NOT_INDEXED"
+    },
+    {
+      "document_id": "idempotency-guide",
+      "version": "v1",
+      "title": "중복 처리·요청 키",
+      "body_path": "idempotency.md",
+      "source_ids": [
+        "SRC-AWS-IDEMPOTENCY"
+      ],
+      "status": "TEAM_POLICY_DRAFT_NOT_INDEXED"
+    },
+    {
+      "document_id": "retry-error-guide",
+      "version": "v1",
+      "title": "재시도·모호한 오류",
+      "body_path": "retry-error-handling.md",
+      "source_ids": [
+        "SRC-AWS-IDEMPOTENCY"
+      ],
+      "status": "TEAM_POLICY_DRAFT_NOT_INDEXED"
+    },
+    {
+      "document_id": "investigation-guide",
+      "version": "v1",
+      "title": "사실·원인 후보·증거 부족",
+      "body_path": "investigation-guide.md",
+      "source_ids": [],
+      "status": "TEAM_POLICY_DRAFT_NOT_INDEXED"
+    },
+    {
+      "document_id": "evaluation-guide",
+      "version": "v1",
+      "title": "판정·실행 상태·재시험",
+      "body_path": "evaluation-interpretation.md",
+      "source_ids": [],
+      "status": "TEAM_POLICY_DRAFT_NOT_INDEXED"
+    }
+  ],
+  "usage": "허용된 로컬 문서를 색인/검색하는 입력. 외부 문서 전체를 복제한 자료가 아님. 원문 Resource 연결과 RAG 로더는 미구현."
+}

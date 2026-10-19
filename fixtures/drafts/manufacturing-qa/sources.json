@@ -1,0 +1,274 @@
+{
+  "schema_version": "0.1.0-draft",
+  "sources": [
+    {
+      "source_id": "SRC-BPI2019",
+      "kind": "real_anonymized_dataset",
+      "title": "BPI Challenge 2019 — 구매 처리 이벤트 로그",
+      "publisher": "Boudewijn van Dongen / 4TU.ResearchData / ICPM",
+      "url": "https://icpmconference.org/2019/icpm-2019/contests-challenges/bpi-challenge-2019/",
+      "doi": "10.4121/uuid:d06aff4b-79f0-45e6-8ec8-e19730c248f1",
+      "locator": "The Process; The Data",
+      "verified_summary": "다국적 도료·코팅 제조기업의 익명화된 구매-지급 기록이다. 공식 설명은 발주·송장 승인 워크플로가 제외되었다고 명시한다.",
+      "supports": [
+        "구매 항목별 이벤트 연결",
+        "업무 단계·입고·송장 흐름 참고"
+      ],
+      "does_not_establish": [
+        "승인 payload의 유효성",
+        "Agent 정답 행동",
+        "응답 유실이나 중복 발주의 원인"
+      ],
+      "local_material": "fixtures/reference/bpi2019/sample.json",
+      "collection_method": "공식 4TU 파일의 처음 131072바이트에서 완전한 trace 10개를 추출. 무작위 표본 아님.",
+      "access_status": "sample_downloaded",
+      "rights": {
+        "identifier": "CC-BY-4.0",
+        "verified_via": "DataCite DOI metadata rightsList",
+        "url": "https://creativecommons.org/licenses/by/4.0/"
+      },
+      "related_scenarios": [
+        "S01"
+      ],
+      "usage_note": "표본에 SRM: Awaiting Approval 같은 상태명은 있지만 승인자·승인 내용·권한 전체를 검증할 상세 기록으로 볼 수 없다. 표본에 서비스 구매도 포함되어 있어 모두 제조 부품 구매로 표현하지 않는다.",
+      "checked_at": "2026-10-19T05:49:40.921273+00:00",
+      "review_status": "assistant_verified_team_review_pending",
+      "version": "0.1.0"
+    },
+    {
+      "source_id": "SRC-SAP-WORKFLOW",
+      "kind": "official_product_documentation",
+      "title": "SAP — Manage Workflows for Purchase Orders",
+      "publisher": "SAP Help Portal",
+      "url": "https://help.sap.com/docs/SAP_S4HANA_ON-PREMISE/af9ef57f504840d2b81be8667206d485/46c9e5b6ba7a4feeb920ca1cbad68c73.html",
+      "locator": "Step Properties; Changes that result in a restart of the workflow",
+      "product_version": "SAP S/4HANA 2025 FPS01 (Feb 2026)",
+      "verified_summary": "승인자를 지정하고 발주 승인 흐름을 구성한다. 문서에는 수량·가격 등 중요 필드 변경에 따른 승인 흐름 재시작이 설명되어 있다.",
+      "supports": [
+        "승인 권한과 승인 대상 내용을 연결하는 시험",
+        "발주 내용 변경 후 재승인 상황"
+      ],
+      "does_not_establish": [
+        "모든 기업에 같은 승인 정책 적용",
+        "본 프로젝트의 수량·금액·권한 정답"
+      ],
+      "collection_method": "공식 페이지의 검색 색인 본문을 확인하고 핵심 내용을 자체 요약. 로컬 원문 사본 없음.",
+      "access_status": "official_index_text_verified_page_dynamic",
+      "rights": {
+        "identifier": "publisher_copyright",
+        "local_use": "링크·서지·짧은 자체 요약만 저장"
+      },
+      "related_scenarios": [
+        "S01",
+        "S02",
+        "M01"
+      ],
+      "checked_at": "2026-10-19T05:49:40.921273+00:00",
+      "review_status": "assistant_verified_team_review_pending",
+      "version": "0.1.0"
+    },
+    {
+      "source_id": "SRC-SAP-BLOCKED",
+      "kind": "official_support_case",
+      "title": "SAP KBA 3621476 — Supplier blocked in Manage Purchase Order",
+      "publisher": "SAP Support",
+      "url": "https://userapps.support.sap.com/sap/support/knowledge/en/3621476",
+      "locator": "Public preview: Symptom; Environment",
+      "verified_summary": "공개 미리보기에서 SAP S/4HANA Cloud 발주 생성 중 공급업체 차단 오류가 발생하는 운영 상황을 확인했다.",
+      "supports": [
+        "차단된 공급업체로 발주할 수 없는 운영 상황의 존재"
+      ],
+      "does_not_establish": [
+        "AI Agent가 실제로 이 사고를 일으켰다는 사실",
+        "로그인 전용 전체 해결 절차",
+        "모든 조직에 동일한 차단 범위 적용"
+      ],
+      "collection_method": "공개 미리보기만 확인. 로그인 전용 전체 문서는 수집하지 않음.",
+      "access_status": "public_preview_only",
+      "rights": {
+        "identifier": "publisher_copyright",
+        "local_use": "링크·서지·짧은 자체 요약만 저장"
+      },
+      "related_scenarios": [
+        "M02"
+      ],
+      "checked_at": "2026-10-19T05:49:40.921273+00:00",
+      "review_status": "assistant_verified_team_review_pending",
+      "version": "0.1.0"
+    },
+    {
+      "source_id": "SRC-ORACLE-ASL",
+      "kind": "official_product_documentation",
+      "title": "Oracle Procurement — Approved Supplier List",
+      "publisher": "Oracle",
+      "url": "https://docs.oracle.com/en/cloud/saas/procurement/25c/oaprc/approved-supplier-list.html",
+      "locator": "Approved Supplier List",
+      "product_version": "25C",
+      "verified_summary": "품목·공급업체·사업 조직·입고 조직 등에 따라 허용·제한된 공급원을 관리할 수 있다.",
+      "supports": [
+        "품목과 조직 범위를 포함한 공급업체 자격 확인"
+      ],
+      "does_not_establish": [
+        "SUP-02의 실제 제재 또는 자격",
+        "인증 만료 자동 차단의 보편 규칙"
+      ],
+      "collection_method": "공식 공개 문서 확인 후 자체 요약. 로컬 원문 사본 없음.",
+      "access_status": "official_full_text_verified",
+      "rights": {
+        "identifier": "publisher_copyright",
+        "local_use": "링크·서지·짧은 자체 요약만 저장"
+      },
+      "related_scenarios": [
+        "M02"
+      ],
+      "checked_at": "2026-10-19T05:49:40.921273+00:00",
+      "review_status": "assistant_verified_team_review_pending",
+      "version": "0.1.0"
+    },
+    {
+      "source_id": "SRC-AWS-IDEMPOTENCY",
+      "kind": "official_engineering_guidance",
+      "title": "Making retries safe with idempotent APIs",
+      "publisher": "Amazon Builders’ Library",
+      "author": "Malcolm Featonby",
+      "url": "https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/",
+      "locator": "Retrying and side effects; Reducing client complexity; Same client request ID, different intent",
+      "verified_summary": "성공 응답을 받지 못한 생성 요청의 재시도는 중복을 만들 수 있다. 요청 식별자와 변경 작업을 원자적으로 처리하고, 같은 식별자로 다른 내용을 요청하면 검증 오류를 내는 설계를 설명한다.",
+      "supports": [
+        "S03 응답 유실·재시도·중복 처리 시험의 기술 근거"
+      ],
+      "does_not_establish": [
+        "제조업에서 관측된 실제 중복 발주 사고",
+        "Agent가 반드시 잘못 행동한다는 주장"
+      ],
+      "collection_method": "공식 공개 문서 확인 후 자체 요약. 로컬 원문 사본 없음.",
+      "access_status": "official_full_text_verified",
+      "rights": {
+        "identifier": "publisher_copyright",
+        "local_use": "링크·서지·짧은 자체 요약만 저장"
+      },
+      "related_scenarios": [
+        "S03"
+      ],
+      "checked_at": "2026-10-19T05:49:40.921273+00:00",
+      "review_status": "assistant_verified_team_review_pending",
+      "version": "0.1.0"
+    },
+    {
+      "source_id": "SRC-ORACLE-CAPACITY",
+      "kind": "official_product_documentation",
+      "title": "Plan Production Targets for a Flow Manufacturing Production Line",
+      "publisher": "Oracle",
+      "url": "https://docs.oracle.com/en/cloud/saas/readiness/scm/25c/scp25c/25C-sc-planning-wn-f38219.htm",
+      "locator": "Production Line; Flow Schedules Planning; Constrained and Unconstrained Planning",
+      "verified_summary": "생산능력은 라인 속도와 제조 달력의 작업시간 등으로 계산한다. 제약 모드에 따라 과부하와 납기 지연 처리 방식이 달라질 수 있다.",
+      "supports": [
+        "생산 달력·자원능력·계획 상태를 평가 기준에 명시"
+      ],
+      "does_not_establish": [
+        "모든 권고계획의 과부하가 잘못이라는 주장",
+        "본 시험의 재고·능력·수량 정답"
+      ],
+      "access_status": "official_full_text_verified",
+      "related_scenarios": [
+        "PL01",
+        "PL02"
+      ],
+      "version": "0.3.0",
+      "checked_at": "2026-10-19T06:12:35.797932+00:00",
+      "review_status": "assistant_verified_team_policy_pending",
+      "collection_method": "공식 자료의 핵심 개념 확인 후 자체 요약. 프로젝트 규칙은 별도 설계값.",
+      "rights": {
+        "identifier": "publisher_copyright",
+        "local_use": "링크·서지·자체 요약"
+      }
+    },
+    {
+      "source_id": "SRC-ORACLE-WORKVERSION",
+      "kind": "official_product_documentation",
+      "title": "How You Manage Work Definition Versions",
+      "publisher": "Oracle",
+      "url": "https://docs.oracle.com/en/cloud/saas/supply-chain-and-manufacturing/25c/faumf/how-you-manage-work-definition-versions.html",
+      "locator": "How You Manage Work Definition Versions; Create a Work Definition Version",
+      "verified_summary": "제조 공정 정의 버전에는 유효 시작·종료 날짜가 있으며 미래 공정 변경도 별도 버전으로 관리할 수 있다.",
+      "supports": [
+        "생산 시작 시점에 유효한 작업 정의·자재구성 버전을 고정하는 시험"
+      ],
+      "does_not_establish": [
+        "work definition과 BOM이 동일한 객체라는 주장",
+        "본 시험의 모터당 베어링 수"
+      ],
+      "access_status": "official_full_text_verified",
+      "related_scenarios": [
+        "PL01",
+        "PL02"
+      ],
+      "version": "0.3.0",
+      "checked_at": "2026-10-19T06:12:35.797932+00:00",
+      "review_status": "assistant_verified_team_policy_pending",
+      "collection_method": "공식 자료의 핵심 개념 확인 후 자체 요약. 프로젝트 규칙은 별도 설계값.",
+      "rights": {
+        "identifier": "publisher_copyright",
+        "local_use": "링크·서지·자체 요약"
+      }
+    },
+    {
+      "source_id": "SRC-SAP-QUALITY",
+      "kind": "official_product_documentation",
+      "title": "Make Usage Decision — Quality Management in Discrete Manufacturing",
+      "publisher": "SAP",
+      "url": "https://help.sap.com/docs/s4hana-cloud-best-practices/quality-management-in-discrete-manufacturing-consumer-products-5hk-ro/make-usage-decision-a194e4acdeac420fba48dc9fe37b4009",
+      "locator": "Purpose; Enter UD code; Save Usage Decision",
+      "verified_summary": "검사 결과와 사용결정에 따라 검사 재고를 사용 가능·보류 등으로 처리하는 흐름을 설명한다. 부분 수량 처리도 지원하는 문서다.",
+      "supports": [
+        "검사결과·규격·로트·사용결정·재고 상태를 연결"
+      ],
+      "does_not_establish": [
+        "모든 로트를 전체 합격 또는 전체 불합격으로만 처리한다는 주장",
+        "프로젝트의 가상 치수 허용범위"
+      ],
+      "access_status": "official_search_index_text_verified",
+      "related_scenarios": [
+        "QC01",
+        "QC02"
+      ],
+      "version": "0.3.0",
+      "checked_at": "2026-10-19T06:12:35.797932+00:00",
+      "review_status": "assistant_verified_team_policy_pending",
+      "collection_method": "공식 자료의 핵심 개념 확인 후 자체 요약. 프로젝트 규칙은 별도 설계값.",
+      "rights": {
+        "identifier": "publisher_copyright",
+        "local_use": "링크·서지·자체 요약"
+      }
+    },
+    {
+      "source_id": "SRC-OSHA-ENERGY",
+      "kind": "official_safety_reference",
+      "title": "OSHA 1910.147 — Control of hazardous energy",
+      "publisher": "US OSHA",
+      "url": "https://www.osha.gov/laws-regs/regulations/standardnumber/1910/1910.147",
+      "locator": "1910.147(a)(1)(i); (c)(1); (d)(5); (d)(6)",
+      "verified_summary": "적용 대상 정비에서 예기치 않은 기동·잔류 에너지 위험을 통제하고 격리를 확인하는 개념을 참고했다.",
+      "supports": [
+        "정비 착수 전 필요한 확인 기록을 확인하는 모의 업무 시험"
+      ],
+      "does_not_establish": [
+        "국내 사업장의 법적 적합성",
+        "소프트웨어 확인 필드만으로 실제 안전이 보장된다는 주장"
+      ],
+      "access_status": "official_full_text_verified",
+      "related_scenarios": [
+        "MT01",
+        "MT02"
+      ],
+      "version": "0.3.0",
+      "checked_at": "2026-10-19T06:12:35.797932+00:00",
+      "review_status": "assistant_verified_team_policy_pending",
+      "collection_method": "공식 자료의 핵심 개념 확인 후 자체 요약. 프로젝트 규칙은 별도 설계값.",
+      "rights": {
+        "identifier": "publisher_copyright",
+        "local_use": "링크·서지·자체 요약"
+      }
+    }
+  ]
+}
