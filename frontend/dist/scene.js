@@ -1,67 +1,60 @@
 import * as THREE from './vendor/three.module.js';
-let engine;
-const positions={agent:[-3.1,2.38,.55],investigator:[-3.2,2.38,-.75],mcp:[0,1.25,.4],guide:[.1,1.25,-.85],db:[3.1,.16,.1],oracle:[3.7,.16,-.9]};
-const palettes={paper:0xf1f2ed,white:0xfdfdfb,ink:0x35423e,green:0x92a879,orange:0xef7747,muted:0xc0c9c2};
-function createEngine(){
+import { layoutTopology } from './topology.js';
+let engine,engineKey;
+const roleNames={agent:'Agent',runner:'실행 준비',approval:'승인',tool:'도구',database:'업무 상태',store:'읽기 전용 자료',report:'결과 문서',reviewer:'검사·검토'};
+function createEngine(graph){
+ const layout=layoutTopology(graph),positions=new Map(layout.nodes.map(n=>[n.id,n.position]));
  const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.setClearColor(0xf1f3f1,0);renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.35;
- const scene=new THREE.Scene();const camera=new THREE.OrthographicCamera(-7,7,5,-5,.1,100);camera.position.set(10,10,13);camera.lookAt(0,1,0);
- scene.add(new THREE.HemisphereLight(0xffffff,0x93a28c,2.3));const sun=new THREE.DirectionalLight(0xfffaf0,4);sun.position.set(-4,12,5);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-11,right:11,top:10,bottom:-10,near:.5,far:35});sun.shadow.bias=-.0005;sun.shadow.normalBias=.035;sun.shadow.radius=7;scene.add(sun);const fill=new THREE.DirectionalLight(0xe1e9ff,1.7);fill.position.set(6,5,-8);scene.add(fill);
- const ground=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.ShadowMaterial({color:0x46513e,opacity:.12}));ground.rotation.x=-Math.PI/2;ground.position.y=-.44;ground.receiveShadow=true;scene.add(ground);
- const content=new THREE.Group();scene.add(content);const labels=[];const hitTargets=[];const pulses=[];const model={};let host;let callback;let activeRing;let faultMarker;let orderGroup;let animationId;
- const material=(color,extra={})=>new THREE.MeshStandardMaterial({color,roughness:.65,metalness:.08,...extra});
- function addMesh(geometry,mat,x,y,z,parent=content,node=null){const mesh=new THREE.Mesh(geometry,mat);mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);if(node){mesh.userData.node=node;hitTargets.push(mesh);}return mesh;}
- function box(w,h,d,x,y,z,color,parent=content,node=null,r=.05){
-  const shape=new THREE.Shape();const a=w/2,b=d/2;shape.moveTo(-a+r,-b);shape.lineTo(a-r,-b);shape.quadraticCurveTo(a,-b,a,-b+r);shape.lineTo(a,b-r);shape.quadraticCurveTo(a,b,a-r,b);shape.lineTo(-a+r,b);shape.quadraticCurveTo(-a,b,-a,b-r);shape.lineTo(-a,-b+r);shape.quadraticCurveTo(-a,-b,-a+r,-b);
-  const geom=new THREE.ExtrudeGeometry(shape,{depth:h-2*r,bevelEnabled:true,bevelSegments:3,steps:1,bevelSize:r,bevelThickness:r,curveSegments:5});geom.rotateX(-Math.PI/2);geom.translate(0,r,0);return addMesh(geom,material(color),x,y,z,parent,node);
+ const scene=new THREE.Scene(),camera=new THREE.OrthographicCamera(-7,7,5,-5,.1,100);camera.position.set(10,10,13);camera.lookAt(0,1,0);camera.updateMatrixWorld();
+ scene.add(new THREE.HemisphereLight(0xffffff,0x93a28c,2.3));const sun=new THREE.DirectionalLight(0xfffaf0,4);sun.position.set(-4,14,5);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-20,right:20,top:20,bottom:-20,near:.5,far:50});sun.shadow.bias=-.0005;sun.shadow.normalBias=.035;scene.add(sun);const fill=new THREE.DirectionalLight(0xe1e9ff,1.7);fill.position.set(6,5,-8);scene.add(fill);
+ const ground=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.ShadowMaterial({color:0x46513e,opacity:.12}));ground.rotation.x=-Math.PI/2;ground.position.y=-.45;ground.receiveShadow=true;scene.add(ground);
+ const content=new THREE.Group();scene.add(content);const labels=[],hitTargets=[],routes=[];let host,callback,animationId,model={counts:{},commits:{},observedEdges:[]};
+ const material=(color)=>new THREE.MeshStandardMaterial({color,roughness:.65,metalness:.08});
+ function add(geometry,mat,x,y,z,parent=content,node){const m=new THREE.Mesh(geometry,mat);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;parent.add(m);if(node){m.userData.node=node;hitTargets.push(m);}return m;}
+ function box(w,h,d,x,y,z,color,parent=content,node,r=.04){
+  r=Math.min(r,h/3,w/4,d/4);const s=new THREE.Shape(),a=w/2,b=d/2;s.moveTo(-a+r,-b);s.lineTo(a-r,-b);s.quadraticCurveTo(a,-b,a,-b+r);s.lineTo(a,b-r);s.quadraticCurveTo(a,b,a-r,b);s.lineTo(-a+r,b);s.quadraticCurveTo(-a,b,-a,b-r);s.lineTo(-a,-b+r);s.quadraticCurveTo(-a,-b,-a+r,-b);
+  const g=new THREE.ExtrudeGeometry(s,{depth:h-2*r,bevelEnabled:true,bevelSegments:3,steps:1,bevelSize:r,bevelThickness:r,curveSegments:4});g.rotateX(-Math.PI/2);g.translate(0,r,0);return add(g,material(color),x,y,z,parent,node);
  }
- function label(text,sub,point,node,kind=''){const element=document.createElement('button');element.className=`scene-label ${kind}`;element.innerHTML=`<strong>${text}</strong><span>${sub}</span>`;element.setAttribute('aria-label',`${text} 근거 보기`);element.addEventListener('click',()=>callback?.(node));labels.push({element,point:new THREE.Vector3(...point),node});}
- function cylinder(radius,h,x,y,z,color,parent=content,node=null){return addMesh(new THREE.CylinderGeometry(radius,radius,h,64),material(color),x,y+h/2,z,parent,node);}
- function tube(points,color,radius=.035){const curve=new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(...p)),false,'catmullrom',.15);const mesh=addMesh(new THREE.TubeGeometry(curve,60,radius,10,false),material(color),0,0,0);return{curve,mesh};}
- function signal(curve){const dot=addMesh(new THREE.SphereGeometry(.065,16,16),material(0xf17946,{emissive:0xe05927,emissiveIntensity:.25}),0,0,0);pulses.push({dot,curve});}
- // Three physically separated terraces with chamfered edges and contact shadows.
- for(const [i,x,y]of [[0,-3.1,2.05],[1,0,.95],[2,3.1,-.15]]){
-  box(2.85,.25,2.8,x,y,0,i===1?0xe9ebe5:0xf9faf5,content,null,.06);
-  box(2.73,.035,2.69,x,y+.26,0,0xffffff,content,null,.015);
-  for(const z of [-1.03,1.03])for(const sx of [-1.03,1.03])cylinder(.035,.018,x+sx,y+.3,z,0xa8afa5);
+ const cylinder=(radius,h,x,y,z,color,parent=content,node)=>add(new THREE.CylinderGeometry(radius,radius,h,40),material(color),x,y+h/2,z,parent,node);
+ function terminal(g,id){box(.95,.1,.7,0,0,0,0xc0c9bf,g,id);box(.18,.35,.18,0,.1,-.1,0x7a8b80,g,id);box(1.05,.72,.26,0,.4,-.15,0xe8eee4,g,id);box(.88,.54,.03,0,.49,0,0x33473b,g,id);for(let i=0;i<3;i++)box(.48-i*.07,.025,.02,-.1,.9-i*.11,.03,0xc5d8a3,g,id);}
+ for(const p of layout.platforms){box(2.9,.25,p.depth,p.x,p.y,0,0xf5f6f0);box(2.8,.035,p.depth-.12,p.x,p.y+.26,0,0xffffff);for(const z of [-p.depth/2+.2,p.depth/2-.2])for(const x of [-1.2,1.2])cylinder(.035,.015,p.x+x,p.y+.3,z,0xa8afa5);}
+ for(const n of layout.nodes){
+  const group=new THREE.Group();group.position.set(...n.position);content.add(group);const id=n.id;
+  if(n.role==='agent')terminal(group,id);
+  else if(n.role==='database'){for(let i=0;i<3;i++){cylinder(.48,.26,0,i*.29,0,0x526b55,group,id);cylinder(.49,.035,0,i*.29+.24,0,0x91a783,group,id);}cylinder(.47,.025,0,.87,0,0xb1c2a0,group,id);}
+  else if(n.role==='tool'){box(1.08,.72,.83,0,0,0,0xed8355,group,id);box(.98,.09,.75,0,.72,0,0xf5ad7d,group,id);box(.88,.45,.035,0,.15,.44,0x8e482e,group,id);for(let i=0;i<4;i++)box(.65,.026,.03,-.04,.23+i*.08,.47,0xd99770,group,id);}
+  else if(n.role==='store'){for(let i=0;i<3;i++){box(.85,.14,.8,0,.08+i*.21,0,0x8da7a6,group,id);box(.7,.06,.72,0,.22+i*.21,0,0xd6e2db,group,id);}}
+  else if(n.role==='report'){box(.94,.12,1.03,0,.05,0,0xb9c8b0,group,id);for(let i=0;i<3;i++)box(.82,.035,.9,i*.025,.19+i*.07,-i*.025,0xfcfcf6,group,id);for(let i=0;i<3;i++)box(.58-i*.08,.014,.025,0,.38,-.2+i*.15,0x8c9c82,group,id);}
+  else if(n.role==='approval'){box(.9,.2,.8,0,.05,0,0xd4ddc4,group,id);cylinder(.28,.13,0,.25,0,0x809961,group,id);box(.28,.04,.055,0,.39,0,0xf5f7ed,group,id);}
+  else{box(.84,.55,.72,0,.02,0,n.role==='runner'?0xb5c4c1:0xe0e5d9,group,id);box(.62,.18,.025,0,.3,.38,0x4d6151,group,id);}
+  const el=document.createElement('button');el.className='scene-label';el.dataset.nodeId=id;el.setAttribute('aria-label',`${n.label} · ${roleNames[n.role]} · 근거 보기`);const title=document.createElement('strong'),sub=document.createElement('span');title.textContent=n.label;el.append(title,sub);el.addEventListener('click',()=>callback?.(id));labels.push({element:el,sub,node:n,point:new THREE.Vector3(n.position[0],n.position[1]+1.6,n.position[2])});
  }
- // Agent consoles: real screens, stands, vents and inset indicator lights.
- function terminal(x,y,z,node,small=false){const scale=small?.66:1;const group=new THREE.Group();group.position.set(x,y,z);group.scale.setScalar(scale);content.add(group);box(1.02,.12,.76,0,0,0,0xc0c9bf,group,node);box(.2,.4,.2,0,.12,-.08,0x7a8b80,group,node);box(1.13,.78,.29,0,.4,-.15,0xe8eee4,group,node);box(.96,.6,.035,0,.49,.085,0x33473b,group,node,.012);
-  for(let i=0;i<3;i++){box(.37-i*.06,.027,.02,-.15,.95-i*.105,.12,0xc5d8a3,group,node,.005);box(.14,.027,.02,.25,.95-i*.105,.12,0x819878,group,node,.005);}cylinder(.035,.025,.4,.14,.15,0x71945e,group,node);return group;}
- terminal(...positions.agent,'agent');terminal(...positions.investigator,'investigator',true);
- label('발주 Agent','승인 확인 · 도구 호출',[-3.6,3.75,1.05],'agent');
- label('조사 Agent','읽기 전용',[-2.95,3.55,-1.05],'investigator','secondary-label');
- // Business MCP: gateway appliance with a prominent orange side casing.
- const [mx,my,mz]=positions.mcp;box(1.2,.77,.9,mx,my,mz,0xed8355,content,'mcp',.06);box(1.07,.1,.78,mx,my+.77,mz,0xf5ad7d,content,'mcp',.035);box(.98,.51,.035,mx,my+.15,mz+.47,0x8e482e,content,'mcp',.012);
- for(let i=0;i<4;i++)box(.65,.032,.035,mx-.05,my+.28+i*.09,mz+.5,0xd99770,content,'mcp',.005);
- cylinder(.04,.025,mx+.4,my+.89,mz+.22,0xfbe9cc,content,'mcp');
- box(.75,.35,.55,.1,1.25,-.85,0xadb8ab,content,'guide');box(.58,.04,.42,.1,1.62,-.85,0xdce2d5,content,'guide',.015);
- label('business-mcp','요청 전달 · 응답 반환',[0,2.78,.45],'mcp');label('rag-mcp','근거 · 지침',[.65,2.02,-1.15],'guide','secondary-label');
- // Database uses stacked machined cylinders. Oracle is a separate physical object.
- for(let i=0;i<3;i++){cylinder(.52,.29,3.0,.17+i*.31,.25,0x526b55,content,'db');cylinder(.525,.045,3.0,.17+i*.31+.26,.25,0x81997a,content,'db');}cylinder(.49,.025,3.0,1.12,.25,0xb1c2a0,content,'db');
- box(.67,.53,.6,3.7,.17,-.85,0xe0e5d9,content,'oracle');box(.5,.14,.03,3.7,.47,-.52,0x4d6151,content,'oracle',.008);
- label('업무 DB','commit으로 확인한 상태',[3.05,1.8,.25],'db');label('Oracle','최종 상태 판정',[3.8,1.15,-.9],'oracle','secondary-label');
- // Physical routed cables connect each logical tier.
- const routeA=tube([[-2.53,2.52,.65],[-1.55,2.52,.65],[-1.4,1.54,.65],[-.6,1.54,.65]],0xb9c6af,.045);signal(routeA.curve);
- const routeB=tube([[.61,1.53,.65],[1.5,1.53,.65],[1.65,.48,.65],[2.49,.48,.65]],0x7b956b,.045);signal(routeB.curve);
- const backA=tube([[-.6,1.55,-.2],[-1.02,1.55,-.2],[-1.2,2.7,-.2]],0xe98a5d,.025);
- const backB=tube([[-1.42,2.7,-.2],[-1.7,2.7,-.2],[-2.53,2.7,-.2]],0xe98a5d,.025);
- faultMarker=addMesh(new THREE.OctahedronGeometry(.15),material(0xef7845,{emissive:0xe45e29,emissiveIntensity:.15}),-1.3,2.7,-.2,content,'fault');
- label('응답 유실','모의 timeout · 1회',[-1.3,3.25,-.2],'fault','fault-label');
- orderGroup=new THREE.Group();content.add(orderGroup);
- activeRing=new THREE.Mesh(new THREE.TorusGeometry(.72,.014,8,80),new THREE.MeshBasicMaterial({color:0xf0864b,transparent:true,opacity:.8}));activeRing.rotation.x=-Math.PI/2;content.add(activeRing);
- const raycaster=new THREE.Raycaster();const pointer=new THREE.Vector2();
- renderer.domElement.addEventListener('pointerup',event=>{const rect=renderer.domElement.getBoundingClientRect();pointer.set((event.clientX-rect.left)/rect.width*2-1,-(event.clientY-rect.top)/rect.height*2+1);raycaster.setFromCamera(pointer,camera);const hit=raycaster.intersectObjects(hitTargets).find(h=>h.object.visible);if(hit)callback?.(hit.object.userData.node);});
- function resize(){if(!host?.isConnected)return;const w=host.clientWidth,h=host.clientHeight;const aspect=w/h;const halfWidth=6.7;camera.left=-halfWidth;camera.right=halfWidth;camera.top=halfWidth/aspect;camera.bottom=-halfWidth/aspect;camera.updateProjectionMatrix();renderer.setSize(w,h);positionLabels();renderer.render(scene,camera);}
- function positionLabels(){if(!host)return;for(const l of labels){const p=l.point.clone().project(camera);l.element.style.left=`${(p.x*.5+.5)*host.clientWidth}px`;l.element.style.top=`${(-p.y*.5+.5)*host.clientHeight}px`;}}
- const observer=new ResizeObserver(resize);
- function update(data){Object.assign(model,data);labels.find(l=>l.node==='db').element.querySelector('span').textContent=`발주 ${model.orders}건 · commit 기록`;faultMarker.visible=model.fault;backA.mesh.visible=model.fault;backB.mesh.visible=model.fault;labels.find(l=>l.node==='fault').element.hidden=!model.fault;
-  while(orderGroup.children.length){const m=orderGroup.children[0];const targetIndex=hitTargets.indexOf(m);if(targetIndex!==-1)hitTargets.splice(targetIndex,1);m.geometry?.dispose();m.material?.dispose();orderGroup.remove(m);}for(let i=0;i<model.orders;i++)box(.58,.08,.8,2.36,.2+i*.12,1, i?0xf6a070:0xc2d2b0,orderGroup,'db',.015);
-  const pos=positions[model.active]||positions.mcp;activeRing.position.set(pos[0],pos[1]+.02,pos[2]);activeRing.visible=model.active!=='fault';
-  labels.forEach(l=>l.element.classList.toggle('selected',l.node===model.active));pulses.forEach(p=>p.dot.visible=!!model.playing);resize();
+ graph.edges.forEach((edge,index)=>{
+  const from=new THREE.Vector3(...positions.get(edge.source)),to=new THREE.Vector3(...positions.get(edge.target));from.y+=.35;to.y+=.35;
+  const reverse=graph.edges.some(e=>e.source===edge.target&&e.target===edge.source),offset=reverse?(edge.source<edge.target?.3:-.3):.06*(index%3);
+  from.z+=offset;to.z+=offset;
+  const mid=from.clone().lerp(to,.5);mid.y+=.2;mid.z+=offset;
+  const curve=new THREE.CatmullRomCurve3([from,from.clone().lerp(mid,.65),mid,to.clone().lerp(mid,.65),to],false,'catmullrom',.1);
+  const mesh=add(new THREE.TubeGeometry(curve,40,.028,8,false),material(0xc6cec0),0,0,0);
+  const arrow=new THREE.ArrowHelper(curve.getTangent(.66).normalize(),curve.getPoint(.66),.34,0x9ba991,.15,.12);content.add(arrow);
+  const dot=add(new THREE.SphereGeometry(.065,12,12),material(0xef7845),0,0,0);dot.visible=false;
+  routes.push({id:edge.id,curve,mesh,arrow,dot});
+ });
+ const ring=add(new THREE.TorusGeometry(.69,.018,8,64),new THREE.MeshBasicMaterial({color:0xf0864b}),0,0,0);ring.rotation.x=-Math.PI/2;ring.visible=false;
+ const faultMarker=add(new THREE.OctahedronGeometry(.15),material(0xef7845),0,0,0);faultMarker.visible=false;
+ // Fit the complete registered graph, including labels, in the fixed isometric view.
+ const fitting=[];for(const n of layout.nodes)for(const dx of [-1.4,1.4])for(const dy of [-.3,2.1])for(const dz of [-1,1])fitting.push(new THREE.Vector3(n.position[0]+dx,n.position[1]+dy,n.position[2]+dz).applyMatrix4(camera.matrixWorldInverse));
+ const minX=Math.min(...fitting.map(p=>p.x)),maxX=Math.max(...fitting.map(p=>p.x)),minY=Math.min(...fitting.map(p=>p.y)),maxY=Math.max(...fitting.map(p=>p.y));
+ function resize(){if(!host?.isConnected||!host.clientWidth||!host.clientHeight)return;const w=host.clientWidth,h=host.clientHeight,aspect=w/h;let halfW=(maxX-minX)/2+.45,halfH=(maxY-minY)/2+.3;if(halfW/halfH<aspect)halfW=halfH*aspect;else halfH=halfW/aspect;const cx=(minX+maxX)/2,cy=(minY+maxY)/2;camera.left=cx-halfW;camera.right=cx+halfW;camera.top=cy+halfH;camera.bottom=cy-halfH;camera.updateProjectionMatrix();renderer.setSize(w,h);for(const l of labels){const p=l.point.clone().project(camera);l.element.style.left=`${(p.x*.5+.5)*w}px`;l.element.style.top=`${(-p.y*.5+.5)*h}px`;}renderer.render(scene,camera);}
+ const observer=new ResizeObserver(resize),raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2();
+ renderer.domElement.addEventListener('pointerup',event=>{const r=renderer.domElement.getBoundingClientRect();pointer.set((event.clientX-r.left)/r.width*2-1,-(event.clientY-r.top)/r.height*2+1);raycaster.setFromCamera(pointer,camera);const hit=raycaster.intersectObjects(hitTargets)[0];if(hit)callback?.(hit.object.userData.node);});
+ function update(data){model=data;for(const l of labels){const count=model.counts?.[l.node.id]??0;const commits=model.commits?.[l.node.id]??0;l.sub.textContent=commits?`${roleNames[l.node.role]} · 저장 ${commits}건`:`${roleNames[l.node.role]} · 사건 ${count}`;l.element.classList.toggle('selected',l.node.id===model.activeNode);l.element.classList.toggle('observed',count>0);}
+  const pos=positions.get(model.activeNode);ring.visible=!!pos;if(pos)ring.position.set(pos[0],pos[1]+.025,pos[2]);
+  for(const route of routes){const active=route.id===model.activeEdge,seen=model.observedEdges?.includes(route.id);const color=active?0xef7845:seen?0x789664:0xc6cec0;route.mesh.material.color.setHex(color);route.arrow.setColor(color);route.dot.visible=active&&!!model.playing;}
+  const faultRoute=routes.find(r=>r.id===model.activeEdge);faultMarker.visible=!!(model.fault&&faultRoute);if(faultMarker.visible)faultMarker.position.copy(faultRoute.curve.getPoint(.5));resize();
  }
- function animate(time){if(host?.isConnected){if(model.playing&&!matchMedia('(prefers-reduced-motion: reduce)').matches){for(const [i,p]of pulses.entries()){p.dot.position.copy(p.curve.getPoint(((time/2200)+i*.4)%1));}renderer.render(scene,camera);} }animationId=requestAnimationFrame(animate);}
- animationId=requestAnimationFrame(animate);
- return {mount(container,data,onSelect){if(host!==container){observer.disconnect();host=container;container.append(renderer.domElement);labels.forEach(l=>container.append(l.element));observer.observe(container);}callback=onSelect;update(data);},unmount(){observer.disconnect();host=null;},renderer};
+ function animate(time){if(host?.isConnected&&model.playing&&!matchMedia('(prefers-reduced-motion: reduce)').matches){for(const r of routes)if(r.dot.visible)r.dot.position.copy(r.curve.getPoint((time/2200)%1));renderer.render(scene,camera);}animationId=requestAnimationFrame(animate);}animationId=requestAnimationFrame(animate);
+ return{mount(container,data,onSelect){if(host!==container){observer.disconnect();host=container;host.dataset.topologyVersion=graph.version;host.dataset.nodeCount=String(graph.nodes.length);host.dataset.edgeCount=String(graph.edges.length);container.append(renderer.domElement);for(const l of labels)container.append(l.element);observer.observe(container);}callback=onSelect;update(data);},unmount(){observer.disconnect();host=null;},dispose(){observer.disconnect();cancelAnimationFrame(animationId);scene.traverse(o=>{o.geometry?.dispose();if(Array.isArray(o.material))o.material.forEach(m=>m.dispose());else o.material?.dispose();});labels.forEach(l=>l.element.remove());renderer.dispose();renderer.domElement.remove();host=null;}};
 }
-export function mountScene(container,data,onSelect){if(!container)return;try{engine??=createEngine();engine.mount(container,data,onSelect);}catch(error){console.warn('3D unavailable',error);container.innerHTML='<div class="scene-unavailable"><strong>3D 화면을 표시할 수 없습니다.</strong><p>브라우저의 그래픽 가속을 확인하거나 타임라인에서 사건을 살펴보세요.</p><button data-mode="timeline">타임라인으로 보기 →</button></div>';}}
+export function mountScene(container,graph,data,onSelect){if(!container)return;try{const key=JSON.stringify(graph);if(!engine||engineKey!==key){engine?.dispose();engine=undefined;engine=createEngine(graph);engineKey=key;}engine.mount(container,data,onSelect);}catch(error){console.warn('3D unavailable',error);container.innerHTML=`<div class="scene-unavailable"><strong>3D 화면을 표시할 수 없습니다.</strong><p>구조 정보와 그래픽 가속을 확인하거나 타임라인을 이용하세요.</p>${data.preview?'<button data-preview-mode="timeline">구조 목록으로 보기 →</button>':'<button data-mode="timeline">타임라인으로 보기 →</button>'}</div>`;}}
 export function pauseScene(){engine?.unmount();}

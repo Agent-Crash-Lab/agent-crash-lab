@@ -1,7 +1,9 @@
+import { purchaseTopology, investigationTopology } from './topologies.js';
+import { validateTopology, mapEvents, validateRegistration } from './topology.js';
 // Reference profiles describe bundled demo fixtures, not discovered live services.
 export const agents = {
- purchase: { id:'purchase', name:'발주 Agent', code:'purchase-agent', initials:'PA', version:'reference-v1', prompt:'purchase-prompt-v1', model:null, adapter:'purchase-fixture-v1', role:'업무 수행', description:'재고를 확인하고, 담당자의 승인 이후 부품을 발주합니다.', evaluation:'Agent + MCP + 업무 서버 통합 시험', scope:'승인 통제 · 내용 일치 · 중복 발주 · 완료 보고', tools:['get_inventory','create_purchase_order'], defaultScenario:'S03', scenarios:['S01','S02','S03'] },
- investigator: { id:'investigator', name:'사고 조사 Agent', code:'investigation-agent', initials:'IA', version:'reference-v1', prompt:'investigation-prompt-v1', model:null, adapter:'investigation-fixture-v1', role:'근거 조사', description:'사건 기록과 지침을 조회해 사실과 원인 후보를 구분합니다.', evaluation:'고정 사건 fixture 기반 Agent 개별 시험', scope:'근거 인용 · 읽기 전용 도구 · 불확실성 · 사람 검토', tools:['get_run_evidence','retrieve_guide'], defaultScenario:'IA01', scenarios:['IA01','IA02','IA03'] },
+ purchase: { topology:purchaseTopology, id:'purchase', name:'발주 Agent', code:'purchase-agent', initials:'PA', version:'reference-v1', prompt:'purchase-prompt-v1', model:null, adapter:'purchase-fixture-v1', role:'업무 수행', description:'재고를 확인하고, 담당자의 승인 이후 부품을 발주합니다.', evaluation:'Agent + MCP + 업무 서버 통합 시험', scope:'승인 통제 · 내용 일치 · 중복 발주 · 완료 보고', tools:['get_inventory','create_purchase_order'], defaultScenario:'S03', scenarios:['S01','S02','S03'] },
+ investigator: { topology:investigationTopology, id:'investigator', name:'사고 조사 Agent', code:'investigation-agent', initials:'IA', version:'reference-v1', prompt:'investigation-prompt-v1', model:null, adapter:'investigation-fixture-v1', role:'근거 조사', description:'사건 기록과 지침을 조회해 사실과 원인 후보를 구분합니다.', evaluation:'고정 사건 fixture 기반 Agent 개별 시험', scope:'근거 인용 · 읽기 전용 도구 · 불확실성 · 사람 검토', tools:['get_run_evidence','retrieve_guide'], defaultScenario:'IA01', scenarios:['IA01','IA02','IA03'] },
 };
 export const investigationScenarios = {
  IA01:{title:'중복 발주 조사',subtitle:'동일 요청의 발주 2건 · 응답 차단 · 재시도',description:'관측된 사실을 근거와 연결하고 내부 원인 후보를 구분합니다.'},
@@ -22,7 +24,8 @@ export function investigationEvents(id){
  ['REPORT_READY','조사 보고서 작성','확인 사실, 원인 후보, 부족한 근거를 분리한 예시 보고서입니다.','investigator',{fact:s.fact,hypothesis:s.hypothesis,missing:s.missing,evidence_ids:s.evidence,guide:'investigation-guide@v1'}],
  ['VERDICT_CREATED','자동 검사 및 검토 대기','스키마·참조 ID·도구 범위는 검사하고 설명의 적합성은 사람 검토로 남깁니다.','oracle',{rules_version:'ia-oracle-v1',reference_ids:'PASS',read_only_tools:'PASS',uncertainty_structure:'PASS',semantic_review:'INCONCLUSIVE',review_status:'PENDING'}],
  ];
- return list.map((e,i)=>({type:e[0],title:e[1],description:e[2],node:e[3],payload:e[4],sequence:i+1,event_id:`EVT-${String(i+1).padStart(3,'0')}`,parent_event_id:i?`EVT-${String(i).padStart(3,'0')}`:null,time:`0${i*2}.000`}));
+ const mapping=[['harness',null],['evidence-store','read-evidence'],['guide','search-guide'],['report','write-report'],['reviewer','review']];
+ return list.map((e,i)=>({node_id:mapping[i][0],edge_id:mapping[i][1],type:e[0],title:e[1],description:e[2],payload:e[4],sequence:i+1,event_id:`EVT-${String(i+1).padStart(3,'0')}`,parent_event_id:i?`EVT-${String(i).padStart(3,'0')}`:null,time:`0${i*2}.000`}));
 }
 export function investigationChecks(){return[
  {name:'근거 ID 유효성',result:'PASS',detail:'fixture에 존재하는 근거 ID 참조',field:'evidence_reference',evidence:1},
@@ -32,8 +35,25 @@ export function investigationChecks(){return[
 ];}
 export function validateDemoProfile(agentId,eventsFor,checksFor){
  const agent=agents[agentId];if(!agent)return{ok:false,checks:[{label:'등록 프로필',ok:false}]};
- let references=true,sequences=true,fixtures=true;
- for(const id of agent.scenarios){try{const events=eventsFor(id);const checks=checksFor(id);fixtures&&=events.length>0;sequences&&=new Set(events.map(e=>e.event_id)).size===events.length&&events.every((e,i)=>e.sequence===i+1&&e.parent_event_id===(i?events[i-1].event_id:null));references&&=checks.every(c=>!!events[c.evidence]);}catch{fixtures=false;}}
- const checks=[{label:`${agent.scenarios.length}개 데모 fixture 불러오기`,ok:fixtures},{label:'사건 순서와 고유 ID 확인',ok:sequences},{label:'검사와 사건 근거 연결 확인',ok:references},{label:'Agent·프롬프트 버전 확인',ok:!!agent.version&&!!agent.prompt}];
+ let references=true,sequences=true,fixtures=true,mapping=true;
+ for(const id of agent.scenarios){try{const events=eventsFor(id);const checks=checksFor(id);mapping&&=mapEvents(agent.topology,events).every(m=>m.ok);fixtures&&=events.length>0;sequences&&=new Set(events.map(e=>e.event_id)).size===events.length&&events.every((e,i)=>e.sequence===i+1&&e.parent_event_id===(i?events[i-1].event_id:null));references&&=checks.every(c=>!!events[c.evidence]);}catch{fixtures=false;}}
+ const checks=[{label:'노드·연결·역할 구조 확인',ok:validateTopology(agent.topology).ok},{label:'사건의 node_id·edge_id 매핑 확인',ok:mapping},{label:`${agent.scenarios.length}개 데모 fixture 불러오기`,ok:fixtures},{label:'사건 순서와 고유 ID 확인',ok:sequences},{label:'검사와 사건 근거 연결 확인',ok:references},{label:'Agent·프롬프트 버전 확인',ok:!!agent.version&&!!agent.prompt}];
  return{ok:checks.every(c=>c.ok),checks,scope:'bundled_demo_only',live_checked:false};
+}
+
+const STORAGE_KEY='crashlab-registered-topologies-v1';
+export function registerProfile(input,storage){
+ const result=validateRegistration(input);
+ if(!result.ok)return result;
+ if(Object.hasOwn(agents,result.profile.id))return{ok:false,errors:['이미 등록된 Agent id입니다. 새 id를 사용하세요.']};
+ if(Object.values(agents).filter(a=>a.custom).length>=20)return{ok:false,errors:['최대 20개 구조를 등록할 수 있습니다.']};
+ const p=result.profile;
+ const profile={...p,code:p.id,initials:'MY',prompt:'미등록',model:null,adapter:'sample-events',role:'등록 구조',description:'등록한 구조와 샘플 이벤트를 미리봅니다. 실제 Agent는 실행하지 않습니다.',evaluation:'구조·샘플 이벤트 미리보기',tools:[],defaultScenario:'CUSTOM',scenarios:[]};
+ let persisted=true;
+ try{storage??=globalThis.localStorage;storage.setItem(STORAGE_KEY,JSON.stringify([...Object.values(agents).filter(a=>a.custom),profile]));}catch{persisted=false;}
+ agents[p.id]=profile;
+ return{ok:true,profile,persisted};
+}
+export function restoreProfiles(storage){
+ try{storage??=globalThis.localStorage;const saved=JSON.parse(storage.getItem(STORAGE_KEY)||'[]');if(!Array.isArray(saved))return;for(const input of saved.slice(0,20)){const result=validateRegistration(input);if(result.ok&&!Object.hasOwn(agents,result.profile.id)){const p=result.profile;agents[p.id]={...p,code:p.id,initials:'MY',prompt:'미등록',model:null,adapter:'sample-events',role:'등록 구조',description:'등록한 구조와 샘플 이벤트를 미리봅니다.',evaluation:'구조·샘플 이벤트 미리보기',tools:[],defaultScenario:'CUSTOM',scenarios:[]};}}}catch{/* Storage may be unavailable or contain outdated data. */}
 }

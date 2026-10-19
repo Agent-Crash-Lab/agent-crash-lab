@@ -1,0 +1,89 @@
+{
+  "id": "research-demo",
+  "name": "리서치 Agent",
+  "version": "example-v1",
+  "topology": {
+    "version": "research-topology-v1",
+    "nodes": [
+      {
+        "id": "researcher",
+        "label": "리서치 Agent",
+        "role": "agent",
+        "layer": 0
+      },
+      {
+        "id": "search",
+        "label": "문서 검색",
+        "role": "tool",
+        "layer": 1,
+        "lane": -1
+      },
+      {
+        "id": "archive",
+        "label": "문서 저장소",
+        "role": "store",
+        "layer": 1,
+        "lane": 1
+      },
+      {
+        "id": "answer",
+        "label": "근거 포함 답변",
+        "role": "report",
+        "layer": 2
+      }
+    ],
+    "edges": [
+      {
+        "id": "query",
+        "source": "researcher",
+        "target": "search",
+        "label": "검색 요청"
+      },
+      {
+        "id": "retrieve",
+        "source": "search",
+        "target": "archive",
+        "label": "문서 조회"
+      },
+      {
+        "id": "compose",
+        "source": "researcher",
+        "target": "answer",
+        "label": "답변 작성"
+      }
+    ]
+  },
+  "events": [
+    {
+      "event_id": "CUSTOM-001",
+      "sequence": 1,
+      "node_id": "researcher",
+      "type": "STARTED",
+      "title": "리서치 시작"
+    },
+    {
+      "event_id": "CUSTOM-002",
+      "sequence": 2,
+      "node_id": "search",
+      "edge_id": "query",
+      "type": "TOOL_CALLED",
+      "title": "검색 도구 호출"
+    },
+    {
+      "event_id": "CUSTOM-003",
+      "sequence": 3,
+      "node_id": "archive",
+      "edge_id": "retrieve",
+      "type": "DOCUMENTS_FETCHED",
+      "title": "문서 근거 조회"
+    },
+    {
+      "event_id": "CUSTOM-004",
+      "sequence": 4,
+      "node_id": "answer",
+      "edge_id": "compose",
+      "type": "REPORT_READY",
+      "title": "근거를 포함한 답변 작성"
+    }
+  ]
+}
