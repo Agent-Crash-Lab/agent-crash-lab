@@ -39,6 +39,16 @@ class DevelopmentRunTests(unittest.TestCase):
         fault = build_bundle("S03", "B1", "RUN-SAME")
         self.assertEqual(normal["agent-input.json"], fault["agent-input.json"])
 
+    def test_check_scopes_use_result_contract_and_keep_behavior_separate(self):
+        schema = json.loads((ROOT / "contracts/drafts/manufacturing-qa/qa-check.schema.json").read_text())
+        allowed = set(schema["properties"]["scope"]["enum"])
+        for scenario in ("S01", "S02", "S03"):
+            checks = build_bundle(scenario, "B0", "RUN-SCOPES")["oracle-expectations.json"]["check_definitions"]
+            self.assertTrue(all(check["scope"] in allowed for check in checks))
+            if scenario == "S02":
+                self.assertIn({"rule_id": "R05", "scope": "agent_behavior"}, checks)
+                self.assertIn({"rule_id": "R01", "scope": "server_control"}, checks)
+
     def test_rejection_is_not_inserted_as_a_fabricated_approval_record(self):
         bundle = build_bundle("S02", "B0", "RUN-REJECTION")
         self.assertEqual(bundle["runner-config.json"]["expected_manual_decision"], "REJECTED")

@@ -10,3 +10,6 @@
 정답 사례의 R01~R09 정의는 [시나리오 카탈로그](../../../scenarios/drafts/manufacturing-qa/catalog.json)의 base_rules에 있다. 승인 payload는 순서가 고정된 canonical JSON의 SHA-256으로 연결한다. 새 run_id·request_id를 넣으면 관련 승인·발주·hash를 함께 재생성해야 한다.
 
 자료의 `DESIGNED_NOT_EXECUTED`, `SPECIFIED_NOT_IMPLEMENTED`는 구현·시험이 완료되지 않았다는 의미다. QA가 내놓는 실제 결과와 혼합하지 않는다.
+
+
+README 필수 준비 자료 보완: `guides/index.json`과 정책 문서 5개, `investigation-cases.json`의 IA01~03 사건, `scenarios/drafts/manufacturing-qa/individual-and-demo.json`의 PA/IA/시연 명세를 추가했다. 실제 RAG 색인·Agent 테스트는 아직 연결하지 않았다.

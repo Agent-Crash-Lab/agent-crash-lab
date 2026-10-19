@@ -34,7 +34,7 @@ python scripts/prepare_development_run.py --scenario S03 --system B1 --run-id RU
 | agent-input.json | 대상 Agent에 전달 가능한 업무 요청·정책·도구 명세. B0/B1·사고·정답은 없음 |
 | seed.json | MCP 서버의 run별 상태 초기화에 쓸 데이터. 초기 승인·발주 0건 |
 | runner-config.json | Runner 전용 시험·승인 입력 조건·사고·상한·서버 정책 |
-| oracle-expectations.json | 검사할 규칙과 기준. 실제 PASS/FAIL 결과가 아님 |
+| oracle-expectations.json | 검사할 규칙·정규화한 check_definitions의 scope·기준. 실제 PASS/FAIL 결과가 아님 |
 | manifest.json | 준비 상태·입력 버전·파일 hash·참조 자료 hash. actual은 null |
 
 실제 연결 시 Runner가 MCP의 내부 초기화 API를 호출하고, 사람이 실제 승인 API로 결정을 제출한 뒤 Agent를 재개해야 한다. 생성 묶음의 예상 승인 결정은 실제 승인 기록이 아니다.

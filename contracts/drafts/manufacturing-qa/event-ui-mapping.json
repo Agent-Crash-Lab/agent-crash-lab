@@ -1,0 +1,66 @@
+{
+  "version": "0.1.0-dev",
+  "status": "DESIGN_NOT_SSE_ADAPTER",
+  "mapping": {
+    "TOOL_CALLED": {
+      "node_id": "mcp",
+      "evidence": "tool_call_id와 인자"
+    },
+    "APPROVAL_REQUIRED": {
+      "node_id": "agent",
+      "evidence": "승인 payload·권한"
+    },
+    "APPROVAL_DECIDED": {
+      "node_id": "agent",
+      "evidence": "실제 승인 결정·시각"
+    },
+    "BUSINESS_COMMITTED": {
+      "node_id": "db",
+      "evidence": "order_id·commit·승인"
+    },
+    "FAULT_INJECTED": {
+      "node_id": "fault",
+      "evidence": "1회 규칙과 연계 commit"
+    },
+    "VERDICT_CREATED": {
+      "node_id": "oracle",
+      "evidence": "rule_version·evidence_ids"
+    },
+    "EVIDENCE_FETCHED": {
+      "node_id": "investigator",
+      "evidence": "조회 기록·해당 실행"
+    },
+    "GUIDE_RETRIEVED": {
+      "node_id": "guide",
+      "evidence": "문서 ID·버전·위치"
+    },
+    "REPORT_READY": {
+      "node_id": "investigator",
+      "evidence": "사실·원인 후보·증거 부족"
+    }
+  },
+  "node_ids": [
+    "agent",
+    "investigator",
+    "mcp",
+    "guide",
+    "db",
+    "oracle",
+    "harness",
+    "fault"
+  ],
+  "target_aliases": {
+    "V-PROC": "purchase",
+    "investigation-role": "investigator"
+  },
+  "frontend_field_mapping": {
+    "event_type": "type",
+    "node_id": "node",
+    "occurred_at": "실제 발생 시각. UI time은 run 시작부터의 표시 시간으로 변환"
+  },
+  "notes": [
+    "현재 데모 registry의 get_run_evidence/retrieve_guide는 실제 MCP 도구와 별도 합의 필요.",
+    "주문 카드는 실제 BUSINESS_COMMITTED의 order_id로 만들고 event_id로 중복 수신 제거.",
+    "현재 데모 이벤트는 이 schema를 자동으로 충족하지 않는다. 실제 SSE 어댑터는 미구현."
+  ]
+}

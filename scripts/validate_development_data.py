@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 
 try:
-    from jsonschema import Draft202012Validator
+    from jsonschema import Draft202012Validator, FormatChecker
 except ImportError as error:
     raise SystemExit("Install design dependencies: python -m pip install -r requirements-design.txt") from error
 
@@ -36,10 +36,10 @@ def main():
 
     examples = load("contracts/drafts/manufacturing-qa/examples.json")
     validators = {}
-    for name in ("purchase-result", "oracle-observation", "qa-check"):
+    for name in ("purchase-result", "oracle-observation", "qa-check", "event"):
         schema = load(f"contracts/drafts/manufacturing-qa/{name}.schema.json")
         Draft202012Validator.check_schema(schema)
-        validators[name] = Draft202012Validator(schema)
+        validators[name] = Draft202012Validator(schema, format_checker=FormatChecker())
     for name in ("purchase_success", "purchase_rejected", "purchase_report_during_duplicate_fixture"):
         validators["purchase-result"].validate(examples[name])
     validators["oracle-observation"].validate(examples["oracle_observation_for_duplicate"])
@@ -69,6 +69,11 @@ def main():
     scenario_ids = {scenario["scenario_id"] for scenario in scenarios}
     rules = catalog["base_rules"] + catalog["extension_rules"]
     rule_ids = {rule["rule_id"] for rule in rules}
+    scopes = validators["qa-check"].schema["properties"]["scope"]["enum"]
+    base_rule_ids = {rule["rule_id"] for rule in catalog["base_rules"]}
+    assert set(config["evaluation"]["rule_check_scopes"]) == base_rule_ids
+    for mapped_scopes in config["evaluation"]["rule_check_scopes"].values():
+        assert mapped_scopes and set(mapped_scopes) <= set(scopes)
     profiles = load(config["references"]["profiles"])["profiles"]
     for profile in profiles:
         assert set(profile["scenario_ids"]) <= scenario_ids
@@ -83,6 +88,47 @@ def main():
         for approval in case.get("approvals", []):
             encoded = json.dumps(approval["payload"], ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
             assert hashlib.sha256(encoded).hexdigest() == approval["payload_hash"]
+
+    guide_path = ROOT / config["references"]["guide_index"]
+    guides = load(config["references"]["guide_index"])["documents"]
+    guide_refs = {f'{guide["document_id"]}@{guide["version"]}' for guide in guides}
+    assert len(guide_refs) == len(guides)
+    for guide in guides:
+        assert (guide_path.parent / guide["body_path"]).is_file()
+        assert set(guide["source_ids"]) <= source_ids
+    investigation_cases = load(config["references"]["investigation_cases"])["cases"]
+    for case in investigation_cases:
+        assert case["guide_ref"] in guide_refs
+        assert all(item["run_id"] == case["run_id"] for item in case["evidence"])
+        evidence_ids = [item["evidence_id"] for item in case["evidence"]]
+        assert len(evidence_ids) == len(set(evidence_ids))
+        for evidence in case["evidence"]:
+            if evidence["kind"] == "RUN_TRACE":
+                seen = set()
+                for event in evidence["payload"]["events"]:
+                    validators["event"].validate(event)
+                    assert event["run_id"] == case["run_id"]
+                    assert event["parent_event_id"] is None or event["parent_event_id"] in seen
+                    assert event["event_id"] not in seen
+                    assert set(event["evidence_ids"]) <= set(evidence_ids)
+                    seen.add(event["event_id"])
+            if evidence["kind"] == "BUSINESS_SNAPSHOT":
+                for entity in ("approval", "order"):
+                    for row in evidence["payload"][entity + "s"]:
+                        schema = {"$ref": f"#/$defs/{entity}", "$defs": validators["oracle-observation"].schema["$defs"]}
+                        Draft202012Validator(schema, format_checker=FormatChecker()).validate(row)
+                        assert row["run_id"] == case["run_id"]
+    tests = load(config["references"]["individual_and_demo_tests"])
+    for test in tests["purchase_agent_tests"] + tests["investigation_agent_tests"]:
+        assert (ROOT / test["fixture_ref"]).is_file()
+        if "fixture_id" in test:
+            assert any(case["fixture_id"] == test["fixture_id"] for case in investigation_cases)
+    mapping = load(config["references"]["event_mapping"])
+    event_nodes = validators["event"].schema["properties"]["node_id"]["enum"]
+    assert set(mapping["node_ids"]) == set(event_nodes)
+    assert all(item["node_id"] in event_nodes for item in mapping["mapping"].values())
+    for tool in load(config["references"]["investigation_tools"])["tools"]:
+        Draft202012Validator.check_schema(tool["input_schema"])
 
     sample = load("fixtures/reference/bpi2019/sample.json")
     assert len(sample["traces"]) == sample["trace_count"] == 10
@@ -99,7 +145,7 @@ def main():
         for link in re.findall(r"(?<!!)\[[^\]]*\]\(([^)]+)\)", text):
             if not link.startswith(("https://", "http://", "#", "mailto:")):
                 assert (document.parent / link.split("#")[0]).exists(), (document, link)
-    print(f"PASS: settings, 3 result/observation schemas, {len(tools)} tool schemas, {len(scenarios)} scenarios, {len(cases)} oracle cases, {len(sources)} sources and document links.")
+    print(f"PASS: settings, 4 result/observation/event schemas, {len(tools)} purchase tool schemas, {len(scenarios)} scenarios, {len(cases)} oracle cases, {len(investigation_cases)} investigation cases, {len(guides)} guides, {len(sources)} sources and document links.")
     print("Not checked: live Agent behavior, application builds, migrations or real business operations.")
 
 

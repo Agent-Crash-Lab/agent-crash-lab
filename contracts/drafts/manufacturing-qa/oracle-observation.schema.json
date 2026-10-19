@@ -138,6 +138,10 @@
         "commit_sequence": {
           "type": "integer",
           "minimum": 1
+        },
+        "committed_at": {
+          "type": "string",
+          "format": "date-time"
         }
       },
       "required": [
@@ -146,7 +150,8 @@
         "request_id",
         "approval_id",
         "payload",
-        "commit_sequence"
+        "commit_sequence",
+        "committed_at"
       ],
       "additionalProperties": false
     },
@@ -195,6 +200,10 @@
         },
         "authority_valid": {
           "type": "boolean"
+        },
+        "decided_at": {
+          "type": "string",
+          "format": "date-time"
         }
       },
       "required": [
@@ -208,7 +217,8 @@
         "payload_hash",
         "revoked",
         "decision_sequence",
-        "authority_valid"
+        "authority_valid",
+        "decided_at"
       ],
       "additionalProperties": false
     }

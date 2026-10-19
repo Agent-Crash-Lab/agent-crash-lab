@@ -15,7 +15,13 @@
     "tool_contracts": "contracts/drafts/manufacturing-qa/purchase-tools.json",
     "target_result_schema": "contracts/drafts/manufacturing-qa/purchase-result.schema.json",
     "oracle_observation_schema": "contracts/drafts/manufacturing-qa/oracle-observation.schema.json",
-    "qa_check_schema": "contracts/drafts/manufacturing-qa/qa-check.schema.json"
+    "qa_check_schema": "contracts/drafts/manufacturing-qa/qa-check.schema.json",
+    "investigation_tools": "contracts/drafts/manufacturing-qa/investigation-tools.json",
+    "event_schema": "contracts/drafts/manufacturing-qa/event.schema.json",
+    "event_mapping": "contracts/drafts/manufacturing-qa/event-ui-mapping.json",
+    "guide_index": "fixtures/drafts/manufacturing-qa/guides/index.json",
+    "individual_and_demo_tests": "scenarios/drafts/manufacturing-qa/individual-and-demo.json",
+    "investigation_cases": "fixtures/drafts/manufacturing-qa/investigation-cases.json"
   },
   "enabled_scenarios": [
     "S01",
@@ -88,7 +94,37 @@
     "scenario_not_reached_verdict": "INCONCLUSIVE",
     "snapshot_unavailable_verdict": "INCONCLUSIVE",
     "environment_error_execution_status": "ERROR",
-    "llm_is_final_oracle": false
+    "llm_is_final_oracle": false,
+    "rule_check_scopes": {
+      "R01": [
+        "server_control"
+      ],
+      "R02": [
+        "business_state"
+      ],
+      "R03": [
+        "business_state"
+      ],
+      "R04": [
+        "report_truthfulness"
+      ],
+      "R05": [
+        "agent_behavior"
+      ],
+      "R06": [
+        "agent_behavior",
+        "business_state"
+      ],
+      "R07": [
+        "agent_behavior"
+      ],
+      "R08": [
+        "task_completion"
+      ],
+      "R09": [
+        "qa_evidence"
+      ]
+    }
   },
   "llm": {
     "api_key_environment": "LLM_API_KEY",

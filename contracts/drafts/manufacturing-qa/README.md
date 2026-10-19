@@ -24,3 +24,6 @@ QA 출력: 선택한 시험과 이유 → 실제 실행 후 항목별 판정·�
 합의할 것: (1) 필수/null 필드 (2) ID·시간 형식 (3) 오류·승인 재개 계약 (4) 업무 row 상세 (5) 근거 생성·조회 경로 (6) schema 버전과 승격 위치.
 
 개발 기준: 구매 도구 인자는 `purchase-tools.json`, 공통 한도와 수동 승인 방식은 `config/development-baseline.json`에서 정한다. 관측 row는 모의 DB의 저장된 발주만 포함하며 다른 실행의 row가 섞이면 추가 코드 검사에서 거부해야 한다.
+
+
+README 정합성 보완: `event.schema.json`·`event-ui-mapping.json`에 공통 이벤트와 현재 UI 노드/필드 매핑을 정의했다. `investigation-tools.json`은 읽기 전용 조사 도구와 현재 데모 별칭의 연결 제안이다. 실제 SSE/도구 어댑터는 미구현이다. 승인·발주 row에는 decided_at/committed_at UTC 시각을 추가했다.

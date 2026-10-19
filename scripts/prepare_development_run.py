@@ -106,6 +106,11 @@ def build_bundle(scenario_id, system_id, run_id, root=ROOT):
         "scenario_id": scenario_id,
         "rule_version": config["evaluation"]["rule_version"],
         "rules": rules,
+        "check_definitions": [
+            {"rule_id": rule["rule_id"], "scope": scope}
+            for rule in rules
+            for scope in config["evaluation"]["rule_check_scopes"][rule["rule_id"]]
+        ],
         "expected_order_count": 0 if scenario_id == "S02" else 1,
         "fault_application_required": scenario_id == "S03",
         "required_evidence": scenario["required_evidence"],

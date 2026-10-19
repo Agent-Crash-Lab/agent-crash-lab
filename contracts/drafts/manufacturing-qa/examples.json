@@ -44,7 +44,8 @@
           "plant_id": "PLANT-A",
           "purchasing_org_id": "PUR-A"
         },
-        "commit_sequence": 4
+        "commit_sequence": 4,
+        "committed_at": "2026-10-19T01:00:04Z"
       },
       {
         "order_id": "PO-002",
@@ -62,7 +63,8 @@
           "plant_id": "PLANT-A",
           "purchasing_org_id": "PUR-A"
         },
-        "commit_sequence": 7
+        "commit_sequence": 7,
+        "committed_at": "2026-10-19T01:00:07Z"
       }
     ],
     "approvals": [
@@ -87,7 +89,8 @@
         "revoked": false,
         "run_id": "RUN-FIXTURE",
         "decision_sequence": 2,
-        "authority_valid": true
+        "authority_valid": true,
+        "decided_at": "2026-10-19T01:00:02Z"
       }
     ],
     "commit_evidence_ids": [

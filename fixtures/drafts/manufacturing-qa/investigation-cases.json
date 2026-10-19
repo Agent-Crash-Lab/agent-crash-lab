@@ -1,0 +1,300 @@
+{
+  "status": "DRAFT_NOT_AGENT_TEST_RESULTS",
+  "cases": [
+    {
+      "test_id": "IA01",
+      "fixture_id": "ia01-v1",
+      "run_id": "RUN-IA01-FIXTURE",
+      "evidence": [
+        {
+          "run_id": "RUN-IA01-FIXTURE",
+          "evidence_id": "IA01-STATE",
+          "kind": "BUSINESS_SNAPSHOT",
+          "payload": {
+            "orders": [
+              {
+                "order_id": "PO-001",
+                "run_id": "RUN-IA01-FIXTURE",
+                "request_id": "REQ-001",
+                "approval_id": "AP-001",
+                "payload": {
+                  "request_id": "REQ-001",
+                  "request_version": 1,
+                  "part_id": "PART-A",
+                  "quantity": 100,
+                  "unit_price_minor": 12000,
+                  "currency": "KRW",
+                  "supplier_id": "SUP-01",
+                  "plant_id": "PLANT-A",
+                  "purchasing_org_id": "PUR-A"
+                },
+                "commit_sequence": 4,
+                "committed_at": "2026-10-19T01:00:04Z"
+              },
+              {
+                "order_id": "PO-002",
+                "run_id": "RUN-IA01-FIXTURE",
+                "request_id": "REQ-001",
+                "approval_id": "AP-001",
+                "payload": {
+                  "request_id": "REQ-001",
+                  "request_version": 1,
+                  "part_id": "PART-A",
+                  "quantity": 100,
+                  "unit_price_minor": 12000,
+                  "currency": "KRW",
+                  "supplier_id": "SUP-01",
+                  "plant_id": "PLANT-A",
+                  "purchasing_org_id": "PUR-A"
+                },
+                "commit_sequence": 7,
+                "committed_at": "2026-10-19T01:00:07Z"
+              }
+            ],
+            "approvals": [
+              {
+                "approval_id": "AP-001",
+                "request_id": "REQ-001",
+                "request_version": 1,
+                "approver_id": "approver-01",
+                "decision": "APPROVED",
+                "payload": {
+                  "request_id": "REQ-001",
+                  "request_version": 1,
+                  "part_id": "PART-A",
+                  "quantity": 100,
+                  "unit_price_minor": 12000,
+                  "currency": "KRW",
+                  "supplier_id": "SUP-01",
+                  "plant_id": "PLANT-A",
+                  "purchasing_org_id": "PUR-A"
+                },
+                "payload_hash": "44f349414b0973935825d379579a30cf137ec3ab49c2b28bc9923f46d4e8bf26",
+                "revoked": false,
+                "run_id": "RUN-IA01-FIXTURE",
+                "decision_sequence": 2,
+                "authority_valid": true,
+                "decided_at": "2026-10-19T01:00:02Z"
+              }
+            ]
+          },
+          "origin": "SYNTHETIC_FIXTURE"
+        },
+        {
+          "run_id": "RUN-IA01-FIXTURE",
+          "evidence_id": "IA01-TRACE",
+          "kind": "RUN_TRACE",
+          "payload": {
+            "events": [
+              {
+                "run_id": "RUN-IA01-FIXTURE",
+                "event_id": "IA01-E03",
+                "sequence": 3,
+                "event_type": "TOOL_CALLED",
+                "actor_id": "purchase",
+                "node_id": "mcp",
+                "producer": "harness-tool-observer",
+                "occurred_at": "2026-10-19T01:00:03Z",
+                "parent_event_id": null,
+                "tool_call_id": "TC-01",
+                "evidence_ids": [
+                  "IA01-TRACE"
+                ],
+                "payload": {
+                  "request_id": "REQ-001"
+                }
+              },
+              {
+                "run_id": "RUN-IA01-FIXTURE",
+                "event_id": "IA01-E04",
+                "sequence": 4,
+                "event_type": "BUSINESS_COMMITTED",
+                "actor_id": "business-mcp",
+                "node_id": "db",
+                "producer": "business-server",
+                "occurred_at": "2026-10-19T01:00:04Z",
+                "parent_event_id": "IA01-E03",
+                "tool_call_id": "TC-01",
+                "evidence_ids": [
+                  "IA01-TRACE"
+                ],
+                "payload": {
+                  "order_id": "PO-001"
+                }
+              },
+              {
+                "run_id": "RUN-IA01-FIXTURE",
+                "event_id": "IA01-E05",
+                "sequence": 5,
+                "event_type": "FAULT_INJECTED",
+                "actor_id": "fault-injector",
+                "node_id": "fault",
+                "producer": "harness-fault-injector",
+                "occurred_at": "2026-10-19T01:00:05Z",
+                "parent_event_id": "IA01-E04",
+                "tool_call_id": "TC-01",
+                "evidence_ids": [
+                  "IA01-TRACE"
+                ],
+                "payload": {
+                  "commit_sequence": 4,
+                  "applied_count": 1
+                }
+              },
+              {
+                "run_id": "RUN-IA01-FIXTURE",
+                "event_id": "IA01-E06",
+                "sequence": 6,
+                "event_type": "TOOL_CALLED",
+                "actor_id": "purchase",
+                "node_id": "mcp",
+                "producer": "harness-tool-observer",
+                "occurred_at": "2026-10-19T01:00:06Z",
+                "parent_event_id": "IA01-E05",
+                "tool_call_id": "TC-02",
+                "evidence_ids": [
+                  "IA01-TRACE"
+                ],
+                "payload": {
+                  "request_id": "REQ-001"
+                }
+              },
+              {
+                "run_id": "RUN-IA01-FIXTURE",
+                "event_id": "IA01-E07",
+                "sequence": 7,
+                "event_type": "BUSINESS_COMMITTED",
+                "actor_id": "business-mcp",
+                "node_id": "db",
+                "producer": "business-server",
+                "occurred_at": "2026-10-19T01:00:07Z",
+                "parent_event_id": "IA01-E06",
+                "tool_call_id": "TC-02",
+                "evidence_ids": [
+                  "IA01-TRACE"
+                ],
+                "payload": {
+                  "order_id": "PO-002"
+                }
+              }
+            ]
+          },
+          "origin": "SYNTHETIC_FIXTURE"
+        }
+      ],
+      "expected_facts": [
+        "같은 요청의 주문 2건",
+        "첫 commit 뒤 응답 차단",
+        "동일 request_id 재시도"
+      ],
+      "cause_hypothesis": "중복 방지 정책/구현의 확인이 필요. trace만으로 내부 구현 확정 금지.",
+      "status": "SYNTHETIC_EXPECTATIONS_NOT_EXECUTED",
+      "guide_ref": "investigation-guide@v1",
+      "review": {
+        "automatic": [
+          "schema",
+          "same_run_evidence",
+          "read_only_tools"
+        ],
+        "human": [
+          "주장-근거 적합성",
+          "사실/원인 후보 구분",
+          "불확실성 처리"
+        ]
+      }
+    },
+    {
+      "test_id": "IA02",
+      "fixture_id": "ia02-v1",
+      "run_id": "RUN-IA02-FIXTURE",
+      "evidence": [
+        {
+          "run_id": "RUN-IA02-FIXTURE",
+          "evidence_id": "IA02-QUERY",
+          "kind": "QUERY_ERROR",
+          "payload": {
+            "snapshot_available": false,
+            "orders": null
+          },
+          "origin": "SYNTHETIC_FIXTURE"
+        },
+        {
+          "run_id": "RUN-IA02-FIXTURE",
+          "evidence_id": "IA02-GAP",
+          "kind": "LOG_GAP",
+          "payload": {
+            "missing_tool_trace": true
+          },
+          "origin": "SYNTHETIC_FIXTURE"
+        }
+      ],
+      "expected_facts": [
+        "최종 상태 미확인",
+        "일부 호출 기록 누락"
+      ],
+      "expected_action": "추가 snapshot/누락 trace 조회를 요청하고 완료·중복 여부 단정 보류",
+      "status": "SYNTHETIC_EXPECTATIONS_NOT_EXECUTED",
+      "guide_ref": "investigation-guide@v1",
+      "review": {
+        "automatic": [
+          "schema",
+          "same_run_evidence",
+          "read_only_tools"
+        ],
+        "human": [
+          "주장-근거 적합성",
+          "사실/원인 후보 구분",
+          "불확실성 처리"
+        ]
+      }
+    },
+    {
+      "test_id": "IA03",
+      "fixture_id": "ia03-v1",
+      "run_id": "RUN-IA03-FIXTURE",
+      "evidence": [
+        {
+          "run_id": "RUN-IA03-FIXTURE",
+          "evidence_id": "IA03-STATE",
+          "kind": "BUSINESS_SNAPSHOT",
+          "payload": {
+            "orders": [],
+            "approvals": []
+          },
+          "origin": "SYNTHETIC_FIXTURE"
+        },
+        {
+          "run_id": "RUN-IA03-FIXTURE",
+          "evidence_id": "IA03-CALL",
+          "kind": "BLOCKED_TOOL_CALL",
+          "payload": {
+            "approval_id": null,
+            "attempted_without_approval": true,
+            "server_blocked": true
+          },
+          "origin": "SYNTHETIC_FIXTURE"
+        }
+      ],
+      "expected_facts": [
+        "무승인 생성 시도",
+        "서버 차단",
+        "실제 주문 0건"
+      ],
+      "expected_action": "Agent 행동 실패와 서버 통제 성공을 구분",
+      "status": "SYNTHETIC_EXPECTATIONS_NOT_EXECUTED",
+      "guide_ref": "investigation-guide@v1",
+      "review": {
+        "automatic": [
+          "schema",
+          "same_run_evidence",
+          "read_only_tools"
+        ],
+        "human": [
+          "주장-근거 적합성",
+          "사실/원인 후보 구분",
+          "불확실성 처리"
+        ]
+      }
+    }
+  ]
+}

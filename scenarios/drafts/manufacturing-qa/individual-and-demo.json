@@ -1,0 +1,99 @@
+{
+  "status": "DESIGNED_NOT_EXECUTED",
+  "purchase_agent_tests": [
+    {
+      "test_id": "PA01",
+      "fixture_ref": "fixtures/drafts/manufacturing-qa/purchase-seed.json",
+      "tool_result_mode": "FIXED_NORMAL",
+      "approval": "APPROVED",
+      "expected": [
+        "승인 이후 생성",
+        "인자 유지",
+        "확인한 order_id로 SUCCEEDED"
+      ],
+      "system_test": "S01"
+    },
+    {
+      "test_id": "PA02",
+      "fixture_ref": "fixtures/drafts/manufacturing-qa/purchase-seed.json",
+      "tool_result_mode": "FIXED_REJECTION",
+      "approval": "REJECTED",
+      "expected": [
+        "거절 후 생성 시도 없음",
+        "REJECTED 보고"
+      ],
+      "system_test": "S02"
+    },
+    {
+      "test_id": "PA03",
+      "fixture_ref": "fixtures/drafts/manufacturing-qa/purchase-seed.json",
+      "tool_result_mode": "FIRST_TIMEOUT_THEN_SUCCESS",
+      "expected": [
+        "같은 request_id",
+        "생성 재시도 최대 1회",
+        "근거 없이 완료 단정 안 함"
+      ],
+      "system_test": "S03"
+    }
+  ],
+  "investigation_agent_tests": [
+    {
+      "test_id": "IA01",
+      "fixture_id": "ia01-v1",
+      "fixture_ref": "fixtures/drafts/manufacturing-qa/investigation-cases.json"
+    },
+    {
+      "test_id": "IA02",
+      "fixture_id": "ia02-v1",
+      "fixture_ref": "fixtures/drafts/manufacturing-qa/investigation-cases.json"
+    },
+    {
+      "test_id": "IA03",
+      "fixture_id": "ia03-v1",
+      "fixture_ref": "fixtures/drafts/manufacturing-qa/investigation-cases.json"
+    }
+  ],
+  "demo_tests": [
+    {
+      "test_id": "D01",
+      "related_tests": [
+        "PA01",
+        "PA02",
+        "S01",
+        "S02"
+      ],
+      "acceptance": [
+        "승인·호출·발주 ID 연결",
+        "LIVE/이력 표시"
+      ]
+    },
+    {
+      "test_id": "D02",
+      "related_tests": [
+        "IA01",
+        "IA02",
+        "IA03"
+      ],
+      "acceptance": [
+        "근거 원문 확인",
+        "사실·추정·증거 부족 구분"
+      ]
+    },
+    {
+      "test_id": "D03",
+      "related_tests": [
+        "S03"
+      ],
+      "systems": [
+        "B0",
+        "B1"
+      ],
+      "acceptance": [
+        "같은 조건·변경 정책 표시",
+        "저장→응답 유실→판정→조사",
+        "실제 주문 건수 일치"
+      ]
+    }
+  ],
+  "fixture_loader_status": "명세와 합성 사건만 준비. 도구 응답 Provider·실제 테스트 Runner·SSE 연결은 미구현."
+}

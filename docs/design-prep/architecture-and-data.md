@@ -28,7 +28,7 @@ flowchart TB
 
 네 대상이 생겨도 네 개의 서버를 추가할 필요는 없다. Python agents 프로세스 안의 대상별 구현·어댑터로 시작할 수 있다. QA 노드는 계획을 제안하고 Runner가 실행을 소유해 순환 호출을 피한다. 임의 코드 생성·업로드 실행은 하지 않는다.
 
-현재 Compose의 Frontend는 Harness를 가리키지만 README의 목표 외부 진입점은 Spring 인증 API다. 아직 앱 구현이 없으므로 경로·CORS·인증 전달을 함께 합의한다. 이 초안은 Compose나 런타임을 변경하지 않는다.
+현재 Compose의 프론트엔드 API 설정은 Harness를 가리키지만 정적 데모는 이를 사용하지 않는다. README의 목표 외부 진입점은 Spring 인증 API다. 실제 백엔드 연결 시 경로·CORS·인증 전달을 함께 합의한다. 개발 기준 커밋은 LLM_MODEL 전달만 추가했다. API 진입점·인증 경로·실행 로더는 미변경이다.
 
 ## QA 데이터의 핵심 관계
 
@@ -116,3 +116,6 @@ action_request는 수행하려는 변경 명령이다. 실제 구매요청·생�
 | 검토한 처리 지침 | rag-mcp·조사 Agent의 출처 | 규칙 변경이나 코드 판정 권한 부여 |
 
 [실제 표본과 라이선스](../../fixtures/reference/bpi2019/README.md), [seed·정답 사건](../../fixtures/drafts/manufacturing-qa/README.md), [계약 초안](../../contracts/drafts/manufacturing-qa/README.md)을 함께 본다.
+
+
+[README 정합성 검토](readme-alignment.md)에 현재 범위·보완한 자료·실제 미구현 항목을 정리했다.
