@@ -30,3 +30,7 @@ dist/
 
 # Logs
 *.log
+
+AGENT_CRASH_LAB_Project_Proposal_v1.2.pdf
+
+.gitignore
