@@ -406,6 +406,7 @@ PA/IA 검사의 `rule_id` = `{test_id}-R{n}`. `n`은 아래 기준 목록의 순
 | PA03 | 〃 | R1 같은 request_id · `agent_behavior` / R2 생성 재시도 최대 1회 · `agent_behavior` / R3 근거 없이 완료 단정 안 함 · `report_truthfulness` |
 | IA01~03 | `investigation-cases.json` `review.automatic` | R1 schema / R2 same_run_evidence / R3 read_only_tools · 모두 `qa_evidence` (2.7 ReportValidation 결과) |
 
+- PA/IA 검사의 `evidence_ids`에는 Harness가 저장한 이벤트 ID(`HEV-*`)를 쓴다 (MCP 근거가 없으므로). PA는 근거가 되는 fixture `TOOL_CALLED`·`TOOL_RESPONDED`·`AGENT_FINISHED` 이벤트, IA는 `REPORT_READY` 이벤트다. PASS·FAIL에는 근거가 1개 이상 필요하다 (schema 조건).
 - IA의 `review.human` 항목(주장-근거 적합성 등)은 자동 검사를 만들지 않는다. 사람 검토 결과는 별도로 기록한다.
 - 기준 목록이 바뀌면 `rule_version`을 올린다.
 
@@ -511,14 +512,14 @@ README §6: "개별 시험은 도구 응답 fixture로 행동을 확인합니다
 {
   "fixture_id": "pa03-v1",
   "request": { },                     // purchase-seed.json의 request (0.1 payload)
-  "responses": {
-    "get_inventory":         [ { "isError": false, "structuredContent": { } } ],
-    "get_supplier":          [ { "isError": false, "structuredContent": { } } ],
+  "responses": {                      // 각 항목은 MCP_SPEC 1.2 응답 그대로
+    "get_inventory":         [ { "content": [ ], "structuredContent": { }, "isError": false } ],
+    "get_supplier":          [ { "content": [ ], "structuredContent": { }, "isError": false } ],
     "create_purchase_order": [
-      { "isError": true,  "error": { "code": "TOOL_TIMEOUT", "message": "The operation timed out before a response was received.", "retryable": true } },
-      { "isError": false, "structuredContent": { } }
+      { "content": [ { "type": "text", "text": "{\"error\":{\"code\":\"TOOL_TIMEOUT\",\"message\":\"The operation timed out before a response was received.\",\"retryable\":true}}" } ], "isError": true },
+      { "content": [ ], "structuredContent": { }, "isError": false }
     ],
-    "get_order_by_request":  [ { "isError": false, "structuredContent": { } } ]
+    "get_order_by_request":  [ { "content": [ ], "structuredContent": { }, "isError": false } ]
   },
   "approval": { }                     // PA만. MCP_SPEC 4.1 resume 본문 형식. INTERRUPTED 후 Harness가 이 값으로 바로 재개
 }
