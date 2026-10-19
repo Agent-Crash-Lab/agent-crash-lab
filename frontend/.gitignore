@@ -1,0 +1,8 @@
+node_modules/
+.DS_Store
+._*
+*.tar.gz
+
+# This prototype serves checked-in static source directly.
+!dist/
+!dist/**
