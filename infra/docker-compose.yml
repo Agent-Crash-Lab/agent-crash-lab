@@ -1,0 +1,102 @@
+name: agent-crash-lab
+
+# 실행: 루트에서 `make up` 또는
+#   docker compose -f infra/docker-compose.yml --env-file .env up -d --build
+# 모든 앱 서비스는 GET /health 를 제공해야 한다.
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      MCP_DB_PASSWORD: ${MCP_DB_PASSWORD}
+      HARNESS_DB_PASSWORD: ${HARNESS_DB_PASSWORD}
+      ORACLE_DB_PASSWORD: ${ORACLE_DB_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mcp-server:
+    build: ../mcp-server
+    environment:
+      SERVER_PORT: 8081
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: mcp_app
+      SPRING_DATASOURCE_PASSWORD: ${MCP_DB_PASSWORD}
+    ports:
+      - "${MCP_SERVER_PORT:-8081}:8081"
+    volumes:
+      - ../fixtures:/fixtures:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8081/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+
+  agents:
+    build: ../agents
+    environment:
+      MCP_URL: http://mcp-server:8081/mcp
+      LLM_API_KEY: ${LLM_API_KEY}
+    ports:
+      - "${AGENTS_PORT:-8090}:8090"
+    depends_on:
+      mcp-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8090/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  harness:
+    build: ../harness
+    environment:
+      DATABASE_URL: postgresql://harness_app:${HARNESS_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      ORACLE_DATABASE_URL: postgresql://oracle_ro:${ORACLE_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      MCP_URL: http://mcp-server:8081
+      AGENT_URL: http://agents:8090
+      LLM_API_KEY: ${LLM_API_KEY}
+    ports:
+      - "${HARNESS_PORT:-8000}:8000"
+    volumes:
+      - ../scenarios:/scenarios:ro
+      - ../fixtures:/fixtures:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mcp-server:
+        condition: service_healthy
+      agents:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  frontend:
+    build:
+      context: ../frontend
+      args:
+        VITE_API_URL: http://localhost:${HARNESS_PORT:-8000}
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+    depends_on:
+      - harness
+
+volumes:
+  pgdata:
