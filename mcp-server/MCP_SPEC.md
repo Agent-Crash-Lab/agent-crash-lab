@@ -16,7 +16,7 @@ mcp-server가 **Agent**, **Harness**와 주고받는 데이터 형식과 공개 
 | 한도·승인·사고·해시 기준 | `config/development-baseline.json` |
 | seed | `fixtures/drafts/manufacturing-qa/purchase-seed.json` |
 | 지침 목록 | `fixtures/drafts/manufacturing-qa/guides/index.json` |
-| Harness 연동 | `harness_spec_임시.md` (Harness 명세 v0.2) |
+| Harness 연동 | `harness/HARNESS_SPEC.md` (Harness 명세 v0.3) |
 
 ## 0. 개요
 
@@ -181,7 +181,7 @@ PA03 개별 시험과 S03 통합 시험이 이 계약을 공유한다. 코드 �
 - 각 코드의 의미와 retryable 값은 drafts에 정의가 없어 추천안이다 (회의 확정 필요)
 - `TOOL_TIMEOUT`: 사고 주입으로 만든 timeout과 실제 timeout은 **코드·메시지·형태가 완전히 같다.** 메시지는 `"The operation timed out before a response was received."`로 고정한다.
 - 도구 호출 timeout은 10초 (`tool_timeout_seconds`). 서버는 10초 안에 응답하고, 넘으면 `TOOL_TIMEOUT`이다.
-- Agent는 도구 응답을 12초(`agent_tool_wait_seconds`, Harness 명세 3.1)까지 기다린다. 서버가 10초 안에 `TOOL_TIMEOUT`을 직접 돌려줘야 Agent가 서버 오류를 받는다. 이 10초 제한은 서버가 도구 실행에 직접 건다.
+- Agent도 도구 호출을 10초(`tool_timeout_seconds`)에 끊는다. 두 시점이 겹쳐도 Agent는 어느 쪽이든 `TOOL_TIMEOUT`으로 처리하므로 행동이 같다. 서버에 남은 호출은 finalize(3.4)가 정리한다. 이 10초 제한은 서버가 도구 실행에 직접 건다.
 - 호출 횟수·재시도 한도(`max_tool_calls`, `write_retries_after_ambiguous_error` 등)는 Harness·Agent가 지킨다. MCP는 강제하지 않고 기록만 한다.
 
 ### 1.6 `create_purchase_order` 서버 처리 순서
@@ -411,13 +411,13 @@ Harness가 제공하고 MCP가 호출한다.
 
 ```jsonc
 // 요청: 2.1 이벤트에서 sequence를 뺀 형태
-// 201
-{ "event_id": "EVT-007", "sequence": 7 }
+// 202
+{ "event_id": "EVT-007", "sequence": null }
 ```
 
 - MCP는 발생 순서대로 **비동기**로 보낸다. 이벤트는 대기열에 넣고 전송 전용 스레드 하나가 넣은 순서대로 보내므로, 순서는 유지되고 Harness가 느려도 도구 응답 시간(1.5의 10초 제한)에 영향을 주지 않는다.
-- Harness가 받는 순서 = 발생 순서이므로 `sequence`도 발생 순서대로 매겨진다. 단, MCP 이벤트와 Harness 자체 이벤트 사이의 상대 순서는 전송 지연만큼 늦게 반영될 수 있다. 인과관계는 `parent_event_id`로 판단한다.
-- 같은 event_id를 다시 제출하면 기존 sequence를 반환해야 한다.
+- Harness는 MCP·Agent·Harness 이벤트를 약 1초 모았다가 `occurred_at`(발생 시각) 순으로 `sequence`를 붙인다 (Harness 명세 2.9). 그래서 응답의 `sequence`는 `null`이고 MCP는 응답 본문을 쓰지 않는다. `occurred_at`은 전송 시각이 아니라 이벤트를 만든 시각이어야 한다.
+- 같은 event_id를 다시 제출하면 중복 저장하지 않는다. 이미 번호가 붙었으면 그 `sequence`를, 대기 중이면 `null`을 반환한다.
 - 이벤트 전송이 실패해도 업무 처리는 되돌리지 않는다. 판정용 원본 근거(승인, 발주, 도구 호출, 주입 기록)는 업무 DB에 따로 남는다.
 
 ### 4.3 조사 도구용 조회

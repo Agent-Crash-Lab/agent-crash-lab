@@ -125,5 +125,5 @@ curl -s -X POST localhost:8081/api/runs/$RID/approval -H "Authorization: Bearer 
 | `MCP_URL` | mcp-server 주소 (`http://mcp-server:8081`) |
 | `AGENT_URL` | Agent 주소 (`http://agents:8090`) |
 | `INTERNAL_API_TOKEN` | 내부 API 공유 토큰. 비어 있으면 Harness API는 503 |
-| `HARNESS_DEV_AUTH` | 개발용 인증 우회 (기본 `false`) |
+| `HARNESS_DEV_AUTH` | 개발용 인증 우회 (기본 `false`). `.env`에서 `true`로 바꾸면 Compose에서도 헤더 없이 호출 가능 |
 | `HARNESS_PROJECT_ROOT` | 공유 자료 위치 |
