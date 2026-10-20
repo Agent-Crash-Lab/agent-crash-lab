@@ -20,16 +20,19 @@ db:        ## Postgres 만 기동
 clean:     ## 서비스 중지 + DB 볼륨 삭제 (init.sql 다시 실행됨)
 	$(COMPOSE) down -v
 
-# Available components only; isolated project/DB volume, no MCP/Harness dependency.
+# Isolated development volumes. MCP is optional; Harness is not started.
 COMPOSE_DEV = docker compose -f infra/docker-compose.yml -f infra/docker-compose.dev.yml --env-file .env
 
-.PHONY: dev-check dev-up dev-down dev-ps dev-logs agent-demo
+.PHONY: dev-check dev-up dev-mcp-up dev-down dev-ps dev-logs agent-demo
 
 dev-check: ## 개발용 Compose 설정 확인
 	$(COMPOSE_DEV) config --quiet
 
 dev-up: dev-check ## DB + Agent health + 정적 화면만 시작
 	$(COMPOSE_DEV) up -d --build --wait --wait-timeout 90 postgres agents frontend
+
+dev-mcp-up: dev-check ## 실제 MCP + DB + Agent + 정적 화면 시작 (Harness 제외)
+	$(COMPOSE_DEV) up -d --build --wait --wait-timeout 120 postgres mcp-server agents frontend
 
 dev-down: ## 개발 컨테이너 종료 (DB 볼륨 보존)
 	$(COMPOSE_DEV) down
