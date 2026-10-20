@@ -35,8 +35,6 @@ class Runtime:
         self.policy = {
             **config["execution"],
             **config["approval"],
-            # Harness spec 3.1: receive MCP's timeout response before timing out locally.
-            "agent_tool_wait_seconds": config["execution"]["tool_timeout_seconds"] + 2,
         }
         self.schemas = {}
         for file in ["purchase-tools.json", "investigation-tools.json"]:
@@ -200,7 +198,7 @@ class Runtime:
                 )
                 if run["mode"] == "mock"
                 else McpTools(
-                    str(self.settings.mcp_url), token, self.policy["agent_tool_wait_seconds"]
+                    str(self.settings.mcp_url), token, self.policy["tool_timeout_seconds"]
                 )
             )
             async with asyncio.timeout(remaining), tools as connection:

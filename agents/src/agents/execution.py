@@ -20,12 +20,6 @@ class Context:
         self.store, self.run_id, self.tools = store, run_id, tools
         self.policy, self.schemas, self.secrets = policy, schemas, secrets
 
-    @property
-    def tool_wait_seconds(self):
-        mode = self.store.get(self.run_id)["mode"]
-        key = "agent_tool_wait_seconds" if mode == "mcp" else "tool_timeout_seconds"
-        return self.policy[key]
-
     def event(self, kind, payload=None):
         self.store.event(self.run_id, kind, redact(payload or {}, self.secrets))
 
@@ -75,7 +69,7 @@ class Context:
         for attempt in range(retries + 1):
             call_id = self.count(name, arguments)
             try:
-                async with asyncio.timeout(self.tool_wait_seconds):
+                async with asyncio.timeout(self.policy["tool_timeout_seconds"]):
                     data = await self.tools.call(name, arguments)
                 if not isinstance(data, dict) or len(json.dumps(data)) > 64000:
                     raise ToolError("INVALID_RESPONSE")
@@ -110,7 +104,7 @@ class Context:
         for attempt in range(self.policy["read_retries_after_transient_error"] + 1):
             call_id = self.count("read_resource", {"uri": uri})
             try:
-                async with asyncio.timeout(self.tool_wait_seconds):
+                async with asyncio.timeout(self.policy["tool_timeout_seconds"]):
                     text = await self.tools.resource(uri)
                 if not isinstance(text, str) or len(text) > 64000:
                     raise ToolError("INVALID_RESPONSE")
