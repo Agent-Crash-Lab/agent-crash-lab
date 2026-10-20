@@ -127,3 +127,11 @@ curl -s -X POST localhost:8081/api/runs/$RID/approval -H "Authorization: Bearer 
 | `INTERNAL_API_TOKEN` | 내부 API 공유 토큰. 비어 있으면 Harness API는 503 |
 | `HARNESS_DEV_AUTH` | 개발용 인증 우회 (기본 `false`). `.env`에서 `true`로 바꾸면 Compose에서도 헤더 없이 호출 가능 |
 | `HARNESS_PROJECT_ROOT` | 공유 자료 위치 |
+
+## Agent 모델 기록
+
+Agent의 비동기 API 형식은 유지합니다. 시작 응답의 `model_kind`, `model`, `agent_version`,
+`prompt_version`을 구매 Manifest에 저장하며 조사 모델 정보는 `investigation.model_metadata`에
+보관합니다. 완료 시 `agent.usage.llm`, `investigation.llm_usage`로 모델 사용량을 전달합니다.
+모델 키는 Harness가 받거나 저장하지 않습니다. 모델 선택·예산과 실험 방법은
+[Agent LLM 문서](../agents/README.md#llm-실행과-모델-비교)를 따릅니다.

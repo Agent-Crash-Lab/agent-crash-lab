@@ -385,7 +385,9 @@ class Runner:
         report_ready = next(
             (e for e in reversed(agent_events) if e["event_type"] == "REPORT_READY"), None
         )
-        run["investigation"].update(status="READY", report=report, validation=validation)
+        run["investigation"].update(
+            status="READY", report=report, validation=validation, llm_usage=agent.get("llm_usage")
+        )
         self.store.put_run(run)
         await self.events.harness_event(
             run_id,
@@ -403,7 +405,13 @@ class Runner:
         self.agent_cursor[body["run_id"]] = 0
         run = self._run(run_id)
         if body["agent_kind"] == "PURCHASE_AGENT":
-            run["manifest"]["model_kind"] = agent.get("model_kind")
+            for key in ("model_kind", "model", "agent_version", "prompt_version"):
+                run["manifest"][key] = agent.get(key)
+        else:
+            run["investigation"]["model_metadata"] = {
+                key: agent.get(key)
+                for key in ("model_kind", "model", "agent_version", "prompt_version")
+            }
         self.store.put_run(run)
 
     async def _follow_agent(self, run_id: str, agent_run_id: str, on_waiting) -> dict:
@@ -465,6 +473,7 @@ class Runner:
                 "turns": agent.get("turns"),
                 "tool_calls": agent.get("tool_calls"),
                 "active_seconds": agent.get("active_seconds"),
+                "llm": agent.get("llm_usage"),
             },
             started_at=epoch_iso(agent.get("created_at")),
             finished_at=epoch_iso(agent.get("finished_at")),

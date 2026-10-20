@@ -1,19 +1,24 @@
 """Single-process local execution, durable approval waits, and bounded async work."""
 
 import asyncio
+import hashlib
 import json
 import sqlite3
 import time
 from contextlib import AsyncExitStack, nullcontext
+from importlib.metadata import version
 
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.types import Command
 
 from agents.config import redact
 from agents.execution import Context, ExecutionLimit
+from agents.graph.investigation import PROMPT as INVESTIGATION_PROMPT
 from agents.graph.investigation import FixtureReportModel, build_investigation_graph
 from agents.graph.purchase import build_purchase_graph
-from agents.models import ApprovalDecision, PurchaseRequest
+from agents.graph.purchase_model import PROMPT as PURCHASE_PROMPT
+from agents.llm import ModelError, PurchaseChoice, StructuredModel, resolve_model
+from agents.models import ApprovalDecision, InvestigationReport, PurchaseRequest
 from agents.store import Store
 from agents.tools.mcp import McpTools
 from agents.tools.mock import MockTools
@@ -112,6 +117,42 @@ class Runtime:
         self.tasks.add(task)
         task.add_done_callback(self.tasks.discard)
 
+    def model_metadata(self, kind):
+        live = self.settings.agent_model_mode == "openai"
+        purchase = kind == "PURCHASE_AGENT"
+        prompt = PURCHASE_PROMPT if purchase else INVESTIGATION_PROMPT
+        model = None
+        if live:
+            if not self.settings.llm_api_key.get_secret_value():
+                raise RunError(503, "LLM_KEY_NOT_CONFIGURED")
+            selected = (
+                self.settings.purchase_llm_model
+                if purchase
+                else self.settings.investigation_llm_model
+            ) or self.settings.llm_model
+            if not selected:
+                raise RunError(503, "LLM_MODEL_NOT_CONFIGURED")
+            try:
+                model = resolve_model(selected)
+            except ModelError as exc:
+                raise RunError(503, str(exc)) from None
+        return {
+            "model_kind": "openai" if live else "deterministic" if purchase else "fixture",
+            "model": model,
+            "prompt_version": hashlib.sha256(
+                (
+                    prompt
+                    + json.dumps(
+                        (PurchaseChoice if purchase else InvestigationReport).model_json_schema(),
+                        sort_keys=True,
+                    )
+                    + "reasoning=none;temperature=0;max_output_tokens=2048"
+                ).encode()
+            ).hexdigest(),
+            "agent_version": version("crashlab-agents"),
+            "budget_stage": self.settings.llm_budget_stage if live else None,
+        }
+
     async def start(self, body):
         async with self.lock:
             self.expire()
@@ -132,9 +173,7 @@ class Runtime:
                 "tool_calls": 0,
                 "active_seconds": 0,
                 "result": None,
-                "model_kind": "fixture"
-                if body.agent_kind == "INVESTIGATION_AGENT"
-                else "deterministic",
+                **self.model_metadata(body.agent_kind),
             }
             try:
                 self.store.put(run)
@@ -166,6 +205,11 @@ class Runtime:
                 raise RunError(422, "APPROVAL_PAYLOAD_MISMATCH")
             if run["mode"] == "mcp" and not token:
                 raise RunError(422, "AGENT_TOKEN_REQUIRED")
+            expected = self.model_metadata(run["agent_kind"])
+            if run.get("model") is not None and any(run.get(k) != v for k, v in expected.items()):
+                raise RunError(409, "MODEL_CONFIGURATION_CHANGED")
+            if run.get("model") is None and expected["model"] is not None:
+                raise RunError(409, "MODEL_CONFIGURATION_CHANGED")
             run.update(status="RUNNING", accepted_approval=approval)
             self.store.put(run)
             if token:
@@ -206,11 +250,20 @@ class Runtime:
                     self.store, run_id, connection, self.policy, self.schemas, self.secrets(token)
                 )
                 config = {"configurable": {"thread_id": run_id}, "recursion_limit": 20}
-                if run["agent_kind"] == "PURCHASE_AGENT":
-                    graph = build_purchase_graph(ctx, self.saver)
+                purchase = run["agent_kind"] == "PURCHASE_AGENT"
+                model = None
+                if run.get("model"):
+                    model = StructuredModel(
+                        self.settings,
+                        ctx,
+                        run["model"],
+                        PurchaseChoice if purchase else InvestigationReport,
+                    )
+                if purchase:
+                    graph = build_purchase_graph(ctx, self.saver, model)
                     inputs = Command(resume=approval) if approval else {"request": run["request"]}
                 else:
-                    graph = build_investigation_graph(ctx, self.saver, self.model)
+                    graph = build_investigation_graph(ctx, self.saver, model or self.model)
                     inputs = {"target_run_id": run["target_run_id"]}
                 await graph.ainvoke(inputs, config)
                 state = await graph.aget_state(config)
@@ -239,6 +292,8 @@ class Runtime:
             raise
         except TimeoutError:
             self.store.fail(run_id, "ACTIVE_OR_TOTAL_TIMEOUT")
+        except ModelError as exc:
+            self.store.fail(run_id, str(exc))
         except ExecutionLimit as exc:
             self.store.fail(run_id, str(exc))
         except Exception:

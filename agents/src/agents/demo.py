@@ -19,7 +19,7 @@ async def wait(runtime, run_id):
 
 
 async def demo(scenario):
-    settings = Settings()
+    settings = Settings(agent_model_mode="offline")
     with TemporaryDirectory() as temporary:
         settings.agent_state_dir = Path(temporary)
         runtime = await Runtime(settings).open()

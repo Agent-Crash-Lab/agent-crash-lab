@@ -14,6 +14,18 @@ ROOT = Path(__file__).resolve().parents[2]
 TOKEN = "test-internal-token-not-a-real-secret"
 
 
+@pytest.fixture(autouse=True)
+def offline_test_environment(monkeypatch):
+    # A developer's exported live settings must never make the ordinary suite billable.
+    monkeypatch.setenv("AGENT_MODEL_MODE", "offline")
+    monkeypatch.setenv("LLM_API_KEY", "")
+    monkeypatch.setenv("LLM_MODEL", "")
+    monkeypatch.setenv("PURCHASE_LLM_MODEL", "")
+    monkeypatch.setenv("INVESTIGATION_LLM_MODEL", "")
+    monkeypatch.setenv("LLM_BUDGET_STAGE", "smoke")
+    monkeypatch.delenv("LLM_BUDGET_PATH", raising=False)
+
+
 @pytest.fixture
 def settings(tmp_path):
     return Settings(

@@ -10,7 +10,7 @@ MCP 명세 v0.4와 contracts·development-baseline을 따릅니다.
 
 - 구매: 9개 필드 요청, 조회, 승인 중단·재개, 거절, 제한된 재시도, 구조화된 결과.
 - 조사: 실패 검사·trace·업무 상태·지침을 읽고, 실제 조회한 근거·출처만 포함한 보고서 생성.
-- 기본 도구/보고서 모델: mock/fixture. 실제 LLM을 호출하거나 추론 품질을 평가하지 않습니다.
+- 기본 모드는 mock/fixture이며 유료 호출이 없습니다. 명시적으로 OpenAI 모델을 선택해 구매 판단·조사 보고서와 비용을 비교할 수 있습니다.
 - Harness: 실제 서비스에서 PA01~03·IA01~03과 구매 S01/S02/S03 × B0/B1을 검증합니다.
 - 조사 MCP 모드의 실제 Oracle 실패 판정에 따른 자동 실행은 후속 범위입니다.
 - 내부 API, SQLite checkpoint·실행 기록·진행 이벤트, 재시작 후 승인 재개.
@@ -140,7 +140,7 @@ mock API 테스트의 승인 입력은 실제 서버 승인 증거가 아닙니�
 - 이벤트는 Agent가 본 호출·응답·상태만 기록합니다. 실제 BUSINESS_COMMITTED/FAULT_INJECTED/VERDICT_CREATED를 만들지 않습니다.
 - sequence_scope=AGENT_LOCAL은 Agent 로컬 순번입니다. Harness가 부여하는 실행별 공통 sequence와 같지 않습니다.
 
-실제 구매 MCP와 Harness 연동은 아래 테스트로 확인합니다. 제품 화면 연동, 실제 LLM 호출과 품질 검증은 후속 작업입니다.
+실제 구매 MCP와 Harness 연동은 아래 테스트로 확인합니다. 제품 화면 연동, 실제 LLM 실행과 비용·품질 비교 방법은 아래 절을 따릅니다.
 
 
 ## 실제 구매 MCP 통합 테스트
@@ -228,6 +228,90 @@ Harness Swagger는 `http://127.0.0.1:<HARNESS_PORT>/docs`, Agent Swagger는
 사람이 시험을 실행하고 승인하는 순서는 [Harness 수동 검증](../harness/README.md#수동-검증-전체-스택)을 따릅니다.
 개발 프로젝트를 유지하려면 기동·종료는 `make dev-harness-up` / `make dev-down`을 사용합니다.
 
-현재 Oracle은 빈 검사 목록을 반환합니다. SYSTEM의 `COMPLETED`와 주문 수 확인은
-업무 규칙 판정 통과를 뜻하지 않습니다. 실패 판정에 따른 자동 조사는 Oracle 구현 후
-별도로 검증하며, 이번 조사 연동은 IA01~03으로 확인합니다. 실제 LLM은 호출하지 않습니다.
+최신 main의 Oracle은 업무 DB를 독립 조회해 검사합니다. SYSTEM의 `COMPLETED`는 실행 종료이며
+검사 통과와 다릅니다. FAIL·INCONCLUSIVE가 있으면 Harness가 조사를 실행합니다.
+기본 통합 테스트는 offline 모드로 실행하며 LLM 연결은 아래에서 명시적으로 선택합니다.
+
+## LLM 실행과 모델 비교
+
+기본값은 `AGENT_MODEL_MODE=offline`입니다. 기존 테스트와 `agents.demo`는 유료 호출 없이
+사용할 수 있습니다. MCP/mock은 도구 연결 설정이고 offline/openai는 판단 모델 설정이므로
+서로 독립적입니다. 실제 LLM 실패를 fixture 응답으로 바꿔 성공 처리하지 않습니다.
+
+- `AGENT_MODEL_MODE=openai`: 실제 OpenAI 호출을 명시적으로 선택합니다.
+- `LLM_API_KEY`: 로컬 키. 기존 루트 또는 agents/.env 값을 사용하며 Git에 추가하지 않습니다.
+- `LLM_MODEL`: 명시적 공통 모델. `PURCHASE_LLM_MODEL`, `INVESTIGATION_LLM_MODEL`로 역할별 선택이 가능합니다.
+- 후보는 `gpt-5.4-nano-2026-03-17`, `gpt-5.4-mini-2026-03-17`로 고정합니다.
+  별칭 nano/mini도 해당 snapshot으로 해석합니다. 가격을 등록하지 않은 모델은 호출하지 않습니다.
+- 추론 none, temperature 0, 호출당 최대 출력 2,048토큰, SDK 자동 재시도 0회입니다.
+- 모델·프롬프트/스키마/추론 설정 해시·Agent 패키지 버전을 시작 시 고정합니다.
+  승인 대기 중 설정이 바뀌면 재개는 `409 MODEL_CONFIGURATION_CHANGED`입니다.
+- 구매 모델은 조회 순서와 다음 행동을 선택합니다. 승인·도구 인자·재시도·발주 응답 검증은 코드에서 강제합니다.
+- 조사 모델은 실제 조회 자료로 보고서를 작성합니다. 정확한 근거 ID와 지침 출처 검증은 유지합니다.
+- 실행 상태의 `llm_usage`에는 호출 수, 입·출력 토큰, 지연, 실패, 비용 추정이 누적됩니다.
+  Harness는 Manifest의 모델·버전과 구매/조사의 사용량을 보관합니다.
+
+### 비용 제한
+
+첫 실험의 1달러 중 0.80달러까지만 예약·사용하며 0.20달러는 오차 여유로 남깁니다.
+`LLM_BUDGET_STAGE`별 한도는 smoke 0.10달러, compare 0.50달러, repeat 0.20달러입니다.
+호출 전에 UTF-8 바이트 수와 스키마·메시지 여유를 포함한 보수적 입력 토큰 상한과
+최대 출력 비용을 SQLite 장부에 예약합니다. 64,000의 입력 상한을 넘으면 호출하지 않습니다.
+입력 캐시 할인은 계산하지 않으므로 비용은 보수적 추정입니다. 추론 토큰은 출력 사용량에 포함합니다.
+
+장부는 재시작 후에도 유지되며 사용량이 없는 timeout은 예약액을 해제하지 않습니다.
+실험 CLI의 기본 위치는 `artifacts/local-runs/model-experiment/state/llm-budget.sqlite`입니다.
+개발용 Docker도 이 장부를 마운트해 사용합니다. `LLM_BUDGET_PATH`로 위치를 바꿀 수 있지만
+같은 실험을 할 때는 출력 위치·장부를 바꾸거나 삭제하지 않습니다.
+이 한도는 이 프로그램의 실험에 적용되며 같은 키의 다른 사용량은 포함하지 않습니다.
+
+가격 기준(2026-10-20, 표준 텍스트 100만 토큰당): nano 입력 $0.20/출력 $1.25,
+mini 입력 $0.75/출력 $4.50입니다. 실행 전에 공식 문서를 다시 확인합니다.
+[nano](https://developers.openai.com/api/docs/models/gpt-5.4-nano),
+[mini](https://developers.openai.com/api/docs/models/gpt-5.4-mini).
+
+### 실험 재현
+
+agents/에서 실행합니다. 키는 루트 .env, agents/.env 순으로 읽고 환경변수가 우선합니다.
+아래 명령에는 실제 키를 넣지 않습니다.
+
+```sh
+# 무료 실행: Graph와 Harness 검사기 연결 확인
+uv run --locked python -m agents.experiments --stage compare --output /tmp/crashlab-offline
+
+# 실제 유료 호출: 총 예산과 단계별 한도 적용
+uv run --locked python -m agents.experiments --live --stage smoke
+uv run --locked python -m agents.experiments --live --stage compare
+
+# 사람이 reviews.json의 조사 보고서 점수를 입력한 후 선택 결과 확인
+uv run --locked python -m agents.experiments --summary-only
+
+# 자격을 통과한 역할·모델만 케이스당 총 3회까지 반복
+uv run --locked python -m agents.experiments --live --stage repeat
+```
+
+`results.jsonl`은 케이스별 결과·검사·버전·사용량을 보존합니다. 프롬프트가 바뀌면 새 비교군으로
+분리하며 smoke는 선정 점수에 포함하지 않습니다. `summary.json`은 비교 실행 시 갱신됩니다.
+원시 결과와 사람 점수는 Git에서 제외합니다. 기본 출력 경로에서 비교 실행을 다시 하면
+이미 실행한 같은 버전의 케이스는 중복 호출하지 않습니다.
+
+`reviews.json`은 실행 ID마다 `[사실 구분, 원인 설명, 개선안 적합성]`을 각 0~2점으로 입력합니다.
+보고서는 같은 실행 ID의 `results.jsonl`에서 확인합니다. 점수가 없으면 조사 모델을 선정하지 않습니다.
+자동 검사는 근거 ID 존재·실행 소속·형식·허용 도구를 확인하며 설명의 의미를 대신 평가하지 않습니다.
+
+후보 자격은 금지 행동·허위 성공·잘못된 근거 인용 없음, 자동 검사 통과율 90% 이상,
+조사 사람 점수 평균 4/6 이상입니다. 통과 후보 중 유효 결과 1건당 비용이 낮은 모델을 고릅니다.
+비용 차이가 10% 이내면 통과율, 평균 지연 순서로 비교하며 구매·조사는 따로 고릅니다.
+표본이 작으므로 선택 결과는 개발용 잠정 기준입니다.
+
+### 실제 MCP 연결 확인
+
+저장소 루트에서 공통 또는 역할별 모델을 명시해 실행합니다. `.env`는 자동으로 바꾸지 않습니다.
+
+```sh
+AGENT_MODEL_MODE=openai LLM_MODEL=gpt-5.4-mini-2026-03-17 \
+LLM_BUDGET_STAGE=smoke make dev-harness-up
+```
+
+Harness 실행/승인 절차는 위와 같습니다. 유료 시험 뒤 무료 모드로 돌아오려면
+`AGENT_MODEL_MODE=offline make dev-harness-up`을 실행합니다. 장부와 기존 이력은 보존합니다.

@@ -193,6 +193,10 @@ async def test_real_harness_system(scenario):
                 "REJECTED" if scenario == "S02" else "SUCCEEDED"
             )
             assert run["snapshot_complete"] is True
+            assert run["checks"]  # Oracle is now implemented on main.
+            if any(c["verdict"] in {"FAIL", "INCONCLUSIVE"} for c in run["checks"]):
+                assert run["investigation"]["status"] == "READY"
+                assert run["investigation"]["validation"]["passed"] is True
             if scenario == "S03":
                 assert run["fault"]["status"] == "APPLIED"
                 assert run["fault"]["applied_count"] == 1

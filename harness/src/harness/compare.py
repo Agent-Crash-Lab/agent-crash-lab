@@ -5,6 +5,7 @@ FIXED_FIELDS_ORDER = (
     "test_version",
     "fixture_id",
     "agent_version",
+    "prompt_version",
     "model_kind",
     "model",
     "rule_version",
