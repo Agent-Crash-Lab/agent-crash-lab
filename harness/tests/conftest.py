@@ -8,6 +8,7 @@ from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
 
+from harness import oracle
 from harness.api import create_app
 from harness.clients import ClientError
 from harness.config import Settings
@@ -235,6 +236,12 @@ class FakeAgent:
 
     async def events(self, run_id, after_sequence):
         return [e for e in self.log.get(run_id, []) if e["sequence"] > after_sequence][:100]
+
+
+@pytest.fixture(autouse=True)
+def no_business_db(monkeypatch):
+    """Runner tests have no business DB; the Oracle itself is tested in test_oracle.py."""
+    monkeypatch.setattr(oracle, "evaluate", lambda ctx: [])
 
 
 @pytest.fixture

@@ -1,10 +1,14 @@
 """Oracle boundary for SYSTEM tests (HARNESS_SPEC §6). Owner: 문관영.
 
-Placeholder: returns no checks until the Oracle reads the business DB through
-ORACLE_DATABASE_URL (oracle_ro) and applies the catalog rules.
+Reads the business DB itself through ORACLE_DATABASE_URL (oracle_ro), then applies the
+catalog rules (rules.py). The MCP finalize response and the Agent's report are not the
+source of truth: the Agent's report is checked against the DB like any other claim.
 """
 
 from dataclasses import dataclass
+
+from harness.oracle.observe import observe
+from harness.oracle.rules import judge
 
 
 @dataclass(frozen=True)
@@ -24,4 +28,4 @@ class OracleContext:
 
 def evaluate(ctx: OracleContext) -> list[dict]:
     """Return QaCheck dicts (qa-check.schema.json). Raise on environment errors."""
-    return []
+    return judge(ctx, observe(ctx.oracle_database_url, ctx.run_id, ctx.request_id))
