@@ -1,0 +1,131 @@
+{
+  "_source": "contracts/drafts/manufacturing-qa/purchase-tools.json 의 name·description·input_schema 복사본. 원본과 같은지 BusinessToolContractTests가 검사한다.",
+  "tools": [
+    {
+      "name": "get_inventory",
+      "description": "실행에 속하는 품목·공장의 가용 재고 조회. 공급 자격 조회는 별도 확장.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "part_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "plant_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "part_id",
+          "plant_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_supplier",
+      "description": "공급업체 활성 여부와 시험 견적 조회.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "supplier_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "supplier_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "create_purchase_order",
+      "description": "서버가 유효한 승인과 요청 내용을 검증한 후 발주 생성. 같은 요청의 재시도는 request_id와 내용을 유지.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "request": {
+            "type": "object",
+            "properties": {
+              "request_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "request_version": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "part_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "quantity": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "unit_price_minor": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "currency": {
+                "const": "KRW"
+              },
+              "supplier_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "plant_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "purchasing_org_id": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "request_id",
+              "request_version",
+              "part_id",
+              "quantity",
+              "unit_price_minor",
+              "currency",
+              "supplier_id",
+              "plant_id",
+              "purchasing_org_id"
+            ],
+            "additionalProperties": false
+          },
+          "approval_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "request",
+          "approval_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_order_by_request",
+      "description": "해당 실행·요청의 발주를 배열로 모두 반환. 첫 발주만 반환해 중복을 숨기지 않는다.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "request_id"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ]
+}

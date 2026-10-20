@@ -1,8 +1,8 @@
 # MCP 파트 연동 명세 (Agent · Harness)
 
-초안 v0.2 · 2026-10-19 · 작성: 문관영
+초안 v0.4 · 2026-10-19 · 작성: 문관영
 
-mcp-server가 **Agent**, **Harness**와 주고받는 데이터 형식을 정리한다. `(회의 확정 필요)`는 추천안으로 채운 미정 항목이다.
+mcp-server가 **Agent**, **Harness**와 주고받는 데이터 형식과 공개 API 전달 규칙을 정리한다. `(회의 확정 필요)`는 추천안으로 채운 미정 항목이다.
 
 기준 자료 (아래 파일과 다르면 이 파일을 고친다)
 
@@ -16,6 +16,7 @@ mcp-server가 **Agent**, **Harness**와 주고받는 데이터 형식을 정리�
 | 한도·승인·사고·해시 기준 | `config/development-baseline.json` |
 | seed | `fixtures/drafts/manufacturing-qa/purchase-seed.json` |
 | 지침 목록 | `fixtures/drafts/manufacturing-qa/guides/index.json` |
+| Harness 연동 | `harness_spec_임시.md` (Harness 명세 v0.2) |
 
 ## 0. 개요
 
@@ -24,6 +25,8 @@ mcp-server가 **Agent**, **Harness**와 주고받는 데이터 형식을 정리�
 | MCP 도구 | 구매 Agent, 조사 Agent | MCP Streamable HTTP `http://mcp-server:8081/mcp` |
 | 내부 API (Harness → MCP) | Harness | REST `http://mcp-server:8081/internal/sandbox/**` |
 | 내부 API (MCP → Harness) | Harness | REST `http://harness:8000/internal/runs/**` |
+| 공개 API (브라우저 → Spring) | Frontend | REST `http://mcp-server:8081/api/**` (5장) |
+| 공개 API 전달 (Spring → Harness) | Harness | REST `http://harness:8000/api/**` (5장) |
 
 공통 규칙
 - JSON 필드는 snake_case
@@ -31,7 +34,7 @@ mcp-server가 **Agent**, **Harness**와 주고받는 데이터 형식을 정리�
 - 시간은 UTC, RFC 3339. 유효기간은 `[effective_from, effective_to)`
 - 금액은 `unit_price_minor`(정수, KRW는 소수 자리 0), 통화 `KRW`, 수량 단위 `EA`
 - enum은 UPPER_SNAKE. 서버 정책 버전만 `baseline-v1`, `idempotent-v1`
-- 내부 API는 모두 `X-Internal-Token: <INTERNAL_API_TOKEN>` 헤더 필요 (회의 확정 필요)
+- 내부 API는 모두 `X-Internal-Token: <INTERNAL_API_TOKEN>` 헤더 필요
 
 ### 0.1 요청 payload와 해시
 
@@ -70,7 +73,7 @@ hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False, separator
 ### 1.1 연결과 인증
 
 - 헤더: `Authorization: Bearer <agent_token>`
-- Agent 토큰은 실행 초기화(3.1) 때 MCP가 발급하고 Harness(실행 어댑터)가 Agent에 전달한다 (회의 확정 필요)
+- Agent 토큰은 실행 초기화(3.1) 때 MCP가 발급하고 Harness(실행 어댑터)가 Agent에 전달한다
 - `run_id`·호출자·권한은 토큰의 인증된 컨텍스트에서 바인딩한다. 모델이 보낸 인자를 권한 근거로 쓰지 않는다.
 - business-mcp와 rag-mcp는 같은 엔드포인트에 있다. 호출 권한은 서버가 토큰으로 검사한다.
 
@@ -79,7 +82,7 @@ hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False, separator
 | `PURCHASE_AGENT` | 구매 도구 4개 | `PERMISSION_DENIED` |
 | `INVESTIGATION_AGENT` | 조사 도구 4개, `guide://` Resource | `PERMISSION_DENIED` |
 
-구매 Agent 토큰은 finalize(3.4) 때 폐기된다. 이후 호출은 `PERMISSION_DENIED`이다.
+구매 Agent 토큰은 finalize(3.4) 때 폐기된다. 이후 호출은 `PERMISSION_DENIED`이다. 조사 Agent는 finalize와 판정 이후에 실행되므로 조사 Agent 토큰은 finalize 이후에도 유효하다 (실행 전체 상한 600초보다 길게 유지).
 
 ### 1.2 응답 형식
 
@@ -150,6 +153,8 @@ hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False, separator
 - `run_id`는 인자로 받지만, 서버가 토큰에 묶인 조사 대상 실행과 같은지 확인한다. 다르면 `PERMISSION_DENIED`.
 - 임의 SQL, 업무 변경, 판정 변경 도구는 없다.
 - Resource: `guide://{document_id}/{version}` → 지침 원문 Markdown (`guides/index.json`의 `document_id`, `version`)
+- `search_failure_guides`는 모델 없이 키워드 일치 점수로 검색한다(제목 3점, 본문 1점). 같은 질문에는 항상 같은 결과가 나온다. 결과는 최대 3건이고, `location`은 가장 많이 일치한 문단(`문단 N`), `snippet`은 그 문단의 앞부분이다.
+- `get_failed_checks`, `get_run_trace`는 Harness 조회(4.3)가 실패하면 `INTERNAL_ERROR`(retryable)를 돌려준다.
 - 프론트 데모의 `get_run_evidence`, `retrieve_guide`는 별칭일 뿐이다. MCP는 위 4개 이름만 제공한다.
 
 `tool_calls[]` 항목:
@@ -176,6 +181,7 @@ PA03 개별 시험과 S03 통합 시험이 이 계약을 공유한다. 코드 �
 - 각 코드의 의미와 retryable 값은 drafts에 정의가 없어 추천안이다 (회의 확정 필요)
 - `TOOL_TIMEOUT`: 사고 주입으로 만든 timeout과 실제 timeout은 **코드·메시지·형태가 완전히 같다.** 메시지는 `"The operation timed out before a response was received."`로 고정한다.
 - 도구 호출 timeout은 10초 (`tool_timeout_seconds`). 서버는 10초 안에 응답하고, 넘으면 `TOOL_TIMEOUT`이다.
+- Agent는 도구 응답을 12초(`agent_tool_wait_seconds`, Harness 명세 3.1)까지 기다린다. 서버가 10초 안에 `TOOL_TIMEOUT`을 직접 돌려줘야 Agent가 서버 오류를 받는다. 이 10초 제한은 서버가 도구 실행에 직접 건다.
 - 호출 횟수·재시도 한도(`max_tool_calls`, `write_retries_after_ambiguous_error` 등)는 Harness·Agent가 지킨다. MCP는 강제하지 않고 기록만 한다.
 
 ### 1.6 `create_purchase_order` 서버 처리 순서
@@ -248,7 +254,7 @@ Harness     Agent 재개, approval_id와 결정 전달
 ```
 
 - 필드 12개가 모두 필수이고 추가 필드는 허용되지 않는다. `parent_event_id`, `tool_call_id`는 해당 없으면 `null`. `request_id` 같은 값은 `payload`에 넣는다.
-- `event_id`는 MCP가 발급한다 (parent 연결용). `sequence`는 Harness가 저장할 때 실행별로 1부터 발급한다 (회의 확정 필요)
+- `event_id`는 MCP가 발급한다 (parent 연결용). `sequence`는 Harness가 저장할 때 실행별로 1부터 발급한다
 - 인과관계는 `sequence`와 `parent_event_id`로만 판단한다. 도착 시각으로 추정하지 않는다.
 
 ### 2.2 이벤트 목록
@@ -258,7 +264,7 @@ Harness     Agent 재개, approval_id와 결정 전달
 | event_type | 시점 | parent | node_id | payload |
 |---|---|---|---|---|
 | `TOOL_CALLED` | 도구 호출 수신 | - | `mcp` | `server, tool, arguments, agent_kind` |
-| `TOOL_RESPONDED` (회의 확정 필요) | 응답 반환 직전 | TOOL_CALLED | `mcp` | `tool, is_error, error_code, idempotent_replay, fault_injected, duration_ms` |
+| `TOOL_RESPONDED` | 응답 반환 직전 | TOOL_CALLED | `mcp` | `tool, is_error, error_code, idempotent_replay, fault_injected, duration_ms` |
 | `APPROVAL_REQUIRED` | 승인 요청 등록 | - | `agent` | `approval_request_id, request_id, payload, payload_hash, expires_at` |
 | `APPROVAL_DECIDED` | 승인·거절 저장 | APPROVAL_REQUIRED | `agent` | `approval_id, request_id, decision, approver_id, authority_valid, payload_hash, decided_at` |
 | `BUSINESS_COMMITTED` | 발주 commit 직후 | TOOL_CALLED | `db` | `request_id, order_id, approval_id, committed_at, server_policy_version` |
@@ -302,7 +308,7 @@ run_id 단위로 seed를 적재하고, 서버 정책과 사고 규칙을 등록�
 - `request`를 구매 Agent 작업 입력으로 넘긴다. 시나리오 ID, B0/B1, 사고 조건은 Agent에 넘기지 않는다.
 - 같은 run_id 재호출은 409. 실패하면 500이며 Harness는 실행을 ERROR로 기록한다.
 
-### 3.2 승인 요청 등록 `POST /internal/sandbox/runs/{run_id}/approval-requests` (회의 확정 필요)
+### 3.2 승인 요청 등록 `POST /internal/sandbox/runs/{run_id}/approval-requests`
 
 구매 Agent가 interrupt한 뒤 Harness가 호출한다. 승인자가 볼 payload를 서버에 고정해 두는 용도다.
 
@@ -362,7 +368,7 @@ Oracle 판정 직전에 호출한다. 응답은 `oracle-observation.schema.json`
 
 여러 번 호출해도 결과가 같다. 사고 상태는 3.3으로 따로 조회한다.
 
-`wait_ms` 요청 필드와 이 API가 관측 형식을 직접 반환하는 방식은 추천안이다 (회의 확정 필요). Oracle이 `oracle_ro`로 직접 조회하는 경우 이 응답은 확정 신호로만 쓴다.
+Harness는 `wait_ms: 5000`으로 호출한다. Oracle은 `oracle_ro`로 업무 DB를 직접 조회하므로 Harness는 이 응답을 확정 신호로만 쓴다. 관측 형식 응답은 `get_business_state`와 디버깅에 쓴다.
 
 ### 3.5 사고 주입 (`config/development-baseline.json`의 `fault`)
 
@@ -397,7 +403,7 @@ Harness가 제공하고 MCP가 호출한다.
 - `decision`: `APPROVED` / `REJECTED`. 만료는 Harness가 직접 처리하므로 재개 요청이 없다.
 - 응답 202. 같은 approval_id로 다시 호출해도 한 번만 재개해야 한다.
 
-### 4.2 이벤트 제출 `POST /internal/runs/{run_id}/events` (회의 확정 필요)
+### 4.2 이벤트 제출 `POST /internal/runs/{run_id}/events`
 
 ```jsonc
 // 요청: 2.1 이벤트에서 sequence를 뺀 형태
@@ -409,7 +415,7 @@ Harness가 제공하고 MCP가 호출한다.
 - 같은 event_id를 다시 제출하면 기존 sequence를 반환해야 한다.
 - 이벤트 전송이 실패해도 업무 처리는 되돌리지 않는다. 판정용 원본 근거(승인, 발주, 도구 호출, 주입 기록)는 업무 DB에 따로 남는다.
 
-### 4.3 조사 도구용 조회 (회의 확정 필요)
+### 4.3 조사 도구용 조회
 
 | MCP 도구 | 호출하는 Harness API |
 |---|---|
@@ -433,3 +439,81 @@ Harness가 제공하고 MCP가 호출한다.
 ```
 
 `scope`: `agent_behavior` / `server_control` / `business_state` / `task_completion` / `report_truthfulness` / `qa_evidence`
+
+---
+
+## 5. 공개 API 게이트웨이 (브라우저 → Spring → Harness)
+
+브라우저는 Spring(`mcp-server:8081/api/**`)만 호출한다. 로그인과 승인은 Spring이 처리하고, 나머지는 Harness로 전달한다 (Harness 명세 1.1).
+
+### 5.1 경로 분담
+
+| API | 처리 |
+|---|---|
+| `POST /api/auth/login` | Spring (5.3) |
+| `POST /api/runs/{run_id}/approval` | Spring (1.8) |
+| `GET /api/scenarios` | Harness로 전달 |
+| `POST /api/runs` | Harness로 전달 |
+| `GET /api/runs` | Harness로 전달 |
+| `GET /api/runs/{run_id}` | Harness로 전달 |
+| `GET /api/runs/{run_id}/events` | Harness로 전달 (SSE·JSON) |
+| `GET /api/comparisons` | Harness로 전달 |
+
+### 5.2 전달 규칙
+
+- 경로, 쿼리, 본문, `Accept`, `Last-Event-ID` 헤더를 그대로 넘긴다. 응답 상태와 본문도 그대로 돌려준다.
+- Spring이 붙이는 헤더:
+  - `X-Internal-Token: <INTERNAL_API_TOKEN>`
+  - `X-User-Id`: 로그인 토큰의 `user_id`
+  - `X-User-Roles`: 로그인 토큰의 역할, 쉼표 구분 (예: `REQUESTER`)
+- 브라우저가 보낸 `X-Internal-Token`, `X-User-Id`, `X-User-Roles`는 **전달 전에 지운다.** 헤더 위조를 막기 위해서다.
+- 로그인 토큰이 없거나 유효하지 않으면 Harness로 넘기지 않고 401을 반환한다. 역할 검사(실행 생성은 `REQUESTER`)는 Harness가 한다.
+- SSE는 응답을 스트리밍으로 중계한다. Harness가 15초마다 keep-alive를 보내므로 Spring의 비동기 요청 timeout이 이보다 짧으면 안 된다.
+- Spring 게이트웨이가 준비되기 전에는 Harness의 `HARNESS_DEV_AUTH=true`로 Frontend가 Harness를 직접 호출한다. 배포 환경에서는 끈다.
+
+### 5.3 로그인 계정
+
+- 로그인 계정은 seed 사용자(`purchase-seed.json`의 `users`)를 그대로 쓴다.
+
+| user_id | 역할 | 구매조직 |
+|---|---|---|
+| `requester-01` | `REQUESTER` | - |
+| `approver-01` | `APPROVER` | `PUR-A` |
+
+- 사용자는 실행별로 복제하지 않는 공용 데이터다. mcp-server가 시작할 때 seed의 `users`를 적재한다.
+- 개발용 비밀번호는 모든 계정 공통으로 환경변수 `DEMO_USER_PASSWORD`에서 읽는다.
+- 로그인 토큰은 Agent 토큰과 같은 방식이다. 랜덤 값을 발급하고 서버에는 SHA-256 해시만 저장한다. 유효 시간은 8시간이다.
+- 토큰으로 서버의 사용자 데이터(`user_id`, `roles`, `purchasing_org_id`)를 찾아 쓴다. 승인자 권한 검사(1.8)도 이 서버 데이터로 한다.
+
+```jsonc
+// POST /api/auth/login 요청
+{ "user_id": "approver-01", "password": "..." }
+
+// 200
+{ "access_token": "...", "token_type": "Bearer", "expires_at": "...", "user_id": "approver-01", "roles": ["APPROVER"] }
+```
+
+로그인·승인 API의 요청·응답 형식은 Frontend와 맞춰야 한다 (회의 확정 필요).
+
+```jsonc
+// POST /api/runs/{run_id}/approval 요청 (APPROVER만)
+// approval_request_id, payload_hash는 APPROVAL_REQUIRED 이벤트(2.2)의 값
+{ "approval_request_id": "APR-001", "decision": "APPROVED", "payload_hash": "…64자…" }
+
+// 200
+{ "approval_id": "AP-001", "request_id": "REQ-001", "decision": "APPROVED", "approver_id": "approver-01", "decided_at": "..." }
+```
+
+- `payload_hash`가 서버에 등록된 값과 다르거나, 이미 결정됐거나, 만료된 승인 요청이면 409.
+
+### 5.4 mcp-server 환경변수
+
+| 변수 | 용도 |
+|---|---|
+| `INTERNAL_API_TOKEN` | 내부 API 검사, Harness 호출·전달 시 헤더. 비어 있으면 내부 API는 모두 503 |
+| `HARNESS_URL` | Harness 주소 (`http://harness:8000`). 재개(4.1), 이벤트 제출(4.2), 조사 조회(4.3), 공개 API 전달(5.2) |
+| `DEMO_USER_PASSWORD` | seed 사용자 개발용 비밀번호 (기본값 `crashlab`) |
+| `MCP_PUBLIC_URL` | 3.1 응답의 `mcp_url` (기본값 `http://mcp-server:8081/mcp`) |
+| `CRASHLAB_FIXTURES_DIR` | 저장소 `fixtures/` 위치. 컨테이너에서는 Dockerfile이 `/fixtures`로 지정하고 compose가 마운트한다 |
+
+Compose에서 mcp-server에 `depends_on: harness`를 넣지 않는다. harness가 이미 mcp-server를 기다리므로 순환이 생긴다. mcp-server는 Harness가 필요할 때만 호출한다.

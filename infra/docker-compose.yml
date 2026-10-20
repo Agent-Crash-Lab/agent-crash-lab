@@ -32,6 +32,12 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
       SPRING_DATASOURCE_USERNAME: mcp_app
       SPRING_DATASOURCE_PASSWORD: ${MCP_DB_PASSWORD}
+      # 서비스 간 공유 토큰. 비어 있으면 mcp-server 내부 API(/internal/**)는 모두 503
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-}
+      # Agent 재개·이벤트 제출 등 MCP → Harness 호출 (MCP_SPEC 4장). depends_on은 순환이 생기므로 두지 않는다
+      HARNESS_URL: http://harness:8000
+      MCP_PUBLIC_URL: http://mcp-server:8081/mcp
+      DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD:-crashlab}
     ports:
       - "${MCP_SERVER_PORT:-8081}:8081"
     volumes:
@@ -80,6 +86,7 @@ services:
       AGENT_URL: http://agents:8090
       LLM_API_KEY: ${LLM_API_KEY}
       LLM_MODEL: ${LLM_MODEL:-}
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-}
     ports:
       - "${HARNESS_PORT:-8000}:8000"
     volumes:
