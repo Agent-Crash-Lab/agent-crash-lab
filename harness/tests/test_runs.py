@@ -223,3 +223,27 @@ def test_comparison_of_b0_and_b1(client, fakes):
     wait_for(client, pa, done)
     bad = client.get(f"/api/comparisons?left={left}&right={pa}")
     assert bad.status_code == 422 and bad.json()["error"]["code"] == "NOT_COMPARABLE"
+
+
+def test_resume_retry_after_agent_failure(client, fakes):
+    """mcp-server retries resume up to 3 times (MCP_SPEC 5.3); a failed try must not stick."""
+    _, agent = fakes
+    agent.fail_resume = 1
+    run_id = start(client, "S01", "B0")
+    run = wait_for(client, run_id, lambda r: r["status"] == "WAITING_APPROVAL")
+    body = {
+        "approval_id": "AP-001",
+        "request_id": run["request"]["request_id"],
+        "decision": "APPROVED",
+        "approver_id": "approver-01",
+        "decided_at": "2026-10-20T00:01:00Z",
+        "payload_hash": run["approval_request"]["payload_hash"],
+    }
+    url = f"/internal/runs/{run_id}/resume"
+    first = client.post(url, json=body, headers=INTERNAL)
+    assert first.status_code == 502
+    assert client.get(f"/api/runs/{run_id}").json()["status"] == "WAITING_APPROVAL"
+    assert client.post(url, json=body, headers=INTERNAL).status_code == 202
+    run = wait_for(client, run_id, done)
+    assert run["status"] == "COMPLETED" and run["approval"]["approval_id"] == "AP-001"
+    assert len(agent.resumes) == 1

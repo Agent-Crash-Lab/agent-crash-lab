@@ -132,6 +132,7 @@ def mcp_event_at(event_id, occurred_at):
 def test_events_are_numbered_by_occurrence_not_arrival(client):
     run_id = client.post("/api/runs", json={"test_id": "S01", "system_id": "B0"}).json()["run_id"]
     wait_for(client, run_id, lambda r: r["status"] == "WAITING_APPROVAL")
+    client.app.state.events.hold = 1.0  # the production hold, so all three wait together
     url = f"/internal/runs/{run_id}/events"
     # Arrive late-first, as when a polled Agent event lands after a pushed MCP event.
     client.post(url, json=mcp_event_at("LATE", "2030-01-01T00:00:00.000002900Z"), headers=INTERNAL)
@@ -139,7 +140,7 @@ def test_events_are_numbered_by_occurrence_not_arrival(client):
         url, json=mcp_event_at("EARLY", "2030-01-01T00:00:00.000001+00:00"), headers=INTERNAL
     )
     client.post(url, json=mcp_event_at("FIRST", "2029-12-31T23:59:59.5Z"), headers=INTERNAL)
-    time.sleep(0.3)
+    time.sleep(1.5)
     events = client.get(f"/internal/runs/{run_id}/events", headers=INTERNAL).json()["events"]
     order = [e["event_id"] for e in events if e["event_id"] in {"LATE", "EARLY", "FIRST"}]
     assert order == ["FIRST", "EARLY", "LATE"]

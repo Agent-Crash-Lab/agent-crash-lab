@@ -81,6 +81,7 @@ class FakeAgent:
         self.runs, self.log, self.resumes = {}, {}, []
         self.report_evidence = None  # investigation facts evidence override
         self.expire_approval = False
+        self.fail_resume = 0  # fail this many resume calls first
 
     def _event(self, run_id, event_type, payload=None):
         log = self.log.setdefault(run_id, [])
@@ -197,6 +198,9 @@ class FakeAgent:
 
     async def resume(self, run_id, body):
         run = self.runs[run_id]
+        if self.fail_resume:
+            self.fail_resume -= 1
+            raise ClientError("agents", None, "TRANSPORT_ERROR")
         if run["status"] != "WAITING_APPROVAL":
             raise ClientError("agents", 409, "NOT_WAITING_APPROVAL")
         self.resumes.append((run_id, body))

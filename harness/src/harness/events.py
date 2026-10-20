@@ -91,25 +91,38 @@ class EventLog:
             return self.store.event_sequence(run_id, event["event_id"])
         return None
 
+    async def settle(self, run_id: str):
+        """Wait one hold period so late senders catch up, then store everything buffered.
+
+        mcp-server sends events from a background queue (MCP_SPEC 4.2), so its last events
+        can still be in flight when finalize returns.
+        """
+        await asyncio.sleep(self.hold)
+        await self.flush(run_id, force=True)
+
     def pending(self, run_id: str) -> bool:
         return bool(self.buffer.get(run_id))
 
     async def flush(self, run_id: str, force: bool = False):
-        """Store buffered events whose wait is over, oldest occurrence first."""
+        """Store buffered events in occurrence order.
+
+        Only the oldest-first prefix of events whose wait is over is stored: an earlier event
+        that is still waiting blocks later ones, so a straggler can never be numbered after
+        an event that happened after it (it waits at most one hold period itself).
+        """
         now = time.time()
         async with self.lock:
             waiting = self.buffer.get(run_id, {})
-            ready = [
-                item
-                for item in waiting.values()
-                if force or item[0] <= now - self.hold or item[1] <= now - self.hold
-            ]
+            ready = []
+            for item in sorted(waiting.values(), key=lambda item: (item[0], item[2])):
+                if not (force or item[0] <= now - self.hold or item[1] <= now - self.hold):
+                    break
+                ready.append(item)
             for item in ready:
                 del waiting[item[3]["event_id"]]
+                self.store.add_event(run_id, item[3])
             if not waiting:
                 self.buffer.pop(run_id, None)
-            for _, _, _, event in sorted(ready, key=lambda item: (item[0], item[2])):
-                self.store.add_event(run_id, event)
         if ready:
             await self.notify(run_id)
 

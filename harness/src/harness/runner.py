@@ -191,7 +191,7 @@ class Runner:
                 await self._set_status(run, "ERROR", "AGENT_SERVER_ERROR")
         finally:
             self.tokens.pop(run_id, None)
-            await self.events.flush(run_id, force=True)
+            await self.events.settle(run_id)
 
     async def _system(self, run_id: str, test: TestSpec):
         run = self._run(run_id)
@@ -319,7 +319,7 @@ class Runner:
         if termination is None:
             raise RunFailed(self._run(run_id)["status_reason"])
         await self._set_status(self._run(run_id), "EVALUATING")
-        await self.events.flush(run_id, force=True)
+        await self.events.settle(run_id)
         events = [e for e in self.store.list_events(run_id) if e["producer"] == "agents"]
         checks = agent_checks.evaluate_purchase_agent(test.test_id, agent, events)
         await self._save_checks(run_id, checks)
@@ -366,7 +366,7 @@ class Runner:
             return None, None
 
         report = agent["result"]
-        await self.events.flush(run_id, force=True)
+        await self.events.settle(run_id)
         all_events = self.store.list_events(run_id)
         agent_events = [
             e
@@ -376,6 +376,7 @@ class Runner:
         if mode == "mcp":
             known = collect_evidence_ids(all_events) | collect_evidence_ids(run.get("checks"))
             known |= collect_evidence_ids(run.get("observation") or {})
+            known |= collect_evidence_ids(run.get("fault") or {})
         else:
             known = collect_evidence_ids(self.catalog.cases[run["test_id"]]["evidence"])
         validation = validate_report(
