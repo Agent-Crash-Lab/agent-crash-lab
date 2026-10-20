@@ -14,7 +14,11 @@ class ApiExceptionHandler {
 
 	@ExceptionHandler(ApiException.class)
 	ResponseEntity<Map<String, Object>> handle(ApiException ex) {
-		return ResponseEntity.status(ex.status()).body(body(ex.code(), ex.getMessage()));
+		if (ex.details() == null) {
+			return ResponseEntity.status(ex.status()).body(body(ex.code(), ex.getMessage()));
+		}
+		return ResponseEntity.status(ex.status())
+			.body(Map.of("error", Map.of("code", ex.code(), "message", ex.getMessage(), "details", ex.details())));
 	}
 
 	@ExceptionHandler({ MethodArgumentNotValidException.class, HttpMessageNotReadableException.class })

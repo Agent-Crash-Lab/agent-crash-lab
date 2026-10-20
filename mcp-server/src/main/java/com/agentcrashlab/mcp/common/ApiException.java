@@ -1,5 +1,7 @@
 package com.agentcrashlab.mcp.common;
 
+import java.util.Map;
+
 import org.springframework.http.HttpStatus;
 
 /**
@@ -11,10 +13,18 @@ public class ApiException extends RuntimeException {
 
 	private final String code;
 
+	private final Map<String, Object> details;
+
 	public ApiException(HttpStatus status, String code, String message) {
+		this(status, code, message, null);
+	}
+
+	/** details는 오류 봉투에 "details"로 함께 담긴다 */
+	public ApiException(HttpStatus status, String code, String message, Map<String, Object> details) {
 		super(message);
 		this.status = status;
 		this.code = code;
+		this.details = details;
 	}
 
 	public HttpStatus status() {
@@ -23,6 +33,10 @@ public class ApiException extends RuntimeException {
 
 	public String code() {
 		return this.code;
+	}
+
+	public Map<String, Object> details() {
+		return this.details;
 	}
 
 	public static ApiException notFound(String message) {

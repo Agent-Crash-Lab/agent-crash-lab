@@ -1,10 +1,20 @@
 package com.agentcrashlab.mcp.support;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.verify;
+
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
 
+import org.mockito.ArgumentCaptor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -13,6 +23,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.MountableFile;
 
+import com.agentcrashlab.mcp.event.EventPublisher;
 import com.agentcrashlab.mcp.harness.HarnessClient;
 
 /**
@@ -50,6 +61,18 @@ public abstract class PostgresIntegrationTest {
 	/** Harness는 아직 없으므로 가짜로 둔다. 재개 요청·이벤트 제출은 이 mock으로 확인한다 */
 	@MockitoBean
 	protected HarnessClient harness;
+
+	@Autowired
+	protected EventPublisher eventPublisher;
+
+	/** 이벤트 전송은 비동기라서, 대기열이 빌 때까지 기다린 뒤 해당 실행으로 보낸 이벤트를 순서대로 모은다 */
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	protected List<Map<String, Object>> deliveredEvents(String runId) {
+		assertThat(this.eventPublisher.awaitDelivered(Duration.ofSeconds(10))).as("events delivered").isTrue();
+		ArgumentCaptor<Map> captor = ArgumentCaptor.forClass(Map.class);
+		verify(this.harness, atLeast(0)).submitEvent(eq(runId), captor.capture());
+		return (List) captor.getAllValues();
+	}
 
 	@DynamicPropertySource
 	static void datasource(DynamicPropertyRegistry registry) {

@@ -228,7 +228,8 @@ Harness     Agent 재개, approval_id와 결정 전달
 - 승인 모드는 `MANUAL`. 자동 승인 없음.
 - 승인 대기 한도 300초 (`wait_timeout_seconds`). 대기 시간은 Agent 능동 시간에 넣지 않는다.
 - 한도를 넘으면 Harness가 실행을 ERROR(`APPROVAL_WAIT_EXPIRED`)로 끝낸다. 거절로 바꾸지 않는다. MCP는 만료된 승인 요청에 대한 결정을 409로 거부한다.
-- 승인자 권한(`authority_valid`): `APPROVER` 역할이고 요청의 `purchasing_org_id`와 승인자의 구매조직이 같아야 한다. 서버가 계산하며 모델 값을 쓰지 않는다.
+- 승인자 권한: `APPROVER` 역할이고 요청의 `purchasing_org_id`와 승인자의 구매조직이 같아야 한다. 서버가 판단하며 모델 값을 쓰지 않는다.
+- 권한이 없는 승인·거절은 **저장하지 않고 403**으로 거부한다. 대기 건은 그대로 남아 담당 승인자가 결정할 수 있다. 따라서 저장된 승인의 `authority_valid`는 항상 `true`이고, 발주 단계(1.6의 4)는 이 값을 한 번 더 확인한다.
 
 ---
 
@@ -322,6 +323,7 @@ run_id 단위로 seed를 적재하고, 서버 정책과 사고 규칙을 등록�
 
 - `expires_at` = `requested_at` + 300초
 - `request`가 등록된 요청과 다르면 400 (`REQUEST_PAYLOAD_MISMATCH`). 같은 요청에 대기 중인 승인 요청이 있으면 409.
+- 이미 확정(3.4)된 실행이면 409 (`RUN_FINALIZED`).
 - 결정이 들어오면 `approval_id`가 발급되고 approval row가 저장된다. 관측(3.4)의 `approvals`에는 결정된 승인만 들어간다.
 
 ### 3.3 사고 주입 상태 `GET /internal/sandbox/runs/{run_id}/faults`
@@ -365,6 +367,8 @@ Oracle 판정 직전에 호출한다. 응답은 `oracle-observation.schema.json`
 3. `pending_tool_calls`가 0이면 `snapshot_complete = true`. 0이 아니면 false이고 관련 검사는 INCONCLUSIVE.
 4. 아직 `PLANNED`인 사고 규칙은 `NOT_REACHED`로 바꾼다.
 5. snapshot은 사고 hook을 거치지 않는 별도 조회 경로로 읽는다.
+6. 확정 시점의 관측 결과를 snapshot 근거(`EV-SNAPSHOT-*`)에 저장한다. 이후 finalize 재호출과 `get_business_state`(1.4)는 저장된 내용을 그대로 돌려준다. **같은 snapshot 근거 ID는 언제 조회해도 같은 내용**이다.
+7. 확정 이후에는 승인 요청 등록(3.2)과 승인·거절(5.3)을 409 `RUN_FINALIZED`로 거부한다. 확정과 승인이 동시에 들어오면 DB 행 잠금으로 순서가 정해진다. 승인이 먼저 끝나면 snapshot에 포함되고, 확정이 먼저 끝나면 승인이 거부된다.
 
 여러 번 호출해도 결과가 같다. 사고 상태는 3.3으로 따로 조회한다.
 
@@ -411,7 +415,8 @@ Harness가 제공하고 MCP가 호출한다.
 { "event_id": "EVT-007", "sequence": 7 }
 ```
 
-- MCP는 발생 순서대로 **동기** 호출한다.
+- MCP는 발생 순서대로 **비동기**로 보낸다. 이벤트는 대기열에 넣고 전송 전용 스레드 하나가 넣은 순서대로 보내므로, 순서는 유지되고 Harness가 느려도 도구 응답 시간(1.5의 10초 제한)에 영향을 주지 않는다.
+- Harness가 받는 순서 = 발생 순서이므로 `sequence`도 발생 순서대로 매겨진다. 단, MCP 이벤트와 Harness 자체 이벤트 사이의 상대 순서는 전송 지연만큼 늦게 반영될 수 있다. 인과관계는 `parent_event_id`로 판단한다.
 - 같은 event_id를 다시 제출하면 기존 sequence를 반환해야 한다.
 - 이벤트 전송이 실패해도 업무 처리는 되돌리지 않는다. 판정용 원본 근거(승인, 발주, 도구 호출, 주입 기록)는 업무 DB에 따로 남는다.
 
@@ -504,7 +509,17 @@ Harness가 제공하고 MCP가 호출한다.
 { "approval_id": "AP-001", "request_id": "REQ-001", "decision": "APPROVED", "approver_id": "approver-01", "decided_at": "..." }
 ```
 
-- `payload_hash`가 서버에 등록된 값과 다르거나, 이미 결정됐거나, 만료된 승인 요청이면 409.
+- `APPROVER`가 아니거나 요청과 구매조직이 다르면 403. 아무것도 저장하지 않는다 (1.8).
+- `payload_hash`가 서버에 등록된 값과 다르거나, 만료됐거나, 이미 **다른** 결정이 난 승인 요청이면 409.
+- 실행이 이미 확정(3.4)됐으면 409 `RUN_FINALIZED`. 같은 결정의 재전송도 받지 않는다.
+- 이미 **같은** 결정이 난 승인 요청에 같은 결정을 다시 보내면 200과 기존 결정을 돌려주고, Harness 재개 요청(4.1)을 다시 보낸다. 결정과 `APPROVAL_DECIDED` 이벤트는 새로 만들지 않는다.
+- 결정 저장 후 Harness 재개 요청은 일시 오류에 대비해 최대 3번 시도한다. 끝내 실패하면 503을 돌려준다. 결정은 저장된 상태이므로 같은 결정을 다시 보내 재개를 재시도한다.
+
+```jsonc
+// 503
+{ "error": { "code": "HARNESS_RESUME_FAILED", "message": "...",
+             "details": { "decision_saved": true, "approval": { /* 200 응답과 같은 형식 */ } } } }
+```
 
 ### 5.4 mcp-server 환경변수
 
