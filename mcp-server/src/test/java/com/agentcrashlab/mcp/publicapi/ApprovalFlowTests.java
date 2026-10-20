@@ -3,6 +3,7 @@ package com.agentcrashlab.mcp.publicapi;
 import static com.agentcrashlab.mcp.support.Fixtures.initRun;
 import static com.agentcrashlab.mcp.support.Fixtures.seedRequest;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
@@ -12,6 +13,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
@@ -24,6 +26,8 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
+import com.agentcrashlab.mcp.auth.CurrentUser;
+import com.agentcrashlab.mcp.common.ApiException;
 import com.agentcrashlab.mcp.domain.Approvals;
 import com.agentcrashlab.mcp.domain.RunSetup;
 import com.agentcrashlab.mcp.support.PostgresIntegrationTest;
@@ -46,6 +50,9 @@ class ApprovalFlowTests extends PostgresIntegrationTest {
 
 	@Autowired
 	JsonMapper json;
+
+	@Autowired
+	Approvals approvals;
 
 
 	@Test
@@ -121,6 +128,31 @@ class ApprovalFlowTests extends PostgresIntegrationTest {
 		assertThat(decide("RUN-A3", token("approver-01"), "APR-404", "APPROVED", SEED_HASH))
 			.hasStatus(HttpStatus.NOT_FOUND);
 		verify(this.harness, never()).resume(any(), any());
+	}
+
+	@Test
+	void approverFromAnotherOrgCannotDecideOrTakeAwayTheDecision() {
+		initRun(this.runSetup, "RUN-A6", "baseline-v1");
+		registerApproval("RUN-A6", seedRequest());
+		CurrentUser otherOrg = new CurrentUser("approver-99", List.of("APPROVER"), "PUR-B");
+
+		// 다른 구매조직의 승인·거절은 저장되지 않는다
+		for (String decision : List.of("REJECTED", "APPROVED")) {
+			assertThatThrownBy(() -> this.approvals.decide("RUN-A6", "APR-001", decision, SEED_HASH, otherOrg))
+				.isInstanceOf(ApiException.class)
+				.extracting(e -> ((ApiException) e).status())
+				.isEqualTo(HttpStatus.FORBIDDEN);
+		}
+		assertThat(jdbc.sql("SELECT status FROM approval_request WHERE run_id = 'RUN-A6'").query(String.class).single())
+			.as("대기 건은 그대로 남는다").isEqualTo("PENDING");
+		assertThat(jdbc.sql("SELECT count(*) FROM approval WHERE run_id = 'RUN-A6'").query(Integer.class).single())
+			.isZero();
+		verify(this.harness, never()).resume(any(), any());
+
+		// 담당 승인자는 여전히 결정할 수 있다
+		assertThat(decide("RUN-A6", token("approver-01"), "APR-001", "APPROVED", SEED_HASH)).hasStatusOk();
+		assertThatThrownBy(() -> this.approvals.decide("RUN-A6", "APR-001", "APPROVED", SEED_HASH, otherOrg))
+			.as("결정 후 재전송도 권한 있는 승인자만").isInstanceOf(ApiException.class);
 	}
 
 	@Test

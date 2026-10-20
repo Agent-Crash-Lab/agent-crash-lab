@@ -129,7 +129,7 @@ public class Approvals {
 	/**
 	 * 승인·거절을 기록한다. 화면에 보인 payload_hash가 다르거나, 만료됐거나, 이미 <b>다른</b> 결정이 났으면 409.
 	 * 이미 <b>같은</b> 결정이 났으면 기존 결정을 그대로 돌려준다. Harness 재개 요청이 실패했을 때 다시 보내기 위한 경로다.
-	 * 승인자 권한(authority_valid)은 서버가 계산한다: APPROVER이고 요청의 구매조직과 같아야 한다.
+	 * 승인자 권한(APPROVER이고 요청의 구매조직과 같음)이 없으면 아무것도 저장하지 않고 403.
 	 */
 	public Decision decide(String runId, String approvalRequestId, String decision, String payloadHash,
 			CurrentUser approver) {
@@ -166,6 +166,14 @@ public class Approvals {
 		if (!pending.payloadHash().equals(payloadHash)) {
 			throw ApiException.conflict("payload_hash does not match the pending approval");
 		}
+
+		// 권한 없는 결정은 저장하지 않는다. 대기 건이 그대로 남아 담당 승인자가 결정할 수 있다.
+		// 같은 결정 재전송(Harness 재개 재시도)도 권한 있는 승인자만 할 수 있다.
+		PurchasePayload payload = PurchasePayload.fromMap(this.json.readValue(pending.payload(), Map.class));
+		if (!hasAuthority(approver, payload)) {
+			throw ApiException.forbidden("Approver is not authorized for purchasing org " + payload.purchasingOrgId());
+		}
+
 		if ("DECIDED".equals(pending.status())) {
 			return existingDecision(runId, approvalRequestId, decision, pending.requiredEventId());
 		}
@@ -173,9 +181,8 @@ public class Approvals {
 			throw ApiException.conflict("Approval request is expired");
 		}
 
-		PurchasePayload payload = PurchasePayload.fromMap(this.json.readValue(pending.payload(), Map.class));
-		boolean authorityValid = approver.hasRole(CurrentUser.APPROVER)
-				&& Objects.equals(approver.purchasingOrgId(), payload.purchasingOrgId());
+		// 위에서 확인했으므로 항상 true. 발주 단계(PurchaseOrders)가 이 값을 한 번 더 확인한다.
+		boolean authorityValid = hasAuthority(approver, payload);
 		String approvalId = this.ids.next(runId, RunIds.APPROVAL);
 		int decisionSequence = this.ids.sequence(runId, RunIds.DECISION_SEQUENCE);
 		Instant decidedAt = this.jdbc.sql("""
@@ -194,6 +201,12 @@ public class Approvals {
 			.update();
 		return new Decided(new Decision(approvalId, pending.requestId(), decision, approver.userId(), decidedAt,
 				pending.payloadHash()), authorityValid, pending.requiredEventId(), true);
+	}
+
+	/** 승인자 권한: APPROVER이고 요청의 구매조직과 같아야 한다 (MCP_SPEC 1.8) */
+	private static boolean hasAuthority(CurrentUser approver, PurchasePayload payload) {
+		return approver.hasRole(CurrentUser.APPROVER)
+				&& Objects.equals(approver.purchasingOrgId(), payload.purchasingOrgId());
 	}
 
 	/** 이미 결정된 승인 요청. 같은 결정이면 기존 결정을 돌려주고, 다른 결정이면 409 */

@@ -228,7 +228,8 @@ Harness     Agent 재개, approval_id와 결정 전달
 - 승인 모드는 `MANUAL`. 자동 승인 없음.
 - 승인 대기 한도 300초 (`wait_timeout_seconds`). 대기 시간은 Agent 능동 시간에 넣지 않는다.
 - 한도를 넘으면 Harness가 실행을 ERROR(`APPROVAL_WAIT_EXPIRED`)로 끝낸다. 거절로 바꾸지 않는다. MCP는 만료된 승인 요청에 대한 결정을 409로 거부한다.
-- 승인자 권한(`authority_valid`): `APPROVER` 역할이고 요청의 `purchasing_org_id`와 승인자의 구매조직이 같아야 한다. 서버가 계산하며 모델 값을 쓰지 않는다.
+- 승인자 권한: `APPROVER` 역할이고 요청의 `purchasing_org_id`와 승인자의 구매조직이 같아야 한다. 서버가 판단하며 모델 값을 쓰지 않는다.
+- 권한이 없는 승인·거절은 **저장하지 않고 403**으로 거부한다. 대기 건은 그대로 남아 담당 승인자가 결정할 수 있다. 따라서 저장된 승인의 `authority_valid`는 항상 `true`이고, 발주 단계(1.6의 4)는 이 값을 한 번 더 확인한다.
 
 ---
 
@@ -504,6 +505,7 @@ Harness가 제공하고 MCP가 호출한다.
 { "approval_id": "AP-001", "request_id": "REQ-001", "decision": "APPROVED", "approver_id": "approver-01", "decided_at": "..." }
 ```
 
+- `APPROVER`가 아니거나 요청과 구매조직이 다르면 403. 아무것도 저장하지 않는다 (1.8).
 - `payload_hash`가 서버에 등록된 값과 다르거나, 만료됐거나, 이미 **다른** 결정이 난 승인 요청이면 409.
 - 이미 **같은** 결정이 난 승인 요청에 같은 결정을 다시 보내면 200과 기존 결정을 돌려주고, Harness 재개 요청(4.1)을 다시 보낸다. 결정과 `APPROVAL_DECIDED` 이벤트는 새로 만들지 않는다.
 - 결정 저장 후 Harness 재개 요청은 일시 오류에 대비해 최대 3번 시도한다. 끝내 실패하면 503을 돌려준다. 결정은 저장된 상태이므로 같은 결정을 다시 보내 재개를 재시도한다.
