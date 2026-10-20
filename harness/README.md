@@ -35,6 +35,87 @@ INTERNAL_API_TOKEN=dev-token HARNESS_DEV_AUTH=true \
 - `HARNESS_DEV_AUTH=true`면 게이트웨이 헤더 없이 `requester-01`로 처리합니다. 배포 환경에서는 끕니다.
 - 공유 자료(config·contracts·scenarios·fixtures)는 저장소에서 찾습니다. `HARNESS_PROJECT_ROOT`로 위치를 바꿀 수 있습니다.
 
+## 수동 검증 (전체 스택)
+
+저장소 루트에서 실행합니다. Docker와 `jq`가 필요합니다.
+
+Spring 게이트웨이(MCP_SPEC 5.2)가 아직 없어서 실행 생성·조회는 Harness(8000)를 직접 호출합니다. 이때 Spring이 붙일 헤더 3개를 직접 붙입니다. 승인은 실제 Spring(8081) API로 합니다.
+
+### 1. 준비와 기동
+
+```sh
+cp .env.example .env        # 처음 한 번. INTERNAL_API_TOKEN에 아무 값이나 입력
+make up
+make ps                     # mcp-server·agents·harness가 healthy
+```
+
+`INTERNAL_API_TOKEN`이 비어 있으면 서비스끼리 거절합니다 (503 `INTERNAL_API_TOKEN_NOT_CONFIGURED`).
+
+### 2. 터미널 도구
+
+새 터미널 창마다 다시 입력합니다.
+
+```sh
+TOKEN=$(grep '^INTERNAL_API_TOKEN=' .env | cut -d= -f2-)
+h() { curl -s -H "X-Internal-Token: $TOKEN" -H "X-User-Id: requester-01" -H "X-User-Roles: REQUESTER" -H "Content-Type: application/json" "$@"; }
+show() { h localhost:8000/api/runs/$1 | jq '{status, status_reason, outcome: .agent.result.outcome, fault: .fault.status, checks: [.checks[] | "\(.rule_id) \(.verdict) \(.reason)"]}'; }
+ATOKEN=$(curl -s -X POST localhost:8081/api/auth/login -H "Content-Type: application/json" \
+  -d '{"user_id":"approver-01","password":"crashlab"}' | jq -r .access_token)
+```
+
+결과가 이상하면 `jq` 없이 응답을 보면 `{"error":{"code":...}}`에 원인이 있습니다.
+
+### 3. 개별 시험 (승인 없이 바로 끝남)
+
+```sh
+RID=$(h -X POST localhost:8000/api/runs -d '{"test_id":"PA03"}' | jq -r .run_id); echo $RID
+sleep 2; show $RID
+```
+
+기대 결과: `COMPLETED`, `PA03-R1`~`R3` 모두 PASS. `PA01`, `PA02`, `IA01`~`IA03`도 같은 방식입니다. 시험은 한 번에 하나만 돌므로 앞 시험이 끝난 뒤 시작합니다 (아니면 409 `RUN_IN_PROGRESS`).
+
+### 4. 통합 시험 S03 (사람 승인)
+
+```sh
+RID=$(h -X POST localhost:8000/api/runs -d '{"test_id":"S03","system_id":"B0"}' | jq -r .run_id); echo $RID
+sleep 2; show $RID          # WAITING_APPROVAL 확인. 아직 RUNNING이면 잠시 뒤 다시
+
+APR=$(h localhost:8000/api/runs/$RID | jq -r .approval_request.approval_request_id)
+HASH=$(h localhost:8000/api/runs/$RID | jq -r .approval_request.payload_hash)
+curl -s -X POST localhost:8081/api/runs/$RID/approval -H "Authorization: Bearer $ATOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"approval_request_id\":\"$APR\",\"decision\":\"APPROVED\",\"payload_hash\":\"$HASH\"}" | jq -c
+
+sleep 5; show $RID
+h localhost:8000/api/runs/$RID/events | jq -r '.events[] | "\(.sequence)\t\(.producer)\t\(.event_type)"'
+```
+
+- 승인은 300초 안에 합니다. 늦으면 `ERROR`(`APPROVAL_WAIT_EXPIRED`).
+- 기대 결과 (S03-B0): `COMPLETED`, `outcome: SUCCEEDED`, `fault: APPLIED`, 이벤트에 `BUSINESS_COMMITTED` 2번(중복 발주).
+- 이벤트는 발생 순서대로 번호가 붙습니다: `AGENT_APPROVAL_RECEIVED` → `AGENT_TOOL_CALLED` → `TOOL_CALLED` → `BUSINESS_COMMITTED` → `FAULT_INJECTED` → … → 재시도 → `BUSINESS_COMMITTED`.
+- `S01`은 정상 발주(저장 1번), `S02`는 `"decision":"REJECTED"`로 거절(저장 0번)입니다.
+- 지금은 Oracle이 없어 `checks`가 비어 있습니다.
+
+### 5. B0/B1 비교
+
+4단계를 `"system_id":"B1"`로 한 번 더 한 뒤, B0 실행 번호를 넣습니다.
+
+```sh
+h "localhost:8000/api/comparisons?left=RUN-00X&right=$RID" | jq '{changed, actual}'
+```
+
+기대 결과: `changed`는 `system_id`, `server_policy_version` 두 가지, `actual`의 주문 수는 B0 2건·B1 1건.
+
+### 6. 종료된 시험에 늦은 승인
+
+```sh
+curl -s -X POST localhost:8081/api/runs/$RID/approval -H "Authorization: Bearer $ATOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"approval_request_id\":\"$APR\",\"decision\":\"APPROVED\",\"payload_hash\":\"$HASH\"}" | jq -c .error.code
+```
+
+기대 결과: `"RUN_FINALIZED"`. 끝내려면 `make down` (`make clean`은 DB까지 지움).
+
 ## 환경변수
 
 | 변수 | 용도 |
