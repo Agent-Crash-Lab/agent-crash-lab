@@ -323,6 +323,7 @@ run_id 단위로 seed를 적재하고, 서버 정책과 사고 규칙을 등록�
 
 - `expires_at` = `requested_at` + 300초
 - `request`가 등록된 요청과 다르면 400 (`REQUEST_PAYLOAD_MISMATCH`). 같은 요청에 대기 중인 승인 요청이 있으면 409.
+- 이미 확정(3.4)된 실행이면 409 (`RUN_FINALIZED`).
 - 결정이 들어오면 `approval_id`가 발급되고 approval row가 저장된다. 관측(3.4)의 `approvals`에는 결정된 승인만 들어간다.
 
 ### 3.3 사고 주입 상태 `GET /internal/sandbox/runs/{run_id}/faults`
@@ -366,6 +367,8 @@ Oracle 판정 직전에 호출한다. 응답은 `oracle-observation.schema.json`
 3. `pending_tool_calls`가 0이면 `snapshot_complete = true`. 0이 아니면 false이고 관련 검사는 INCONCLUSIVE.
 4. 아직 `PLANNED`인 사고 규칙은 `NOT_REACHED`로 바꾼다.
 5. snapshot은 사고 hook을 거치지 않는 별도 조회 경로로 읽는다.
+6. 확정 시점의 관측 결과를 snapshot 근거(`EV-SNAPSHOT-*`)에 저장한다. 이후 finalize 재호출과 `get_business_state`(1.4)는 저장된 내용을 그대로 돌려준다. **같은 snapshot 근거 ID는 언제 조회해도 같은 내용**이다.
+7. 확정 이후에는 승인 요청 등록(3.2)과 승인·거절(5.3)을 409 `RUN_FINALIZED`로 거부한다. 확정과 승인이 동시에 들어오면 DB 행 잠금으로 순서가 정해진다. 승인이 먼저 끝나면 snapshot에 포함되고, 확정이 먼저 끝나면 승인이 거부된다.
 
 여러 번 호출해도 결과가 같다. 사고 상태는 3.3으로 따로 조회한다.
 
@@ -507,6 +510,7 @@ Harness가 제공하고 MCP가 호출한다.
 
 - `APPROVER`가 아니거나 요청과 구매조직이 다르면 403. 아무것도 저장하지 않는다 (1.8).
 - `payload_hash`가 서버에 등록된 값과 다르거나, 만료됐거나, 이미 **다른** 결정이 난 승인 요청이면 409.
+- 실행이 이미 확정(3.4)됐으면 409 `RUN_FINALIZED`. 같은 결정의 재전송도 받지 않는다.
 - 이미 **같은** 결정이 난 승인 요청에 같은 결정을 다시 보내면 200과 기존 결정을 돌려주고, Harness 재개 요청(4.1)을 다시 보낸다. 결정과 `APPROVAL_DECIDED` 이벤트는 새로 만들지 않는다.
 - 결정 저장 후 Harness 재개 요청은 일시 오류에 대비해 최대 3번 시도한다. 끝내 실패하면 503을 돌려준다. 결정은 저장된 상태이므로 같은 결정을 다시 보내 재개를 재시도한다.
 

@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Objects;
 
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -89,7 +90,7 @@ public class Approvals {
 	}
 
 	private PendingApproval insertPending(String runId, PurchasePayload request) {
-		requireRun(runId);
+		requireOpenRun(runId);
 		String registeredHash = this.jdbc.sql("""
 				SELECT payload_hash FROM purchase_request
 				WHERE run_id = ? AND request_id = ? ORDER BY request_version DESC LIMIT 1""")
@@ -155,6 +156,7 @@ public class Approvals {
 
 	private Decided insertDecision(String runId, String approvalRequestId, String decision, String payloadHash,
 			CurrentUser approver) {
+		requireOpenRun(runId);
 		ApprovalRequestRow pending = this.jdbc.sql("""
 				SELECT request_id, request_version, payload::text AS payload, payload_hash, status, expires_at,
 				       required_event_id
@@ -225,13 +227,19 @@ public class Approvals {
 		return new Decided(result, false, requiredEventId, false);
 	}
 
-	private void requireRun(String runId) {
-		boolean exists = this.jdbc.sql("SELECT count(*) > 0 FROM run_context WHERE run_id = ?")
+	/**
+	 * 승인 변경은 확정(finalize) 전 실행에서만 받는다. 없으면 404, 확정됐으면 409 RUN_FINALIZED.
+	 * run_context 행을 공유 잠금으로 읽어, 동시에 도착한 finalize와 순서를 정한다.
+	 * (finalize는 같은 행을 갱신하므로 이 트랜잭션이 끝날 때까지 기다리고, 그 반대도 같다)
+	 */
+	private void requireOpenRun(String runId) {
+		boolean finalized = this.jdbc.sql("SELECT finalized_at IS NOT NULL FROM run_context WHERE run_id = ? FOR SHARE")
 			.param(runId)
 			.query(Boolean.class)
-			.single();
-		if (!exists) {
-			throw ApiException.notFound("Run not found: " + runId);
+			.optional()
+			.orElseThrow(() -> ApiException.notFound("Run not found: " + runId));
+		if (finalized) {
+			throw new ApiException(HttpStatus.CONFLICT, "RUN_FINALIZED", "Run is already finalized: " + runId);
 		}
 	}
 
