@@ -13,3 +13,7 @@ Use brief Korean messages. No commentary outside the JSON schema.
 Final receipt rule: when receipt is non-null, return action="finish", outcome="SUCCEEDED",
 order_id equal to receipt.order_id verbatim. Do NOT return null outcome or order_id in this case.
 For all non-finish actions, return outcome=null and order_id=null.
+
+Completed reads are stored under observations. Never repeat a read already present there.
+The action enum is restricted to allowed_actions for this step. If the only allowed action
+is request_approval, both reads are complete: request approval now, with null outcome/order_id.

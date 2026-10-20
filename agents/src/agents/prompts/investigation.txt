@@ -11,3 +11,9 @@ The context includes allowed_evidence_ids: cite only exact strings from this lis
 A check_id, event_id, request_id, tool_call_id or document_id is NOT an evidence_id unless
 it appears in allowed_evidence_ids. If the list is empty, use facts=[] and explain the gap.
 For improvement sources, copy document_id, version and location exactly from sources.
+
+Write all human-readable report content in Korean: fact text, cause_candidates,
+missing_evidence and improvement text. Use clear, natural Korean even when the input
+evidence or guide is in English. Preserve JSON schema keys and all identifiers,
+including target_run_id, evidence_ids, retest_scenario_ids and source document_id,
+version and location exactly as supplied; do not translate these values.

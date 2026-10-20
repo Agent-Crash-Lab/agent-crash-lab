@@ -305,3 +305,27 @@ def test_selection_requires_all_cases_and_human_review():
     rows[0]["unsafe"] = True
     assert summarize(rows, reviews)["selection"]["PA"]["model"] == "expensive"
     assert not summarize([row for row in rows if row["case"] == "IA01"], reviews)["selection"]
+
+
+@pytest.mark.asyncio
+async def test_cheapest_nano_uses_supported_options_and_counts_reasoning_tokens(transport):
+    model, response, create, _ = transport
+    model.model = "gpt-5-nano-2025-08-07"
+    response.model = model.model
+    assert llm.resolve_model("gpt-5-nano") == model.model
+    assert await model.generate("instructions", {}) == CHOICE
+    request = create.call_args.kwargs
+    assert request["reasoning"] == {"effort": "minimal"}
+    assert "temperature" not in request
+    assert llm.inference_signature(model.model) != llm.inference_signature(MODEL)
+    assert model.budget.summary()["smoke"]["estimated_usd"] == pytest.approx(0.000025)
+
+
+@pytest.mark.asyncio
+async def test_purchase_schema_restricts_decoding_to_the_current_allowed_actions(transport):
+    model, response, create, _ = transport
+    response.output_text = json.dumps({**CHOICE, "action": "request_approval", "outcome": None})
+    await model.generate("instructions", {"allowed_actions": ["request_approval"]})
+    schema = create.call_args.kwargs["text"]["format"]["schema"]
+    assert schema["properties"]["action"]["enum"] == ["request_approval"]
+    assert "get_inventory" in PurchaseChoice.model_json_schema()["properties"]["action"]["enum"]

@@ -11,7 +11,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from agents.config import Settings, redact
-from agents.llm import PRICES, Budget, resolve_model
+from agents.llm import PRICES, Budget, inference_signature, resolve_model
 from agents.models import PurchaseRequest, ResumeRequest, StartRequest
 from agents.runtime import Runtime
 from agents.tools.mock import MockTools
@@ -201,12 +201,14 @@ async def execute(args):
     from agents.graph.investigation import PROMPT as investigation_prompt
     from agents.graph.purchase_model import PROMPT as purchase_prompt
 
+    inference = "reasoning=none;temperature=0;max_output_tokens=2048"
+    if any(resolve_model(m) == "gpt-5-nano-2025-08-07" for m in args.models):
+        inference = json.dumps(
+            {resolve_model(m): inference_signature(resolve_model(m)) for m in args.models},
+            sort_keys=True,
+        )
     trial_version = hashlib.sha256(
-        (
-            purchase_prompt
-            + investigation_prompt
-            + "reasoning=none;temperature=0;max_output_tokens=2048"
-        ).encode()
+        (purchase_prompt + investigation_prompt + inference).encode()
     ).hexdigest()
     current = [row for row in previous if row.get("trial_version") == trial_version]
     if args.summary_only:
@@ -277,7 +279,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--live", action="store_true", help="Explicitly enable paid OpenAI calls")
     parser.add_argument("--stage", choices=["smoke", "compare", "repeat"], default="smoke")
-    parser.add_argument("--models", nargs="+", default=list(PRICES))
+    parser.add_argument(
+        "--models", nargs="+", default=[m for m in PRICES if m.startswith("gpt-5.4-")]
+    )
     parser.add_argument("--output", type=Path)
     parser.add_argument("--summary-only", action="store_true")
     asyncio.run(execute(parser.parse_args()))

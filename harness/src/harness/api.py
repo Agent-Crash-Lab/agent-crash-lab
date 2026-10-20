@@ -52,7 +52,12 @@ def _error(status: int, code: str, message: str = "") -> JSONResponse:
 
 
 def public_view(run: dict) -> dict:
-    return {k: v for k, v in run.items() if k != "observation"}
+    return {
+        **{k: v for k, v in run.items() if k != "observation"},
+        "observed_order_count": (
+            len(run["observation"].get("orders", [])) if run.get("observation") is not None else None
+        ),
+    }
 
 
 def create_app(settings: Settings | None = None, mcp=None, agents=None) -> FastAPI:
@@ -190,7 +195,16 @@ def create_app(settings: Settings | None = None, mcp=None, agents=None) -> FastA
         store, log = request.app.state.store, request.app.state.events
         if "text/event-stream" not in accept:
             items = store.list_events(run_id, after_sequence, limit + 1)
-            return {"events": items[:limit], "has_more": len(items) > limit}
+            run = get_run(request, run_id)
+            return {
+                "events": items[:limit],
+                "has_more": len(items) > limit,
+                "is_final": (
+                    run["status"] in TERMINAL
+                    and run["investigation"]["status"] != "RUNNING"
+                    and not log.pending(run_id)
+                ),
+            }
 
         start = int(last_event_id) if last_event_id and last_event_id.isdigit() else after_sequence
 

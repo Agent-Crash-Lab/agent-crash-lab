@@ -34,8 +34,8 @@ dev-up: dev-check ## DB + Agent health + 정적 화면만 시작
 dev-mcp-up: dev-check ## 실제 MCP + DB + Agent + 정적 화면 시작 (Harness 제외)
 	$(COMPOSE_DEV) up -d --build --wait --wait-timeout 120 postgres mcp-server agents frontend
 
-dev-harness-up: dev-check ## 실제 Harness + MCP + DB + Agent 시작
-	$(COMPOSE_DEV) up -d --build --wait --wait-timeout 180 postgres mcp-server agents harness
+dev-harness-up: dev-check ## 실제 Harness + MCP + DB + Agent + 프론트 시작
+	$(COMPOSE_DEV) up -d --build --wait --wait-timeout 180 postgres mcp-server agents harness frontend
 
 dev-down: ## 개발 컨테이너 종료 (DB 볼륨 보존)
 	$(COMPOSE_DEV) down

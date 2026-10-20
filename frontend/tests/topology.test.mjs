@@ -7,7 +7,7 @@ import * as registry from '../dist/registry.js';
 import {purchaseTopology,investigationTopology,registrationExample} from '../dist/topologies.js';
 const clone=structuredClone;
 const source=fs.readFileSync(new URL('../dist/app.js',import.meta.url),'utf8').replace(/^import .*$/mg,'').split("document.addEventListener('click'")[0];
-function application(){return vm.runInNewContext(source+`;render=()=>{};toast=()=>{};({state,eventsFor,checksFor,loadDemo,selectAgent,verifyAgent,open3DDemo,agentView,executionView,prepareView,compareView,withDraft,structureView})`,{...registry,restoreProfiles:()=>{},...topology,structuredClone,setTimeout,clearTimeout,history:{replaceState(){}},console});}
+function application(){return vm.runInNewContext(source+`;render=()=>{};toast=message=>{state.lastToast=message;};({state,eventsFor,checksFor,loadDemo,selectAgent,verifyAgent,open3DDemo,agentView,executionView,prepareView,compareView,withDraft,structureView})`,{...registry,restoreProfiles:()=>{},...topology,structuredClone,setTimeout,clearTimeout,history:{replaceState(){}},console});}
 
 test('all 9 demo scenarios map every event to the selected graph and retain check references',()=>{
  const app=application();
@@ -72,4 +72,27 @@ test('all playback positions render with structure context and HTML in registere
  const input=clone(registrationExample);input.name='<img src=x onerror=alert(1)>';registry.registerProfile(input,{setItem(){}});app.selectAgent(input.id);
  assert.ok(app.agentView().includes('&lt;img'));assert.ok(!app.agentView().includes('<img src=x'));assert.ok(app.structureView().includes('&lt;img'));app.state.previewMode='timeline';assert.match(app.structureView(),/data-preview-node/);assert.doesNotMatch(app.structureView(),/id="structure-host"/);
  delete registry.agents[input.id];
+});
+
+
+test('demo profiles do not report the connected system as disconnected and link to real execution',()=>{
+ const app=application();
+ const profile=app.agentView();
+ assert.ok(!profile.includes('실제 서버 미연결'));
+ assert.ok(!profile.includes('미지정 / 미연결'));
+ assert.ok(profile.includes('데모 참조 프로필'));
+ assert.ok(profile.includes('data-tab="live"'));
+ app.verifyAgent();
+ const prepare=app.withDraft(app.prepareView);
+ assert.ok(!prepare.includes('LIVE 시험 · 연결 필요'));
+ assert.ok(prepare.includes('data-tab="live"'));
+});
+
+
+test('demo data check does not show a server connection failure notification',()=>{
+ const app=application();app.verifyAgent();
+ assert.equal(app.state.verified.purchase.ok,true);
+ assert.equal(app.state.lastToast,'데모 데이터 점검 완료. 실제 시험은 ‘실제 실행’ 메뉴에서 시작하세요.');
+ assert.ok(!app.agentView().includes('데모 연결 점검'));
+ assert.ok(app.agentView().includes('데모 데이터 점검하기') || app.agentView().includes('다시 점검'));
 });
