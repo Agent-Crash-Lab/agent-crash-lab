@@ -12,6 +12,10 @@ services:
       - "127.0.0.1:${MCP_SERVER_PORT:-8081}:8081"
 
   agents:
+    environment:
+      LLM_BUDGET_PATH: /experiment/llm-budget.sqlite
+    volumes:
+      - ../artifacts/local-runs/model-experiment/state:/experiment
     depends_on: !reset {}
     ports: !override
       - "127.0.0.1:${AGENTS_PORT:-8090}:8090"

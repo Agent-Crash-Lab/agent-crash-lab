@@ -150,6 +150,7 @@ class Catalog:
             "faults": faults if system_test else [],
             # Agent exposes no version yet (HARNESS_SPEC §7 #1).
             "agent_version": None,
+            "prompt_version": None,
             "model_kind": None,
             "model": None,
             "mcp_version": None,

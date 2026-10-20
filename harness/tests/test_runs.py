@@ -247,3 +247,27 @@ def test_resume_retry_after_agent_failure(client, fakes):
     run = wait_for(client, run_id, done)
     assert run["status"] == "COMPLETED" and run["approval"]["approval_id"] == "AP-001"
     assert len(agent.resumes) == 1
+
+
+def test_agent_model_metadata_and_usage_are_preserved(client, fakes, monkeypatch):
+    agent = fakes[1]
+    original = agent.start
+    metadata = {
+        "model_kind": "openai",
+        "model": "gpt-5.4-nano-2026-03-17",
+        "prompt_version": "prompt-hash",
+        "agent_version": "0.1.0",
+    }
+
+    async def start_with_metadata(body):
+        response = await original(body)
+        response.update(metadata)
+        agent.runs[body["run_id"]].update(metadata)
+        agent.runs[body["run_id"]]["llm_usage"] = {"input_tokens": 50, "output_tokens": 20}
+        return response
+
+    monkeypatch.setattr(agent, "start", start_with_metadata)
+    run_id = start(client, "PA01")
+    run = wait_for(client, run_id, done)
+    assert all(run["manifest"][key] == value for key, value in metadata.items())
+    assert run["agent"]["usage"]["llm"] == {"input_tokens": 50, "output_tokens": 20}

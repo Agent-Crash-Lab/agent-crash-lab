@@ -6,6 +6,7 @@ from typing import Any, Protocol, TypedDict
 from langgraph.graph import END, START, StateGraph
 
 from agents.config import redact
+from agents.llm import ModelError
 from agents.models import InvestigationReport
 from agents.tools.business import ToolError
 
@@ -151,23 +152,26 @@ def build_investigation_graph(ctx, checkpointer, model):
         ctx.step("investigation.report")
         context = state["context"]
         known = evidence_ids(context, state["target_run_id"])
+        context = {**context, "allowed_evidence_ids": sorted(known)}
         try:
             generated = redact(await model.generate(PROMPT, context), ctx.secrets)
+        except ModelError:
+            raise
         except Exception:
             raise ValueError("REPORT_GENERATION_ERROR") from None
         output = InvestigationReport.model_validate(generated)
         if output.target_run_id != state["target_run_id"]:
-            raise ValueError("Report target mismatch")
+            raise ModelError("REPORT_TARGET_MISMATCH")
         if any(not set(fact.evidence_ids) <= known for fact in output.facts):
-            raise ValueError("Report cites unknown evidence")
+            raise ModelError("REPORT_UNKNOWN_EVIDENCE")
         if any(
             source.model_dump() not in context["sources"]
             for item in output.improvements
             for source in item.sources
         ):
-            raise ValueError("Report cites an unretrieved guide")
+            raise ModelError("REPORT_UNRETRIEVED_GUIDE")
         if context["missing"] and not output.missing_evidence:
-            raise ValueError("Report hides missing evidence")
+            raise ModelError("REPORT_HIDDEN_GAP")
         ctx.event("REPORT_READY")
         return {"result": output.model_dump()}
 

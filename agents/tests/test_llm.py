@@ -1,0 +1,307 @@
+"""Paid calls are replaced at the SDK boundary; all tests are offline."""
+
+import json
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+
+import pytest
+from conftest import approval, purchase, settled
+from pydantic import SecretStr
+
+import agents.llm as llm
+import agents.runtime as runtime_module
+from agents.execution import Context
+from agents.graph.investigation import FixtureReportModel
+from agents.llm import Budget, ModelError, PurchaseChoice, StructuredModel
+from agents.models import StartRequest
+from agents.runtime import RunError
+
+MODEL = "gpt-5.4-nano-2026-03-17"
+CHOICE = {"action": "finish", "outcome": "NEEDS_INPUT", "order_id": None, "message": "확인 필요"}
+
+
+def live(settings):
+    settings.agent_model_mode = "openai"
+    settings.llm_model = MODEL
+    settings.llm_api_key = SecretStr("test-key-never-call-the-network")
+
+
+@pytest.fixture
+def transport(runtime, monkeypatch):
+    live(runtime.settings)
+    runtime.store.put(
+        {
+            "run_id": "MODEL",
+            "status": "RUNNING",
+            "budget_stage": "smoke",
+            "agent_kind": "PURCHASE_AGENT",
+        }
+    )
+    ctx = Context(runtime.store, "MODEL", None, runtime.policy, {}, runtime.secrets())
+    response = SimpleNamespace(
+        usage=SimpleNamespace(input_tokens=100, output_tokens=50),
+        status="completed",
+        model=MODEL,
+        output=[],
+        output_text=json.dumps(CHOICE),
+    )
+    create = AsyncMock(return_value=response)
+    configured = {}
+
+    class Client:
+        def __init__(self, **kwargs):
+            configured.update(kwargs)
+            self.responses = SimpleNamespace(create=create)
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+    monkeypatch.setattr(llm, "AsyncOpenAI", Client)
+    return (
+        StructuredModel(runtime.settings, ctx, MODEL, PurchaseChoice),
+        response,
+        create,
+        configured,
+    )
+
+
+@pytest.mark.asyncio
+async def test_structured_call_and_usage(transport, runtime):
+    model, _, create, configured = transport
+    assert await model.generate("instructions", {"request": "test"}) == CHOICE
+    assert configured["max_retries"] == 0
+    request = create.call_args.kwargs
+    assert request["store"] is False and request["max_output_tokens"] == 2048
+    assert request["text"]["format"]["strict"] is True
+    assert "test-key" not in json.dumps(request)
+    usage = runtime.store.get("MODEL")["llm_usage"]
+    assert usage["input_tokens"] == 100 and usage["output_tokens"] == 50
+    assert usage["failures"] == 0 and usage["unknown_reserved_usd"] == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", ["refusal", "incomplete", "json", "model", "secret"])
+async def test_bad_model_outputs_fail_without_fallback(transport, failure, runtime):
+    model, response, _, _ = transport
+    if failure == "refusal":
+        response.output = [
+            SimpleNamespace(type="message", content=[SimpleNamespace(type="refusal")])
+        ]
+    elif failure == "incomplete":
+        response.status = "incomplete"
+    elif failure == "json":
+        response.output_text = "{broken"
+    elif failure == "model":
+        response.model = "other-model"
+    else:
+        response.output_text = json.dumps(
+            {**CHOICE, "message": runtime.settings.llm_api_key.get_secret_value()}
+        )
+    with pytest.raises(ModelError):
+        await model.generate("instructions", {})
+    assert runtime.store.get("MODEL")["llm_usage"]["failures"] == 1
+    for file in runtime.settings.agent_state_dir.glob("*.sqlite*"):
+        assert runtime.settings.llm_api_key.get_secret_value().encode() not in file.read_bytes()
+
+
+@pytest.mark.asyncio
+async def test_timeout_keeps_reservation_across_restart(transport, tmp_path):
+    model, _, create, _ = transport
+    create.side_effect = TimeoutError("secret external exception")
+    with pytest.raises(ModelError, match="^LLM_CALL_FAILED$"):
+        await model.generate("instructions", {})
+    summary = Budget(model.budget.path).summary()["smoke"]
+    assert summary["unknown_reserved_usd"] > 0
+    assert summary["estimated_usd"] == summary["unknown_reserved_usd"]
+
+
+@pytest.mark.asyncio
+async def test_budget_exhaustion_and_input_limit_never_call_sdk(transport):
+    model, _, create, _ = transport
+    with pytest.raises(ModelError, match="LLM_INPUT_LIMIT"):
+        await model.generate("x" * 64000, {})
+    while True:
+        try:
+            model.budget.reserve("smoke", MODEL, 64000)
+        except ModelError:
+            break
+    with pytest.raises(ModelError, match="LLM_BUDGET_EXHAUSTED"):
+        await model.generate("x" * 60000, {})
+    create.assert_not_called()
+
+
+def test_budget_stage_and_total_limits(tmp_path):
+    budget = Budget(tmp_path / "budget.sqlite")
+    for stage in ["smoke", "compare", "repeat"]:
+        while True:
+            try:
+                budget.reserve(stage, MODEL, 64000)
+            except ModelError:
+                break
+    summary = Budget(budget.path).summary()
+    assert sum(v["estimated_usd"] for v in summary.values()) <= 0.8
+    assert all(v["estimated_usd"] <= llm.STAGES[k] for k, v in summary.items())
+
+
+class Planner:
+    def __init__(self, bad=None):
+        self.bad = bad
+        self.contexts = []
+
+    async def generate(self, prompt, context):
+        self.contexts.append(context)
+        allowed = context["allowed_actions"]
+        action = self.bad or allowed[0]
+        receipt = context["receipt"]
+        return {
+            "action": action,
+            "outcome": "SUCCEEDED" if receipt else None,
+            "order_id": receipt["order_id"] if receipt else None,
+            "message": "확인 완료",
+        }
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("decision", ["APPROVED", "REJECTED"])
+@pytest.mark.parametrize("fixture", ["purchase-normal", "purchase-timeout-once"])
+async def test_model_purchase_obeys_approval_and_retries(runtime, monkeypatch, decision, fixture):
+    live(runtime.settings)
+    planner = Planner()
+    monkeypatch.setattr(runtime_module, "StructuredModel", lambda *args: planner)
+    body = purchase(fixture_id=fixture)
+    await runtime.start(body)
+    waiting = await settled(runtime, body.run_id)
+    assert waiting["status"] == "WAITING_APPROVAL"
+    assert not waiting.get("write_started")
+    assert waiting["model"] == MODEL
+    await runtime.resume(body.run_id, approval(body, decision))
+    done = await settled(runtime, body.run_id)
+    assert done["status"] == "COMPLETED"
+    assert done["result"]["outcome"] == ("SUCCEEDED" if decision == "APPROVED" else "REJECTED")
+    assert done.get("write_attempts", 0) == (
+        0 if decision == "REJECTED" else 2 if fixture == "purchase-timeout-once" else 1
+    )
+    assert not any("test_id" in context or "expected" in context for context in planner.contexts)
+
+
+@pytest.mark.asyncio
+async def test_model_cannot_create_before_approval(runtime, monkeypatch):
+    live(runtime.settings)
+    monkeypatch.setattr(
+        runtime_module, "StructuredModel", lambda *args: Planner("create_purchase_order")
+    )
+    body = purchase()
+    await runtime.start(body)
+    done = await settled(runtime, body.run_id)
+    assert done["reason"] == "LLM_DISALLOWED_ACTION"
+    assert not done.get("write_started")
+    assert any(e["event_type"] == "AGENT_MODEL_BLOCKED" for e in runtime.store.events(body.run_id))
+
+
+@pytest.mark.asyncio
+async def test_model_cannot_change_at_approval_resume(runtime, monkeypatch):
+    live(runtime.settings)
+    monkeypatch.setattr(runtime_module, "StructuredModel", lambda *args: Planner())
+    body = purchase()
+    await runtime.start(body)
+    await settled(runtime, body.run_id)
+    runtime.settings.llm_model = "gpt-5.4-mini"
+    with pytest.raises(RunError, match="MODEL_CONFIGURATION_CHANGED"):
+        await runtime.resume(body.run_id, approval(body))
+    assert not runtime.status(body.run_id).get("write_started")
+
+
+@pytest.mark.asyncio
+async def test_live_report_uses_existing_evidence_validation(runtime, monkeypatch):
+    live(runtime.settings)
+    monkeypatch.setattr(runtime_module, "StructuredModel", lambda *args: FixtureReportModel())
+    body = StartRequest(
+        run_id="IA", agent_kind="INVESTIGATION_AGENT", target_run_id="TARGET", fixture_id="ia01-v1"
+    )
+    await runtime.start(body)
+    done = await settled(runtime, body.run_id)
+    assert done["status"] == "COMPLETED" and done["model"] == MODEL
+
+
+@pytest.mark.asyncio
+async def test_openai_requires_explicit_model_and_key(runtime):
+    runtime.settings.agent_model_mode = "openai"
+    with pytest.raises(RunError, match="LLM_KEY_NOT_CONFIGURED"):
+        await runtime.start(purchase())
+    runtime.settings.llm_api_key = SecretStr("test-key")
+    with pytest.raises(RunError, match="LLM_MODEL_NOT_CONFIGURED"):
+        await runtime.start(purchase())
+
+
+@pytest.mark.asyncio
+async def test_same_model_resumes_checkpoint_after_restart(settings, monkeypatch):
+    from agents.runtime import Runtime
+
+    live(settings)
+    monkeypatch.setattr(runtime_module, "StructuredModel", lambda *args: Planner())
+    body = purchase()
+    service = await Runtime(settings).open()
+    await service.start(body)
+    waiting = await settled(service, body.run_id)
+    expires = waiting["approval_expires_at"]
+    await service.close()
+    service = await Runtime(settings).open()
+    try:
+        assert service.status(body.run_id)["approval_expires_at"] == expires
+        await service.resume(body.run_id, approval(body))
+        done = await settled(service, body.run_id)
+        assert done["result"]["outcome"] == "SUCCEEDED"
+        await service.resume(body.run_id, approval(body))
+        assert service.status(body.run_id)["write_attempts"] == 1
+    finally:
+        await service.close()
+
+
+@pytest.mark.asyncio
+async def test_model_false_order_claim_is_not_success(runtime, monkeypatch):
+    class WrongReceipt(Planner):
+        async def generate(self, prompt, context):
+            choice = await super().generate(prompt, context)
+            if context["receipt"]:
+                choice["order_id"] = "INVENTED"
+            return choice
+
+    live(runtime.settings)
+    monkeypatch.setattr(runtime_module, "StructuredModel", lambda *args: WrongReceipt())
+    body = purchase()
+    await runtime.start(body)
+    await settled(runtime, body.run_id)
+    await runtime.resume(body.run_id, approval(body))
+    done = await settled(runtime, body.run_id)
+    assert done["status"] == "ERROR" and done["reason"] == "LLM_UNSUPPORTED_RESULT"
+    assert done["result"]["outcome"] == "UNKNOWN"
+    assert done["write_attempts"] == 1
+
+
+def test_selection_requires_all_cases_and_human_review():
+    from agents.experiments import summarize
+
+    rows = [
+        {
+            "model": model,
+            "case": case,
+            "run_id": model + case,
+            "passed": True,
+            "unsafe": False,
+            "llm_usage": {"estimated_cost_usd": cost},
+            "latency_seconds": 1,
+            "prompt_version": "same",
+            "stage": "compare",
+        }
+        for model, cost in [("cheap", 0.001), ("expensive", 0.01)]
+        for case in ["PA01", "PA02", "PA03", "IA01", "IA02", "IA03"]
+    ]
+    assert summarize(rows, {})["selection"] == {"PA": {"model": "cheap", "provisional": True}}
+    reviews = {row["run_id"]: [2, 1, 1] for row in rows if row["case"].startswith("IA")}
+    assert summarize(rows, reviews)["selection"]["IA"]["model"] == "cheap"
+    rows[0]["unsafe"] = True
+    assert summarize(rows, reviews)["selection"]["PA"]["model"] == "expensive"
+    assert not summarize([row for row in rows if row["case"] == "IA01"], reviews)["selection"]
