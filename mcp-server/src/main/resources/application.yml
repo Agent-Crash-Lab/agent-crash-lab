@@ -1,0 +1,65 @@
+# 기본값은 로컬 실행(`make db` 후 ./gradlew bootRun)용이다.
+# compose에서는 SPRING_DATASOURCE_* 환경변수가 이 값을 덮어쓴다.
+
+server:
+  port: 8081
+
+spring:
+  application:
+    name: mcp-server
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/crashlab
+    username: mcp_app
+    password: mcp
+
+  # 마이그레이션은 반드시 mcp_app 계정으로 실행한다.
+  # init.sql의 ALTER DEFAULT PRIVILEGES는 mcp_app이 만든 테이블에만 oracle_ro 읽기 권한을 준다.
+  flyway:
+    schemas: sandbox
+    default-schema: sandbox
+    create-schemas: false
+
+  # REST API(공개·내부) JSON 규칙. MCP 프로토콜 메시지는 별도 매퍼(mcpServerJsonMapper)를 쓰므로 영향 없음.
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+    time-zone: UTC
+
+  ai:
+    mcp:
+      server:
+        name: agent-crash-lab-mcp
+        version: 0.1.0
+        type: sync
+        protocol: streamable
+        streamable-http:
+          mcp-endpoint: /mcp
+        capabilities:
+          tool: true
+          resource: true
+          prompt: false
+          completion: false
+
+crashlab:
+  # 내부 API(/internal/**) 헤더 X-Internal-Token. 비어 있으면 내부 API는 모두 거부한다.
+  internal-api-token: ${INTERNAL_API_TOKEN:}
+  harness-url: ${HARNESS_URL:http://localhost:8000}
+  # Agent가 접속할 MCP 주소 (실행 초기화 응답에 담는다)
+  mcp-url: ${MCP_PUBLIC_URL:http://mcp-server:8081/mcp}
+  # 저장소의 fixtures/ 위치. 컨테이너에서는 Dockerfile이 /fixtures로 지정한다.
+  fixtures-dir: ${CRASHLAB_FIXTURES_DIR:../fixtures}
+  demo-user-password: ${DEMO_USER_PASSWORD:crashlab}
+  tool-timeout: 10s
+  approval-wait: 300s
+  agent-token-ttl: 2h
+  user-session-ttl: 8h
+
+# compose 헬스체크용 GET /health (DB 연결 상태 포함)
+management:
+  endpoints:
+    web:
+      base-path: /
+      path-mapping:
+        health: health
+      exposure:
+        include: health

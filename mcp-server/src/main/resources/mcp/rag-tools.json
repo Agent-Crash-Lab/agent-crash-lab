@@ -1,0 +1,73 @@
+{
+  "_source": "contracts/drafts/manufacturing-qa/investigation-tools.json 의 name·input_schema 복사본. drafts에 설명이 없어 description은 MCP_SPEC 1.4 기준으로 작성. 원본과 같은지 ToolContractTests가 검사한다.",
+  "tools": [
+    {
+      "name": "get_failed_checks",
+      "description": "조사 대상 실행에서 FAIL 또는 INCONCLUSIVE로 판정된 검사와 각 검사의 근거 ID를 조회한다.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "run_id"
+        ]
+      }
+    },
+    {
+      "name": "get_run_trace",
+      "description": "조사 대상 실행의 저장된 이벤트와 도구 호출 기록을 순서대로 조회한다.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "run_id"
+        ]
+      }
+    },
+    {
+      "name": "get_business_state",
+      "description": "조사 대상 실행의 실제 업무 상태(승인·발주)와 상태 확정 여부를 조회한다.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "run_id"
+        ]
+      }
+    },
+    {
+      "name": "search_failure_guides",
+      "description": "승인·중복 처리·재시도·오류 처리·조사·평가 해석 지침을 검색한다. 원문은 결과의 resource_uri로 읽는다.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "query"
+        ]
+      }
+    }
+  ]
+}
