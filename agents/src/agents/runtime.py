@@ -32,7 +32,12 @@ class Runtime:
         self.model = model or FixtureReportModel()
         root = settings.agent_project_root
         config = json.loads((root / "config/development-baseline.json").read_text())
-        self.policy = {**config["execution"], **config["approval"]}
+        self.policy = {
+            **config["execution"],
+            **config["approval"],
+            # Harness spec 3.1: receive MCP's timeout response before timing out locally.
+            "agent_tool_wait_seconds": config["execution"]["tool_timeout_seconds"] + 2,
+        }
         self.schemas = {}
         for file in ["purchase-tools.json", "investigation-tools.json"]:
             for tool in json.loads((root / "contracts/drafts/manufacturing-qa" / file).read_text())[
@@ -195,7 +200,7 @@ class Runtime:
                 )
                 if run["mode"] == "mock"
                 else McpTools(
-                    str(self.settings.mcp_url), token, self.policy["tool_timeout_seconds"]
+                    str(self.settings.mcp_url), token, self.policy["agent_tool_wait_seconds"]
                 )
             )
             async with asyncio.timeout(remaining), tools as connection:
