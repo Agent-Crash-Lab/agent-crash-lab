@@ -62,7 +62,12 @@ public class Approvals {
 			Instant expiresAt, String requiredEventId) {
 	}
 
-	private record Decided(Decision decision, boolean authorityValid, String requiredEventId) {
+	/** @param newlyDecided 이번 요청으로 새로 결정됐으면 true, 같은 결정의 재요청이면 false */
+	private record Decided(Decision decision, boolean authorityValid, String requiredEventId, boolean newlyDecided) {
+	}
+
+	record ExistingDecision(String approvalId, String requestId, String decision, String approverId,
+			Timestamp decidedAt, String payloadHash) {
 	}
 
 	/** 승인자에게 보여줄 payload를 서버에 고정한다. 등록된 요청과 다르면 400, 대기 중인 요청이 있으면 409 */
@@ -122,7 +127,8 @@ public class Approvals {
 	}
 
 	/**
-	 * 승인·거절을 기록한다. 이미 결정·만료됐거나 화면에 보인 payload_hash가 다르면 409.
+	 * 승인·거절을 기록한다. 화면에 보인 payload_hash가 다르거나, 만료됐거나, 이미 <b>다른</b> 결정이 났으면 409.
+	 * 이미 <b>같은</b> 결정이 났으면 기존 결정을 그대로 돌려준다. Harness 재개 요청이 실패했을 때 다시 보내기 위한 경로다.
 	 * 승인자 권한(authority_valid)은 서버가 계산한다: APPROVER이고 요청의 구매조직과 같아야 한다.
 	 */
 	public Decision decide(String runId, String approvalRequestId, String decision, String payloadHash,
@@ -131,6 +137,9 @@ public class Approvals {
 			.execute(status -> insertDecision(runId, approvalRequestId, decision, payloadHash, approver));
 
 		Decision result = decided.decision();
+		if (!decided.newlyDecided()) {
+			return result; // 재요청: 결정도 이벤트도 새로 만들지 않는다
+		}
 		Map<String, Object> payload = new LinkedHashMap<>();
 		payload.put("approval_id", result.approvalId());
 		payload.put("request_id", result.requestId());
@@ -154,11 +163,14 @@ public class Approvals {
 			.query(ApprovalRequestRow.class)
 			.optional()
 			.orElseThrow(() -> ApiException.notFound("Approval request not found"));
-		if (!"PENDING".equals(pending.status()) || !pending.expiresAt().isAfter(Instant.now())) {
-			throw ApiException.conflict("Approval request is already decided or expired");
-		}
 		if (!pending.payloadHash().equals(payloadHash)) {
 			throw ApiException.conflict("payload_hash does not match the pending approval");
+		}
+		if ("DECIDED".equals(pending.status())) {
+			return existingDecision(runId, approvalRequestId, decision, pending.requiredEventId());
+		}
+		if (!"PENDING".equals(pending.status()) || !pending.expiresAt().isAfter(Instant.now())) {
+			throw ApiException.conflict("Approval request is expired");
 		}
 
 		PurchasePayload payload = PurchasePayload.fromMap(this.json.readValue(pending.payload(), Map.class));
@@ -181,7 +193,23 @@ public class Approvals {
 			.params(runId, approvalRequestId)
 			.update();
 		return new Decided(new Decision(approvalId, pending.requestId(), decision, approver.userId(), decidedAt,
-				pending.payloadHash()), authorityValid, pending.requiredEventId());
+				pending.payloadHash()), authorityValid, pending.requiredEventId(), true);
+	}
+
+	/** 이미 결정된 승인 요청. 같은 결정이면 기존 결정을 돌려주고, 다른 결정이면 409 */
+	private Decided existingDecision(String runId, String approvalRequestId, String decision, String requiredEventId) {
+		ExistingDecision existing = this.jdbc.sql("""
+				SELECT approval_id, request_id, decision, approver_id, decided_at, payload_hash
+				FROM approval WHERE run_id = ? AND approval_request_id = ?""")
+			.params(runId, approvalRequestId)
+			.query(ExistingDecision.class)
+			.single();
+		if (!existing.decision().equals(decision)) {
+			throw ApiException.conflict("Approval request is already decided as " + existing.decision());
+		}
+		Decision result = new Decision(existing.approvalId(), existing.requestId(), existing.decision(),
+				existing.approverId(), existing.decidedAt().toInstant(), existing.payloadHash());
+		return new Decided(result, false, requiredEventId, false);
 	}
 
 	private void requireRun(String runId) {

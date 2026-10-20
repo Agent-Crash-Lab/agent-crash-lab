@@ -5,7 +5,11 @@ import static com.agentcrashlab.mcp.support.Fixtures.seedRequest;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.util.Map;
@@ -42,6 +46,7 @@ class ApprovalFlowTests extends PostgresIntegrationTest {
 
 	@Autowired
 	JsonMapper json;
+
 
 	@Test
 	void registersOnePendingApprovalForTheRegisteredRequest() {
@@ -116,6 +121,54 @@ class ApprovalFlowTests extends PostgresIntegrationTest {
 		assertThat(decide("RUN-A3", token("approver-01"), "APR-404", "APPROVED", SEED_HASH))
 			.hasStatus(HttpStatus.NOT_FOUND);
 		verify(this.harness, never()).resume(any(), any());
+	}
+
+	@Test
+	void transientResumeFailureIsRetried() {
+		initRun(this.runSetup, "RUN-A4", "baseline-v1");
+		registerApproval("RUN-A4", seedRequest());
+		doThrow(new IllegalStateException("connection refused")).doNothing()
+			.when(this.harness)
+			.resume(eq("RUN-A4"), any());
+
+		assertThat(decide("RUN-A4", token("approver-01"), "APR-001", "APPROVED", SEED_HASH)).hasStatusOk();
+		verify(this.harness, times(2)).resume(eq("RUN-A4"), any());
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void resumeFailureIsReportedAndTheSameDecisionCanBeResent() {
+		initRun(this.runSetup, "RUN-A5", "baseline-v1");
+		registerApproval("RUN-A5", seedRequest());
+		String approver = token("approver-01");
+
+		// Harness가 계속 응답하지 않으면: 결정은 저장되고 503으로 알린다
+		doThrow(new IllegalStateException("connection refused")).when(this.harness).resume(eq("RUN-A5"), any());
+		MvcTestResult failed = decide("RUN-A5", approver, "APR-001", "APPROVED", SEED_HASH);
+		assertThat(failed).hasStatus(HttpStatus.SERVICE_UNAVAILABLE);
+		assertThat(failed).bodyJson().extractingPath("$.error.code").isEqualTo("HARNESS_RESUME_FAILED");
+		assertThat(failed).bodyJson().extractingPath("$.error.details.decision_saved").isEqualTo(true);
+		assertThat(failed).bodyJson().extractingPath("$.error.details.approval.approval_id").isEqualTo("AP-001");
+		verify(this.harness, times(ApprovalController.RESUME_ATTEMPTS)).resume(eq("RUN-A5"), any());
+
+		// Harness가 돌아온 뒤 같은 결정을 다시 보내면: 기존 결정을 돌려주고 재개 요청을 다시 보낸다
+		doNothing().when(this.harness).resume(eq("RUN-A5"), any());
+		MvcTestResult resent = decide("RUN-A5", approver, "APR-001", "APPROVED", SEED_HASH);
+		assertThat(resent).hasStatusOk();
+		assertThat(resent).bodyJson().extractingPath("$.approval_id").isEqualTo("AP-001");
+		verify(this.harness, times(ApprovalController.RESUME_ATTEMPTS + 1)).resume(eq("RUN-A5"), any());
+
+		assertThat(jdbc.sql("SELECT count(*) FROM approval WHERE run_id = 'RUN-A5'").query(Integer.class).single())
+			.as("결정은 한 번만 저장된다")
+			.isEqualTo(1);
+		ArgumentCaptor<Map<String, Object>> events = ArgumentCaptor.forClass(Map.class);
+		verify(this.harness, atLeastOnce()).submitEvent(eq("RUN-A5"), events.capture());
+		assertThat(events.getAllValues().stream().filter(e -> "APPROVAL_DECIDED".equals(e.get("event_type"))))
+			.as("재요청은 새 결정 이벤트를 만들지 않는다")
+			.hasSize(1);
+
+		// 다른 결정으로 바꾸는 건 재시도가 아니므로 여전히 409
+		assertThat(decide("RUN-A5", approver, "APR-001", "REJECTED", SEED_HASH)).hasStatus(HttpStatus.CONFLICT);
 	}
 
 	private MvcTestResult registerApproval(String runId, Map<String, Object> request) {

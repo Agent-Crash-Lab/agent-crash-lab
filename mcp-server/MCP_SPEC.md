@@ -504,7 +504,15 @@ Harness가 제공하고 MCP가 호출한다.
 { "approval_id": "AP-001", "request_id": "REQ-001", "decision": "APPROVED", "approver_id": "approver-01", "decided_at": "..." }
 ```
 
-- `payload_hash`가 서버에 등록된 값과 다르거나, 이미 결정됐거나, 만료된 승인 요청이면 409.
+- `payload_hash`가 서버에 등록된 값과 다르거나, 만료됐거나, 이미 **다른** 결정이 난 승인 요청이면 409.
+- 이미 **같은** 결정이 난 승인 요청에 같은 결정을 다시 보내면 200과 기존 결정을 돌려주고, Harness 재개 요청(4.1)을 다시 보낸다. 결정과 `APPROVAL_DECIDED` 이벤트는 새로 만들지 않는다.
+- 결정 저장 후 Harness 재개 요청은 일시 오류에 대비해 최대 3번 시도한다. 끝내 실패하면 503을 돌려준다. 결정은 저장된 상태이므로 같은 결정을 다시 보내 재개를 재시도한다.
+
+```jsonc
+// 503
+{ "error": { "code": "HARNESS_RESUME_FAILED", "message": "...",
+             "details": { "decision_saved": true, "approval": { /* 200 응답과 같은 형식 */ } } } }
+```
 
 ### 5.4 mcp-server 환경변수
 
