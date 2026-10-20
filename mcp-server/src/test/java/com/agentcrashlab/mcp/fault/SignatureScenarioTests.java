@@ -2,9 +2,6 @@ package com.agentcrashlab.mcp.fault;
 
 import static com.agentcrashlab.mcp.support.Fixtures.seedRequest;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -14,7 +11,6 @@ import java.util.Map;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -232,11 +228,8 @@ class SignatureScenarioTests extends PostgresIntegrationTest {
 			.list();
 	}
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private List<Map<String, Object>> events(String runId) {
-		ArgumentCaptor<Map> captor = ArgumentCaptor.forClass(Map.class);
-		verify(this.harness, atLeastOnce()).submitEvent(eq(runId), captor.capture());
-		return (List) captor.getAllValues();
+		return deliveredEvents(runId);
 	}
 
 	private static List<String> types(List<Map<String, Object>> events) {

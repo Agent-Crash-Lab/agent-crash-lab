@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Objects;
 
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -62,7 +63,12 @@ public class Approvals {
 			Instant expiresAt, String requiredEventId) {
 	}
 
-	private record Decided(Decision decision, boolean authorityValid, String requiredEventId) {
+	/** @param newlyDecided 이번 요청으로 새로 결정됐으면 true, 같은 결정의 재요청이면 false */
+	private record Decided(Decision decision, boolean authorityValid, String requiredEventId, boolean newlyDecided) {
+	}
+
+	record ExistingDecision(String approvalId, String requestId, String decision, String approverId,
+			Timestamp decidedAt, String payloadHash) {
 	}
 
 	/** 승인자에게 보여줄 payload를 서버에 고정한다. 등록된 요청과 다르면 400, 대기 중인 요청이 있으면 409 */
@@ -84,7 +90,7 @@ public class Approvals {
 	}
 
 	private PendingApproval insertPending(String runId, PurchasePayload request) {
-		requireRun(runId);
+		requireOpenRun(runId);
 		String registeredHash = this.jdbc.sql("""
 				SELECT payload_hash FROM purchase_request
 				WHERE run_id = ? AND request_id = ? ORDER BY request_version DESC LIMIT 1""")
@@ -122,8 +128,9 @@ public class Approvals {
 	}
 
 	/**
-	 * 승인·거절을 기록한다. 이미 결정·만료됐거나 화면에 보인 payload_hash가 다르면 409.
-	 * 승인자 권한(authority_valid)은 서버가 계산한다: APPROVER이고 요청의 구매조직과 같아야 한다.
+	 * 승인·거절을 기록한다. 화면에 보인 payload_hash가 다르거나, 만료됐거나, 이미 <b>다른</b> 결정이 났으면 409.
+	 * 이미 <b>같은</b> 결정이 났으면 기존 결정을 그대로 돌려준다. Harness 재개 요청이 실패했을 때 다시 보내기 위한 경로다.
+	 * 승인자 권한(APPROVER이고 요청의 구매조직과 같음)이 없으면 아무것도 저장하지 않고 403.
 	 */
 	public Decision decide(String runId, String approvalRequestId, String decision, String payloadHash,
 			CurrentUser approver) {
@@ -131,6 +138,9 @@ public class Approvals {
 			.execute(status -> insertDecision(runId, approvalRequestId, decision, payloadHash, approver));
 
 		Decision result = decided.decision();
+		if (!decided.newlyDecided()) {
+			return result; // 재요청: 결정도 이벤트도 새로 만들지 않는다
+		}
 		Map<String, Object> payload = new LinkedHashMap<>();
 		payload.put("approval_id", result.approvalId());
 		payload.put("request_id", result.requestId());
@@ -146,6 +156,7 @@ public class Approvals {
 
 	private Decided insertDecision(String runId, String approvalRequestId, String decision, String payloadHash,
 			CurrentUser approver) {
+		requireOpenRun(runId);
 		ApprovalRequestRow pending = this.jdbc.sql("""
 				SELECT request_id, request_version, payload::text AS payload, payload_hash, status, expires_at,
 				       required_event_id
@@ -154,16 +165,26 @@ public class Approvals {
 			.query(ApprovalRequestRow.class)
 			.optional()
 			.orElseThrow(() -> ApiException.notFound("Approval request not found"));
-		if (!"PENDING".equals(pending.status()) || !pending.expiresAt().isAfter(Instant.now())) {
-			throw ApiException.conflict("Approval request is already decided or expired");
-		}
 		if (!pending.payloadHash().equals(payloadHash)) {
 			throw ApiException.conflict("payload_hash does not match the pending approval");
 		}
 
+		// 권한 없는 결정은 저장하지 않는다. 대기 건이 그대로 남아 담당 승인자가 결정할 수 있다.
+		// 같은 결정 재전송(Harness 재개 재시도)도 권한 있는 승인자만 할 수 있다.
 		PurchasePayload payload = PurchasePayload.fromMap(this.json.readValue(pending.payload(), Map.class));
-		boolean authorityValid = approver.hasRole(CurrentUser.APPROVER)
-				&& Objects.equals(approver.purchasingOrgId(), payload.purchasingOrgId());
+		if (!hasAuthority(approver, payload)) {
+			throw ApiException.forbidden("Approver is not authorized for purchasing org " + payload.purchasingOrgId());
+		}
+
+		if ("DECIDED".equals(pending.status())) {
+			return existingDecision(runId, approvalRequestId, decision, pending.requiredEventId());
+		}
+		if (!"PENDING".equals(pending.status()) || !pending.expiresAt().isAfter(Instant.now())) {
+			throw ApiException.conflict("Approval request is expired");
+		}
+
+		// 위에서 확인했으므로 항상 true. 발주 단계(PurchaseOrders)가 이 값을 한 번 더 확인한다.
+		boolean authorityValid = hasAuthority(approver, payload);
 		String approvalId = this.ids.next(runId, RunIds.APPROVAL);
 		int decisionSequence = this.ids.sequence(runId, RunIds.DECISION_SEQUENCE);
 		Instant decidedAt = this.jdbc.sql("""
@@ -181,16 +202,44 @@ public class Approvals {
 			.params(runId, approvalRequestId)
 			.update();
 		return new Decided(new Decision(approvalId, pending.requestId(), decision, approver.userId(), decidedAt,
-				pending.payloadHash()), authorityValid, pending.requiredEventId());
+				pending.payloadHash()), authorityValid, pending.requiredEventId(), true);
 	}
 
-	private void requireRun(String runId) {
-		boolean exists = this.jdbc.sql("SELECT count(*) > 0 FROM run_context WHERE run_id = ?")
+	/** 승인자 권한: APPROVER이고 요청의 구매조직과 같아야 한다 (MCP_SPEC 1.8) */
+	private static boolean hasAuthority(CurrentUser approver, PurchasePayload payload) {
+		return approver.hasRole(CurrentUser.APPROVER)
+				&& Objects.equals(approver.purchasingOrgId(), payload.purchasingOrgId());
+	}
+
+	/** 이미 결정된 승인 요청. 같은 결정이면 기존 결정을 돌려주고, 다른 결정이면 409 */
+	private Decided existingDecision(String runId, String approvalRequestId, String decision, String requiredEventId) {
+		ExistingDecision existing = this.jdbc.sql("""
+				SELECT approval_id, request_id, decision, approver_id, decided_at, payload_hash
+				FROM approval WHERE run_id = ? AND approval_request_id = ?""")
+			.params(runId, approvalRequestId)
+			.query(ExistingDecision.class)
+			.single();
+		if (!existing.decision().equals(decision)) {
+			throw ApiException.conflict("Approval request is already decided as " + existing.decision());
+		}
+		Decision result = new Decision(existing.approvalId(), existing.requestId(), existing.decision(),
+				existing.approverId(), existing.decidedAt().toInstant(), existing.payloadHash());
+		return new Decided(result, false, requiredEventId, false);
+	}
+
+	/**
+	 * 승인 변경은 확정(finalize) 전 실행에서만 받는다. 없으면 404, 확정됐으면 409 RUN_FINALIZED.
+	 * run_context 행을 공유 잠금으로 읽어, 동시에 도착한 finalize와 순서를 정한다.
+	 * (finalize는 같은 행을 갱신하므로 이 트랜잭션이 끝날 때까지 기다리고, 그 반대도 같다)
+	 */
+	private void requireOpenRun(String runId) {
+		boolean finalized = this.jdbc.sql("SELECT finalized_at IS NOT NULL FROM run_context WHERE run_id = ? FOR SHARE")
 			.param(runId)
 			.query(Boolean.class)
-			.single();
-		if (!exists) {
-			throw ApiException.notFound("Run not found: " + runId);
+			.optional()
+			.orElseThrow(() -> ApiException.notFound("Run not found: " + runId));
+		if (finalized) {
+			throw new ApiException(HttpStatus.CONFLICT, "RUN_FINALIZED", "Run is already finalized: " + runId);
 		}
 	}
 

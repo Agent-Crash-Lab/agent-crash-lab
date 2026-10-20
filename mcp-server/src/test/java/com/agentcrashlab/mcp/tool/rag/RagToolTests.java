@@ -3,9 +3,6 @@ package com.agentcrashlab.mcp.tool.rag;
 import static com.agentcrashlab.mcp.support.Fixtures.seedRequest;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
@@ -13,7 +10,6 @@ import java.util.Map;
 
 import io.modelcontextprotocol.spec.McpError;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -182,11 +178,8 @@ class RagToolTests extends PostgresIntegrationTest {
 		}
 	}
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private Map<String, Object> event(String runId, String type) {
-		ArgumentCaptor<Map> captor = ArgumentCaptor.forClass(Map.class);
-		verify(this.harness, atLeastOnce()).submitEvent(eq(runId), captor.capture());
-		return ((List<Map<String, Object>>) (List) captor.getAllValues()).stream()
+		return deliveredEvents(runId).stream()
 			.filter(e -> type.equals(e.get("event_type")))
 			.findFirst()
 			.orElseThrow();
