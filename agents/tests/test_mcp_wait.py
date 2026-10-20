@@ -1,4 +1,4 @@
-"""The Agent must receive MCP's own timeout before applying its transport deadline."""
+"""MCP and local deadlines share the configured timeout and bounded retries."""
 
 import asyncio
 
@@ -12,11 +12,10 @@ from agents.tools.mock import MockTools
 
 
 @pytest.mark.asyncio
-async def test_server_timeout_reaches_agent_before_local_deadline(runtime, monkeypatch):
+@pytest.mark.parametrize("timeout_source", ["server", "local"])
+async def test_timeout_preserves_request_on_retry(runtime, monkeypatch, timeout_source):
     assert runtime.policy["tool_timeout_seconds"] == 10
-    assert runtime.policy["agent_tool_wait_seconds"] == 12
-    runtime.policy["tool_timeout_seconds"] = 0.005
-    runtime.policy["agent_tool_wait_seconds"] = 0.1
+    runtime.policy["tool_timeout_seconds"] = 0.1
     attempts = []
 
     class Transport:
@@ -35,6 +34,8 @@ async def test_server_timeout_reaches_agent_before_local_deadline(runtime, monke
             if name == "create_purchase_order":
                 attempts.append(arguments)
                 if len(attempts) == 1:
+                    if timeout_source == "local":
+                        await asyncio.sleep(1)
                     raise ToolError("TOOL_TIMEOUT", retryable=True)
             return await self.mock.call(name, arguments)
 
@@ -54,7 +55,7 @@ async def test_server_timeout_reaches_agent_before_local_deadline(runtime, monke
 
 @pytest.mark.asyncio
 async def test_mcp_wait_still_stops_unresponsive_calls(runtime, monkeypatch):
-    runtime.policy["agent_tool_wait_seconds"] = 0.005
+    runtime.policy["tool_timeout_seconds"] = 0.005
     attempts = []
 
     class Transport:

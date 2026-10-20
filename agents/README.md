@@ -11,7 +11,8 @@ MCP 명세 v0.4와 contracts·development-baseline을 따릅니다.
 - 구매: 9개 필드 요청, 조회, 승인 중단·재개, 거절, 제한된 재시도, 구조화된 결과.
 - 조사: 실패 검사·trace·업무 상태·지침을 읽고, 실제 조회한 근거·출처만 포함한 보고서 생성.
 - 기본 도구/보고서 모델: mock/fixture. 실제 LLM을 호출하거나 추론 품질을 평가하지 않습니다.
-- MCP 모드: 실제 MCP·PostgreSQL에서 구매 S01/S02/S03 × B0/B1을 검증합니다. 조사 연동은 후속 범위입니다.
+- Harness: 실제 서비스에서 PA01~03·IA01~03과 구매 S01/S02/S03 × B0/B1을 검증합니다.
+- 조사 MCP 모드의 실제 Oracle 실패 판정에 따른 자동 실행은 후속 범위입니다.
 - 내부 API, SQLite checkpoint·실행 기록·진행 이벤트, 재시작 후 승인 재개.
 - 기존 제품 화면은 정적 데모입니다. 화면과 Agent를 연결하지 않습니다.
 
@@ -58,8 +59,8 @@ make dev-down
 
 Docker Compose 2.24.4 이상이 필요합니다. 루트 .env는 .env.example을 최초 한 번 복사해 준비합니다.
 `make dev-up`은 postgres/agents/frontend를 시작합니다. 실제 MCP도 필요하면 `make dev-mcp-up`을 사용합니다.
-전체 `make up`은 Harness 구현 후 사용합니다.
-컨테이너 포트는 루트 .env의 AGENTS_PORT·MCP_SERVER_PORT·FRONTEND_PORT·POSTGRES_PORT로 조정합니다.
+Harness까지 연결하려면 `make dev-harness-up`을 사용합니다.
+컨테이너 포트는 루트 .env의 AGENTS_PORT·MCP_SERVER_PORT·FRONTEND_PORT·POSTGRES_PORT·HARNESS_PORT로 조정합니다.
 
 - 개발 프로젝트는 agent-crash-lab-dev이며 통합 환경과 볼륨을 분리합니다.
 - Agent의 `/state`를 agent_state 볼륨에 저장하므로 컨테이너 재시작·재생성 후에도 승인 대기를 복원합니다.
@@ -130,17 +131,16 @@ mock API 테스트의 승인 입력은 실제 서버 승인 증거가 아닙니�
 - 승인 요청 ID·payload hash 불일치는 422, 다른 승인으로 중복 재개는 409, 없는 실행은 404입니다.
 - 구매 payload 9개를 sort_keys=true/ensure_ascii=false/공백 없는 UTF-8 JSON으로 SHA-256 처리합니다. run_id는 해시에서 제외합니다.
 - 재고 부족 시 요청 수량 전체를 발주합니다. 재고 충분 시 NEEDS_INPUT으로 종료하는 동작은 임시 정책입니다.
-- MCP 서버의 도구 제한은 10초이며 Agent는 Harness 명세 3.1에 따라 12초 기다립니다. 도구와 Resource 모두 적용합니다.
-- mock 도구는 기존 10초 제한을 유지합니다. 최대 12회 호출(재시도·Resource 포함), 8노드 실행, 능동 120초, 전체 600초입니다.
+- MCP·mock 도구와 Resource 대기는 모두 개발 기준의 10초입니다. 최대 12회 호출(재시도·Resource 포함), 8노드 실행, 능동 120초, 전체 600초입니다.
 - 읽기 일시 오류/모호한 쓰기는 각각 최대 1회 재시도합니다. 쓰기 payload와 request_id는 그대로 유지합니다.
 - 승인 대기는 능동 시간에서 제외합니다. 300초 만료는 ERROR/APPROVAL_WAIT_EXPIRED이며 거절로 바꾸지 않습니다.
 - 재시작 후 승인 대기는 원래 만료시각으로 복원합니다. 진행 중이던 실행은 PROCESS_INTERRUPTED로 끝내고 자동 재실행하지 않습니다. 생성 중이었다면 결과 UNKNOWN입니다.
 - MCP 모드는 시작·재개 요청에 agent_token을 받습니다. 토큰은 메모리에만 보관하고 각 실행 구간 종료 시 제거합니다. 재개 때 다시 제공해야 합니다.
 - 토큰·키는 진행 기록·checkpoint·오류 응답에 남기지 않습니다. SQLite는 외부 업무 DB와 독립된 개발 저장소입니다.
 - 이벤트는 Agent가 본 호출·응답·상태만 기록합니다. 실제 BUSINESS_COMMITTED/FAULT_INJECTED/VERDICT_CREATED를 만들지 않습니다.
-- sequence_scope=AGENT_LOCAL은 Agent 로컬 순번입니다. 추후 Harness가 부여할 전역 sequence와 같지 않습니다.
+- sequence_scope=AGENT_LOCAL은 Agent 로컬 순번입니다. Harness가 부여하는 실행별 공통 sequence와 같지 않습니다.
 
-실제 구매 MCP 연동은 아래 테스트로 확인합니다. Harness API 계약 반영·조사 MCP·제품 화면 연동, 실제 LLM 호출과 품질 검증은 후속 작업입니다.
+실제 구매 MCP와 Harness 연동은 아래 테스트로 확인합니다. 제품 화면 연동, 실제 LLM 호출과 품질 검증은 후속 작업입니다.
 
 
 ## 실제 구매 MCP 통합 테스트
@@ -170,7 +170,9 @@ uv run --locked pytest -q tests/integration/test_mcp_purchase.py
 - 테스트마다 고유 run_id를 발급합니다. 기존 실행은 수정하지 않으며 테스트 실행 기록은 업무 DB에 남습니다.
 - 실제 서버에서 받은 요청·토큰을 사용하고, 실제 공개 승인 API에서 승인·거절을 저장합니다.
 - Harness가 없으므로 테스트가 승인 결과를 Agent 재개 API로 직접 전달합니다. 자동 재개·Harness 이벤트 수집을 검증한 것은 아닙니다.
-- Harness 미기동에 따른 이벤트 전달·재개 경고가 MCP 로그에 남을 수 있습니다. 전달 실패 복구는 MCP 측 후속 수정 사항입니다.
+- 이 테스트의 실행은 Harness에 등록하지 않습니다. 최신 MCP가 승인 저장 후 콜백 실패를
+  `503 HARNESS_RESUME_FAILED`로 알리면 저장된 승인만 Agent에 직접 전달합니다.
+  실제 콜백 연결 검증은 아래 Harness 통합 테스트에서 수행합니다.
 - 이 테스트는 구매 흐름의 통합 확인이며 Oracle 판정이나 LLM 품질 평가가 아닙니다.
 
 | 시나리오 | B0 발주 수 | B1 발주 수 |
@@ -182,3 +184,50 @@ uv run --locked pytest -q tests/integration/test_mcp_purchase.py
 발주 수는 Agent의 응답이 아니라 MCP finalize API의 PostgreSQL 관측 결과로 확인합니다.
 요청 payload 유지·호출 수·사고 주입 1회·동일 승인 재전송도 검사합니다.
 B0의 발주 2건은 사고 재현용 서버 정책에 따른 결과이며 성공적인 중복 방지를 뜻하지 않습니다.
+
+## 실제 Harness 통합 테스트
+
+Harness 명세 v0.3의 기존 비동기 API를 사용합니다. Harness가 500ms마다 상태와
+Agent 이벤트를 조회하고, MCP의 승인 콜백을 받아 Agent를 재개합니다.
+별도의 동기 구매 API나 외부 도구 응답 fixture 입력은 제공하지 않습니다.
+
+저장소 루트에서 실행합니다. `.env`는 기존 파일을 사용하고 덮어쓰지 않습니다.
+
+```sh
+cd "$(git rev-parse --show-toplevel)"
+set -a
+. ./.env
+set +a
+make dev-harness-up
+make dev-ps
+cd agents
+HARNESS_INTEGRATION_URL="http://127.0.0.1:${HARNESS_PORT:-8000}" \
+MCP_INTEGRATION_URL="http://127.0.0.1:${MCP_SERVER_PORT:-8081}" \
+uv run --locked pytest -v tests/integration/test_harness_flow.py
+```
+
+기대 결과는 **9 passed**입니다. PA01~03·IA01~03이 각각 한 시험이며,
+S01·S02·S03은 각각 B0/B1을 순서대로 실행해 비교합니다.
+실행 주소를 지정하지 않으면 기본 테스트에서 이 9개 시험은 건너뜁니다.
+기본 테스트는 `uv run --locked pytest`로 확인합니다.
+
+- PA01/PA03은 승인 후 성공, PA02는 거절 후 생성 호출 없이 종료합니다.
+- IA01~03은 조사 보고서와 Harness의 형식·근거·읽기 전용 도구 검사를 확인합니다.
+- SYSTEM 시험은 실제 MCP 로그인·승인 API를 사용합니다. 테스트가 Agent를 직접 재개하지 않습니다.
+- 동일 승인 콜백 재전송 후에도 주문 수는 S01 1/1건, S02 0/0건, S03 2/1건(B0/B1)입니다.
+- 실제 PostgreSQL 관측을 반영한 비교 API, 이벤트 순번·중복·이력 조회·SSE 종료를 확인합니다.
+- 모든 시험은 순차 실행합니다. MCP 단독 테스트와 동시에 실행하면 Agent의 단일 실행 제한에 걸립니다.
+- 테스트는 실행 이력을 추가하며 기존 DB·checkpoint·볼륨을 지우지 않습니다.
+- 실패 후 승인 대기가 남으면 상세 상태를 확인하고 기존 실행을 처리하거나 300초 만료를 기다립니다.
+  기존 볼륨 삭제로 해결하지 않습니다.
+
+Harness Swagger는 `http://127.0.0.1:<HARNESS_PORT>/docs`, Agent Swagger는
+`http://127.0.0.1:<AGENTS_PORT>/docs`입니다. 둘의 기본 포트는 각각 8000, 8090이며
+실제 주소는 `.env`의 포트를 사용합니다. Harness 공개 API에는 내부 토큰과
+`X-User-Id: requester-01`, `X-User-Roles: REQUESTER` 헤더가 필요합니다.
+사람이 시험을 실행하고 승인하는 순서는 [Harness 수동 검증](../harness/README.md#수동-검증-전체-스택)을 따릅니다.
+개발 프로젝트를 유지하려면 기동·종료는 `make dev-harness-up` / `make dev-down`을 사용합니다.
+
+현재 Oracle은 빈 검사 목록을 반환합니다. SYSTEM의 `COMPLETED`와 주문 수 확인은
+업무 규칙 판정 통과를 뜻하지 않습니다. 실패 판정에 따른 자동 조사는 Oracle 구현 후
+별도로 검증하며, 이번 조사 연동은 IA01~03으로 확인합니다. 실제 LLM은 호출하지 않습니다.

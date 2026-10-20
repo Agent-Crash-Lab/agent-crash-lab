@@ -1,4 +1,4 @@
-# Local development environment. MCP is optional; Harness is not started.
+# Local development environment. Select services with the dev Make targets.
 # Requires Docker Compose >= 2.24.4 for !reset / !override.
 name: agent-crash-lab-dev
 
@@ -15,6 +15,10 @@ services:
     depends_on: !reset {}
     ports: !override
       - "127.0.0.1:${AGENTS_PORT:-8090}:8090"
+
+  harness:
+    ports: !override
+      - "127.0.0.1:${HARNESS_PORT:-8000}:8000"
 
   frontend:
     depends_on: !reset {}

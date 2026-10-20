@@ -124,10 +124,18 @@ async def test_real_mcp_purchase(tmp_path, policy, scenario):
                 "payload_hash": waiting["payload_hash"],
             },
         )
-        assert decided.status_code == 200
-        # Harness is absent: explicitly forward the real server's decision to the Agent.
+        # This run is not registered with Harness. New MCP versions report a saved
+        # decision plus callback failure; forward only that confirmed decision.
+        if decided.status_code == 503:
+            error = decided.json()["error"]
+            assert error["code"] == "HARNESS_RESUME_FAILED"
+            assert error["details"]["decision_saved"] is True
+            decision_body = error["details"]["approval"]
+        else:
+            assert decided.status_code == 200
+            decision_body = decided.json()
         resume = {
-            **decided.json(),
+            **decision_body,
             "payload_hash": waiting["payload_hash"],
             "agent_token": agent_token,
         }
