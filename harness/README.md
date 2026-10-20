@@ -39,7 +39,7 @@ INTERNAL_API_TOKEN=dev-token HARNESS_DEV_AUTH=true \
 
 저장소 루트에서 실행합니다. Docker와 `jq`가 필요합니다.
 
-Spring 게이트웨이(MCP_SPEC 5.2)가 아직 없어서 실행 생성·조회는 Harness(8000)를 직접 호출합니다. 이때 Spring이 붙일 헤더 3개를 직접 붙입니다. 승인은 실제 Spring(8081) API로 합니다.
+Spring MCP 공개 API에 실행·조회 게이트웨이가 연결되어 있습니다. 브라우저 확인은 `make dev-harness-up` 후 [프론트 사용 순서](../frontend/README.md)를 따르세요. 아래는 내부 개발·디버깅을 위해 Harness(8000)를 직접 호출하는 예시입니다. 이 경우에만 Spring이 붙이는 헤더 3개를 직접 지정합니다. 브라우저에 내부 토큰을 전달하지 마세요. 승인은 Spring(8081) API로 합니다.
 
 ### 1. 준비와 기동
 
@@ -135,3 +135,9 @@ Agent의 비동기 API 형식은 유지합니다. 시작 응답의 `model_kind`,
 보관합니다. 완료 시 `agent.usage.llm`, `investigation.llm_usage`로 모델 사용량을 전달합니다.
 모델 키는 Harness가 받거나 저장하지 않습니다. 모델 선택·예산과 실험 방법은
 [Agent LLM 문서](../agents/README.md#llm-실행과-모델-비교)를 따릅니다.
+
+## 프론트용 조회 필드
+
+- 실행 상세 `observed_order_count`: 실제 관측 snapshot의 주문 수입니다. 아직 snapshot이 없으면 `null`입니다. 원본 `observation`은 공개하지 않습니다.
+- JSON 이벤트 `is_final`: 실행·자동 조사가 종료됐고 저장 대기 이벤트가 없을 때 `true`입니다. `has_more` 페이지를 모두 읽은 뒤 이 값까지 확인하고 조회를 멈춥니다. SSE의 종료 조건과 같습니다.
+- SYSTEM에서 자동 조사가 필요한 경우 `COMPLETED`를 공개하기 전에 조사 상태를 `RUNNING`으로 예약합니다. 구매 종료 직후 새 실행이 시작되는 틈을 방지합니다.

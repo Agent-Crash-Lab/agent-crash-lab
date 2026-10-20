@@ -241,9 +241,10 @@ Harness Swagger는 `http://127.0.0.1:<HARNESS_PORT>/docs`, Agent Swagger는
 - `AGENT_MODEL_MODE=openai`: 실제 OpenAI 호출을 명시적으로 선택합니다.
 - `LLM_API_KEY`: 로컬 키. 기존 루트 또는 agents/.env 값을 사용하며 Git에 추가하지 않습니다.
 - `LLM_MODEL`: 명시적 공통 모델. `PURCHASE_LLM_MODEL`, `INVESTIGATION_LLM_MODEL`로 역할별 선택이 가능합니다.
-- 후보는 `gpt-5.4-nano-2026-03-17`, `gpt-5.4-mini-2026-03-17`로 고정합니다.
+- 추가 최저가 연결 시험: `gpt-5-nano-2025-08-07` (별칭 `gpt-5-nano`). 입력 $0.05/출력 $0.40 per 1M tokens, reasoning minimal, temperature 생략. 기존 실험과 같은 장부·출력 한도를 사용합니다. 모델별 추론 옵션도 프롬프트 버전 해시에 포함합니다.
+- 기존 비교 후보는 `gpt-5.4-nano-2026-03-17`, `gpt-5.4-mini-2026-03-17`로 고정합니다.
   별칭 nano/mini도 해당 snapshot으로 해석합니다. 가격을 등록하지 않은 모델은 호출하지 않습니다.
-- 추론 none, temperature 0, 호출당 최대 출력 2,048토큰, SDK 자동 재시도 0회입니다.
+- 5.4 모델은 추론 none, temperature 0입니다. GPT-5 nano는 추론 minimal과 기본 temperature를 사용합니다. 모두 호출당 최대 출력 2,048토큰, SDK 자동 재시도 0회입니다.
 - 모델·프롬프트/스키마/추론 설정 해시·Agent 패키지 버전을 시작 시 고정합니다.
   승인 대기 중 설정이 바뀌면 재개는 `409 MODEL_CONFIGURATION_CHANGED`입니다.
 - 구매 모델은 조회 순서와 다음 행동을 선택합니다. 승인·도구 인자·재시도·발주 응답 검증은 코드에서 강제합니다.
@@ -265,7 +266,7 @@ Harness Swagger는 `http://127.0.0.1:<HARNESS_PORT>/docs`, Agent Swagger는
 같은 실험을 할 때는 출력 위치·장부를 바꾸거나 삭제하지 않습니다.
 이 한도는 이 프로그램의 실험에 적용되며 같은 키의 다른 사용량은 포함하지 않습니다.
 
-가격 기준(2026-10-20, 표준 텍스트 100만 토큰당): nano 입력 $0.20/출력 $1.25,
+가격 기준(2026-10-20, 표준 텍스트 100만 토큰당): 5.4 nano 입력 $0.20/출력 $1.25,
 mini 입력 $0.75/출력 $4.50입니다. 실행 전에 공식 문서를 다시 확인합니다.
 [nano](https://developers.openai.com/api/docs/models/gpt-5.4-nano),
 [mini](https://developers.openai.com/api/docs/models/gpt-5.4-mini).
@@ -315,3 +316,29 @@ LLM_BUDGET_STAGE=smoke make dev-harness-up
 
 Harness 실행/승인 절차는 위와 같습니다. 유료 시험 뒤 무료 모드로 돌아오려면
 `AGENT_MODEL_MODE=offline make dev-harness-up`을 실행합니다. 장부와 기존 이력은 보존합니다.
+
+
+### 최저가 모델의 프론트 연동 검증 (2026-10-20)
+
+`gpt-5-nano-2025-08-07`을 실제 OpenAI API로 호출했습니다. SYSTEM 시험은 실제 MCP 도구와 PostgreSQL을 사용했고 승인은 프론트 → MCP → Harness → Agent 경로로 처리했습니다. 모델의 action 응답 스키마도 매 단계의 `allowed_actions`로 제한하며 기존 코드의 사후 차단을 유지합니다.
+
+| 시험 | 실행 | 관측 결과 |
+|---|---|---|
+| S01 / B1 | RUN-068 | 주문 1건, PASS 6 / FAIL 0 |
+| S03 / B0 | RUN-069 | 주문 2건, PASS 4 / FAIL 3. 중복 사고가 기준대로 재현됨. 자동 조사 보고서의 구조·근거·출처 검사 통과 |
+| S03 / B1 | RUN-070 | 주문 1건, PASS 7 / FAIL 0 |
+| IA01 | RUN-071 | 고정 사건 fixture를 실제 LLM으로 조사, PASS 3 / FAIL 0 |
+
+위 실행과 최초 차단 실행(RUN-067)의 API 사용량을 합친 비용 추정은 $0.00183665입니다. 기존 장부를 유지했으며 총 누적 추정은 $0.09704905입니다. 청구액은 캐시 할인 등을 반영해 달라질 수 있습니다. 보고서 설명 품질에 대한 모델 비교를 대체하는 결과는 아닙니다.
+
+재현 설정(키는 기존 로컬 설정 사용):
+
+```bash
+AGENT_MODEL_MODE=openai \
+LLM_MODEL=gpt-5-nano-2025-08-07 \
+PURCHASE_LLM_MODEL=gpt-5-nano-2025-08-07 \
+INVESTIGATION_LLM_MODEL=gpt-5-nano-2025-08-07 \
+LLM_BUDGET_STAGE=smoke make dev-harness-up
+```
+
+[모델·공식 가격](https://developers.openai.com/api/docs/models/gpt-5-nano). 이 계정에서 snapshot 접근과 실제 생성 응답을 확인했습니다. 기본 자동 테스트는 계속 offline 대역을 사용합니다.

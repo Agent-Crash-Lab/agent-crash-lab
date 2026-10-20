@@ -17,7 +17,13 @@ from agents.graph.investigation import PROMPT as INVESTIGATION_PROMPT
 from agents.graph.investigation import FixtureReportModel, build_investigation_graph
 from agents.graph.purchase import build_purchase_graph
 from agents.graph.purchase_model import PROMPT as PURCHASE_PROMPT
-from agents.llm import ModelError, PurchaseChoice, StructuredModel, resolve_model
+from agents.llm import (
+    ModelError,
+    PurchaseChoice,
+    StructuredModel,
+    inference_signature,
+    resolve_model,
+)
 from agents.models import ApprovalDecision, InvestigationReport, PurchaseRequest
 from agents.store import Store
 from agents.tools.mcp import McpTools
@@ -146,7 +152,7 @@ class Runtime:
                         (PurchaseChoice if purchase else InvestigationReport).model_json_schema(),
                         sort_keys=True,
                     )
-                    + "reasoning=none;temperature=0;max_output_tokens=2048"
+                    + inference_signature(model)
                 ).encode()
             ).hexdigest(),
             "agent_version": version("crashlab-agents"),

@@ -111,6 +111,17 @@ def test_system_run_full_flow(client, fakes):
 
 
 def test_failed_checks_trigger_investigation(client, fakes, monkeypatch):
+    from harness.runner import Runner
+
+    original = Runner._set_status
+    reserved = []
+
+    async def check_completion(self, run, status, reason=None):
+        if status == "COMPLETED":
+            reserved.append(run["investigation"]["status"])
+        await original(self, run, status, reason)
+
+    monkeypatch.setattr(Runner, "_set_status", check_completion)
     def fail_duplicate(ctx):
         return [
             {
@@ -131,6 +142,7 @@ def test_failed_checks_trigger_investigation(client, fakes, monkeypatch):
     run = wait_for(client, run_id, done)
 
     assert run["investigation"]["status"] == "READY"
+    assert reserved == ["RUNNING"]
     assert run["investigation"]["validation"]["passed"] is True
     _, agent = fakes
     inv = agent.runs[f"INV-{run_id}"]

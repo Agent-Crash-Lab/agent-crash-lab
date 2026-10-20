@@ -275,10 +275,13 @@ class Runner:
             log.exception("oracle failed for %s", run_id)
             raise RunFailed("ORACLE_ERROR") from exc
         await self._save_checks(run_id, checks)
-        await self._set_status(self._run(run_id), "COMPLETED")
-
         run = self._run(run_id)
-        if any(c["verdict"] in {"FAIL", "INCONCLUSIVE"} for c in run["checks"]):
+        investigate = any(c["verdict"] in {"FAIL", "INCONCLUSIVE"} for c in run["checks"])
+        # Reserve the investigation before publishing COMPLETED; clients may start the next run immediately.
+        if investigate:
+            run["investigation"]["status"] = "RUNNING"
+        await self._set_status(run, "COMPLETED")
+        if investigate:
             await self._investigate(run_id, "mcp", run_id, None)
 
     async def _purchase_unit(self, run_id: str, test: TestSpec):

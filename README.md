@@ -9,7 +9,7 @@
 첫 검증 대상은 **부품 발주 Agent와 모의 업무 서버**입니다. 실제 거래 없이 가상 부품·공급업체·발주 데이터를 사용합니다.
 
 > **현재 상태: 초기 개발 골격 / 구현·통합 시험 예정**  
-> 이 README는 기획서 v1.2를 바탕으로 작성한 개발 기준입니다. 현재 백엔드는 Dockerfile 템플릿·Compose·DB 권한 초기화 단계이며, 프론트엔드에는 저장된 데모를 사용하는 정적 프로토타입이 있습니다. 계약·fixture·개발 입력 준비와 자료 검사 스크립트도 추가됐지만 실제 Agent·MCP·Oracle·승인 API는 미연결입니다. 아래 기능·테스트·시연은 목표 명세이며, 통과 실적을 의미하지 않습니다.
+> 실제 실행은 Frontend → MCP 인증 API → Harness → Agent → MCP 도구 경로로 연결되어 있습니다. `make dev-harness-up` 후 [프론트 안내](frontend/README.md)에 따라 구매·승인·조사·비교를 확인하세요. 기존 데모 메뉴의 예시 결과는 실제 시험 결과와 구분합니다. 아래 기획 설명과 목표 수치는 검증 실적을 의미하지 않습니다.
 
 ## 1. 해결하려는 문제
 
@@ -244,7 +244,7 @@ AI로 생성한 프론트엔드 초안도 API 계약·권한·실행 근거와�
 
 ## 9. 실행 환경과 현재 준비 상태
 
-현재 백엔드 서비스의 Dockerfile은 **템플릿**입니다. Java 빌드 파일과 Python 서비스 진입점이 없어 전체 앱의 통합 실행은 아직 불가능합니다. 프론트엔드는 [별도 안내](frontend/README.md)에 따라 백엔드 없이 저장된 데모를 볼 수 있는 정적 프로토타입입니다. 화면 예시를 실제 Agent 시험 결과로 집계하지 않습니다.
+현재 Java 21 MCP, Python Agent·Harness와 PostgreSQL을 Docker로 실행할 수 있습니다. 로컬 개발은 `make dev-harness-up`을 사용하며 기존 볼륨을 보존합니다. 프론트의 평가 대상·시험 조건·실제 실행·실행 분석·결과 비교는 MCP 인증 API를 거쳐 연결됩니다. 데모 메뉴는 백엔드 없이도 볼 수 있습니다.
 
 ### 개발 준비
 
@@ -294,8 +294,8 @@ docker compose -f infra/docker-compose.yml --env-file .env up -d --build
 
 - Compose는 `mcp-server`, `agents`, `harness`의 `GET /health`를 확인하도록 설정되어 있습니다. 해당 API는 구현해야 합니다.
 - Frontend는 Nginx로 정적 프로토타입을 제공하며 별도 `/health` 계약은 없습니다. 백엔드 서비스 3개의 healthcheck와 구분합니다.
-- 현재 `VITE_API_URL`은 브라우저용 `http://localhost:${HARNESS_PORT:-8000}`을 가리킵니다. 기획의 **Spring 인증 API 진입점**으로 전환할 때 Compose·프론트엔드·CORS·API 경로를 함께 맞춰야 합니다.
-- Compose에는 `VITE_API_URL` build 인자가 남아 있지만 현재 정적 프로토타입의 Dockerfile은 이를 사용하지 않습니다. 실제 API 연결 시 프론트엔드 설정 방식부터 합의해야 합니다.
+- 브라우저 `/api/**`는 같은 출처의 Nginx 프록시를 통해 Spring MCP 공개 API로 전달합니다. 내부 서비스 토큰은 브라우저에 제공하지 않습니다.
+- 사용하지 않던 `VITE_API_URL`은 제거했습니다. 로컬 Node 서버의 MCP 주소는 `MCP_API_URL`로 지정합니다.
 - 현재 Compose는 개발용으로 DB·내부 서비스 포트를 호스트에 노출합니다. 배포 시 외부 진입점과 내부 전용 경로를 분리하는 작업이 필요합니다.
 - 백엔드 템플릿은 Java 21과 Python 3.12를 사용합니다. 현재 프론트엔드는 별도 빌드 없는 정적 소스이고 로컬 서버는 Node 20 이상을 사용합니다. Vue/Vite는 초기 기획안이며 현재 구현과 구분합니다.
 - `LLM_MODEL`은 `.env.example`에서 명시하고 Compose가 agents/harness에 전달합니다. 실제 모델 호출과 설정 로더는 아직 구현해야 합니다.
@@ -317,7 +317,7 @@ Oracle의 조회 연결과 결과 저장 연결을 혼용하지 않습니다. `i
 - `mcp-server`: Gradle 프로젝트·wrapper·승인/발주 API·MCP·`/health`
 - `agents`: Python 의존성 및 템플릿의 `agents.server:app`에 맞는 실행 진입점
 - `harness`: Python 의존성 및 템플릿의 `harness.api:app`에 맞는 실행 진입점
-- `frontend`: 정적 데모는 준비됨. 실제 인증 API·승인·SSE·실행 결과 연결 필요
+- `frontend`: 메인 메뉴 전체에 실제 API 연결. 대상·조건·실행 선택을 공유하고 실행/승인·분석·비교를 메뉴별 제공. 기존 데모는 별도 진입점으로 분리.
 - `contracts`·`scenarios`·`fixtures`: 추가된 `drafts/` 계약·자료를 리뷰하고 서비스 로더와 연결. RAG 지침·개별 시험·시연·이벤트 매핑도 [정합성 검토](docs/design-prep/readme-alignment.md)에서 확인
 
 ## 10. 공통 계약과 구현 원칙
@@ -434,6 +434,6 @@ D1 종료까지 정상 흐름이 연결되지 않으면 추가 시나리오·화
 
 - 현재 README의 발주·사고 조사 MVP를 기준으로 준비한 **팀 리뷰용 초안**입니다.
 - 대상 분석·시험 선택과 제조 Agent 4종은 확장 제안이며 개발 확정 범위가 아닙니다.
-- `contracts/drafts/`, `scenarios/drafts/`, `fixtures/drafts/`에는 검토할 명세·가상 데이터가 있습니다. 런타임 로딩·실제 시험은 아직 연결되지 않았습니다.
+- `contracts/drafts/`, `scenarios/drafts/`, `fixtures/drafts/`에는 검토할 명세·가상 데이터가 있습니다. 현재 Agent·MCP·Harness는 이 개발 기준을 로딩해 시험합니다. 계약 확정 여부는 각 문서의 상태를 확인하세요.
 
 개발용 기본값·시험 입력 준비·자료 검사는 [개발 기준값 안내](docs/design-prep/development-baseline.md)를 참고하세요.

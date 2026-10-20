@@ -27,6 +27,8 @@ out/
 # Node
 node_modules/
 dist/
+# The current frontend keeps its hand-written source in dist/.
+!frontend/dist/
 
 # Logs
 *.log

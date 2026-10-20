@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 
 # Standard text pricing per million tokens, checked 2026-10-20 against OpenAI model docs.
 PRICES = {
+    "gpt-5-nano-2025-08-07": (0.05, 0.40),
     "gpt-5.4-nano-2026-03-17": (0.20, 1.25),
     "gpt-5.4-mini-2026-03-17": (0.75, 4.50),
 }
@@ -35,11 +36,24 @@ class PurchaseChoice(BaseModel):
 
 
 def resolve_model(name):
-    aliases = {model.removesuffix("-2026-03-17"): model for model in PRICES}
+    aliases = {model.rsplit("-", 3)[0]: model for model in PRICES}
     model = aliases.get(name, name)
     if model not in PRICES:
         raise ModelError("UNPRICED_MODEL")
     return model
+
+
+def inference_options(model):
+    if model == "gpt-5-nano-2025-08-07":
+        return {"reasoning": {"effort": "minimal"}}
+    return {"reasoning": {"effort": "none"}, "temperature": 0}
+
+
+def inference_signature(model):
+    effort = (
+        "minimal;temperature=default" if model == "gpt-5-nano-2025-08-07" else "none;temperature=0"
+    )
+    return f"reasoning={effort};max_output_tokens={MAX_OUTPUT}"
 
 
 class Budget:
@@ -103,7 +117,11 @@ class StructuredModel:
     async def generate(self, prompt, context):
         # Byte count is a conservative token bound, including schema and message overhead.
         data = json.dumps(context, ensure_ascii=False, sort_keys=True)
-        schema = json.dumps(self.schema.model_json_schema(), ensure_ascii=False)
+        response_schema = self.schema.model_json_schema()
+        if self.schema is PurchaseChoice and "allowed_actions" in context:
+            # Constrain decoding as well as validating the chosen action in application code.
+            response_schema["properties"]["action"]["enum"] = context["allowed_actions"]
+        schema = json.dumps(response_schema, ensure_ascii=False)
         bound = len((prompt + data + schema).encode("utf-8")) + 1024
         if bound > 64000:
             raise ModelError("LLM_INPUT_LIMIT")
@@ -132,15 +150,14 @@ class StructuredModel:
                     input=data,
                     store=False,
                     service_tier="default",
-                    reasoning={"effort": "none"},
-                    temperature=0,
+                    **inference_options(self.model),
                     max_output_tokens=MAX_OUTPUT,
                     text={
                         "format": {
                             "type": "json_schema",
                             "name": self.schema.__name__,
                             "strict": True,
-                            "schema": self.schema.model_json_schema(),
+                            "schema": response_schema,
                         }
                     },
                 )

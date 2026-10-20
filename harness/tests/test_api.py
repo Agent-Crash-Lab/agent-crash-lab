@@ -105,6 +105,7 @@ def test_event_replay_and_sse(client):
     wait_for(client, run_id, done)
     page = client.get(f"/api/runs/{run_id}/events?after_sequence=0&limit=3").json()
     assert len(page["events"]) == 3 and page["has_more"] is True
+    assert isinstance(page["is_final"], bool)
 
     with client.stream(
         "GET",
@@ -152,3 +153,12 @@ def test_occurred_epoch_formats():
     assert nanos is not None and micros is not None and nanos < micros
     assert occurred_epoch("2026-10-20T01:08:28") is None
     assert occurred_epoch("not a time") is None
+
+
+def test_public_order_count_does_not_expose_observation():
+    from harness.api import public_view
+
+    assert public_view({"observation": None})["observed_order_count"] is None
+    result = public_view({"observation": {"orders": [{"order_id": "PO-1"}, {"order_id": "PO-2"}]}})
+    assert result["observed_order_count"] == 2
+    assert "observation" not in result
