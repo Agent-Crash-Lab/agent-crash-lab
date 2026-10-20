@@ -1,0 +1,5 @@
+.venv/
+.harness-state/
+.pytest_cache/
+.ruff_cache/
+__pycache__/

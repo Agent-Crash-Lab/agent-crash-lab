@@ -87,11 +87,14 @@ services:
       LLM_API_KEY: ${LLM_API_KEY}
       LLM_MODEL: ${LLM_MODEL:-}
       INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-}
+      HARNESS_PROJECT_ROOT: /project
     ports:
       - "${HARNESS_PORT:-8000}:8000"
     volumes:
-      - ../scenarios:/scenarios:ro
-      - ../fixtures:/fixtures:ro
+      - ../config:/project/config:ro
+      - ../contracts:/project/contracts:ro
+      - ../scenarios:/project/scenarios:ro
+      - ../fixtures:/project/fixtures:ro
     depends_on:
       postgres:
         condition: service_healthy

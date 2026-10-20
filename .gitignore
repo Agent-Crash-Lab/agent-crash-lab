@@ -39,3 +39,4 @@ AGENT_CRASH_LAB_Project_Proposal_v1.2.pdf
 
 # Agent local checkpoints
 .agent-state/
+.harness-state/
