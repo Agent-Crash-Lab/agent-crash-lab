@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
@@ -168,7 +167,6 @@ class ApprovalFlowTests extends PostgresIntegrationTest {
 	}
 
 	@Test
-	@SuppressWarnings("unchecked")
 	void resumeFailureIsReportedAndTheSameDecisionCanBeResent() {
 		initRun(this.runSetup, "RUN-A5", "baseline-v1");
 		registerApproval("RUN-A5", seedRequest());
@@ -193,9 +191,7 @@ class ApprovalFlowTests extends PostgresIntegrationTest {
 		assertThat(jdbc.sql("SELECT count(*) FROM approval WHERE run_id = 'RUN-A5'").query(Integer.class).single())
 			.as("결정은 한 번만 저장된다")
 			.isEqualTo(1);
-		ArgumentCaptor<Map<String, Object>> events = ArgumentCaptor.forClass(Map.class);
-		verify(this.harness, atLeastOnce()).submitEvent(eq("RUN-A5"), events.capture());
-		assertThat(events.getAllValues().stream().filter(e -> "APPROVAL_DECIDED".equals(e.get("event_type"))))
+		assertThat(deliveredEvents("RUN-A5").stream().filter(e -> "APPROVAL_DECIDED".equals(e.get("event_type"))))
 			.as("재요청은 새 결정 이벤트를 만들지 않는다")
 			.hasSize(1);
 
