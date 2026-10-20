@@ -329,6 +329,7 @@ Oracle의 조회 연결과 결과 저장 연결을 혼용하지 않습니다. `i
 | `POST /api/auth/login` | 사전 생성 계정 로그인 |
 | `GET /api/scenarios` | 시나리오·합격 기준 조회 |
 | `POST /api/runs` | 실행 생성, `202`와 `run_id` 반환 |
+| `GET /api/runs` | 실행 이력 목록 (이력·비교 화면) |
 | `GET /api/runs/{id}` | 상태·판정·조사 결과 |
 | `GET /api/runs/{id}/events` | SSE·저장 이력 복구 |
 | `POST /api/runs/{id}/approval` | 권한 확인 후 승인·거절 |

@@ -709,13 +709,25 @@ def evaluate_investigation_agent(test_id: str, report: dict, validation: dict) -
 | # | 항목 | Harness 쪽 확정 | 결정이 필요한 것 | 담당 |
 |---|---|---|---|---|
 | 1 | Agent 버전 정보 | Manifest에 `agent_version`을 기록해야 한다 (README §10) | Agent가 버전(코드 버전·프롬프트 버전)을 상태나 `/health`로 제공할지 | 김형주 |
-| 2 | 이벤트 3D 표시 | Agent·MCP·Harness 이벤트를 모두 저장해 SSE로 보낸다 (2.9) | Agent 이벤트(`AGENT_TOOL_CALLED` 등), Harness의 `RUN_STATUS_CHANGED`·`REPORT_VALIDATED`, MCP의 `TOOL_RESPONDED`를 `event-ui-mapping.json`에 추가할지 | 한근형, 김형주 |
-| 3 | `HARNESS_DEV_AUTH` | Harness가 읽는다 (1.1) | Compose `harness` 환경변수에 추가 (`INTERNAL_API_TOKEN`은 추가됨) | 김형주 |
+| 2 | 이벤트 3D 표시 | Agent·MCP·Harness 이벤트를 모두 저장해 SSE로 보낸다 (2.9) | 아래 제안안대로 `event-ui-mapping.json`에 추가할지 | 한근형, 김형주 |
+
+#2 제안안 (`event-ui-mapping.json`의 `mapping`에 추가)
+
+| event_type | node_id | 근거로 보여줄 것 |
+|---|---|---|
+| `RUN_STATUS_CHANGED` | `harness` | 이전·이후 상태, 사유 |
+| `REPORT_VALIDATED` | `harness` | 보고서 자동 검사 결과 |
+| `TOOL_RESPONDED` | `mcp` | 오류 코드, 사고 주입·재사용 응답 여부 |
+| `RUN_STARTED`, `RUN_FINISHED`, `AGENT_STEP` | `agent` / `investigator` | 실행 모드, 노드 이름, 종료 사유 |
+| `AGENT_TOOL_CALLED`, `AGENT_TOOL_RESPONDED` | `agent` / `investigator` | 도구·인자, 결과 코드 |
+| `AGENT_WAITING_APPROVAL`, `AGENT_APPROVAL_RECEIVED` | `agent` | 승인 payload 해시, 결정 |
+
+Agent 이벤트의 `node_id`는 Agent가 이미 `agent`(구매)·`investigator`(조사)로 보낸다.
 
 공지 사항 (결정 불필요)
-- 이벤트 제출(4.2) 응답이 `201 { event_id, sequence }`에서 `202 { event_id, sequence: null }`로 바뀌었다. 발생 순서로 번호를 붙이기 위해 약 1초 모았다가 저장하기 때문이다 (2.9). mcp-server는 응답 본문을 쓰지 않으므로 코드 변경은 없다. MCP_SPEC 4.2 문구 수정 요청 (문관영).
-- 도구 timeout은 Agent·MCP 서버 모두 **10초**로 확정했다 (config `tool_timeout_seconds`). 두 시점이 겹쳐도 Agent는 어느 쪽이든 `TOOL_TIMEOUT`으로 처리하므로 행동이 같다. 서버에 남은 호출은 finalize(`wait_ms: 5000`)가 정리한다. MCP_SPEC 1.5의 "Agent는 12초(`agent_tool_wait_seconds`)까지 기다린다" 문장은 삭제 요청 (문관영).
-- MCP_SPEC 기준 자료 표의 Harness 연동 파일은 `harness_spec_임시.md (v0.2)`가 아니라 `harness/HARNESS_SPEC.md` (v0.3)다 (문관영).
+- 도구 timeout은 Agent·MCP 서버 모두 **10초**로 확정했다 (config `tool_timeout_seconds`). 두 시점이 겹쳐도 Agent는 어느 쪽이든 `TOOL_TIMEOUT`으로 처리하므로 행동이 같다. 서버에 남은 호출은 finalize(`wait_ms: 5000`)가 정리한다. MCP_SPEC 1.5에 반영했다.
+- 이벤트 제출(4.2) 응답은 `202 { event_id, sequence: null }`이다. 발생 순서로 번호를 붙이기 위해 약 1초 모았다가 저장하기 때문이다 (2.9). mcp-server는 응답 본문을 쓰지 않으므로 코드 변경은 없다. MCP_SPEC 4.2에 반영했다.
+- `HARNESS_DEV_AUTH`는 Compose `harness`와 `.env.example`에 추가했다 (기본 `false`).
 - 브라우저는 Spring(`mcp-server:8081/api/**`)만 호출한다 (MCP_SPEC 5장). Compose의 Frontend `VITE_API_URL`은 아직 Harness를 가리킨다 (김형주).
 - Agent 상태의 시간 필드는 Unix 초, 오류 응답은 `{ "detail": ... }`다. Harness가 변환해 쓰므로 Agent를 바꿀 필요는 없다.
 - PA/IA 검사 `rule_id`는 `{test_id}-R{n}` 체계로 정했다 (2.8). 기준 목록은 `individual-and-demo.json`, `investigation-cases.json`이다 (백지헌·한근형 참고).
