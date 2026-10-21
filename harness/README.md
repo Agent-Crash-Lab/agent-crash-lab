@@ -8,6 +8,7 @@
 - MCP용 내부 API(`/internal/runs/**`): 재개, 이벤트 제출, 조사용 검사·이벤트 조회
 - Runner: S01~S03(MCP + Agent `mcp` 모드), PA01~03·IA01~03(Agent `mock` 모드)
 - PA/IA 개별 시험 검사, 조사 보고서 자동 검사, Agent 이벤트 수집
+- 실행 한도: 도구 호출 수·능동 시간을 Agent 보고와 별도로 측정하고 R10(실행 한도 준수)으로 판정. 승인 대기 300초 만료는 Harness가 직접 판단
 - 이벤트 순번: MCP·Agent·Harness 이벤트를 1초 모았다가 실제 발생 시각(`occurred_at`) 순으로 번호를 붙임. SSE는 발생 후 약 1초 뒤에 나옴
 - Oracle(`src/harness/oracle`): 함수 경계만 있음. 문관영 구현 전까지 SYSTEM 시험 검사는 비어 있음
 

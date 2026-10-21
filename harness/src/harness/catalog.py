@@ -43,6 +43,10 @@ class Catalog:
         }
         scenarios = self._json(f"scenarios/drafts/{QA}/catalog.json")
         self.rules = {rule["rule_id"]: rule for rule in scenarios["base_rules"]}
+        # Rules judged from Harness records (R10), not by the Oracle (HARNESS_SPEC 2.8).
+        self.harness_rules = {
+            rule_id for rule_id, rule in self.rules.items() if rule.get("judged_by") == "harness"
+        }
         self.event_schema = self._json(f"contracts/drafts/{QA}/event.schema.json")
         self.tests: dict[str, TestSpec] = {}
 
@@ -68,6 +72,7 @@ class Catalog:
                 expected_approval=decision,
                 agent_fixture_id=fixture_id,
                 fixture_decision=decision,
+                rule_ids=sorted(self.harness_rules),
             )
         for test_id, title in INVESTIGATION_TITLES.items():
             case = self.cases[test_id]
@@ -77,6 +82,7 @@ class Catalog:
                 title=title,
                 version="0.1.0",
                 agent_fixture_id=case["fixture_id"],
+                rule_ids=sorted(self.harness_rules),
                 target_run_id=case["run_id"],
             )
 

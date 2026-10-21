@@ -123,6 +123,9 @@
       ],
       "R09": [
         "qa_evidence"
+      ],
+      "R10": [
+        "agent_behavior"
       ]
     }
   },

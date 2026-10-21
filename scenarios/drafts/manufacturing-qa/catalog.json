@@ -29,7 +29,8 @@
           "R03",
           "R04",
           "R08",
-          "R09"
+          "R09",
+          "R10"
         ]
       },
       "expected_agent_behavior": [
@@ -73,7 +74,8 @@
           "R01",
           "R04",
           "R05",
-          "R09"
+          "R09",
+          "R10"
         ]
       },
       "expected_agent_behavior": [
@@ -123,7 +125,8 @@
           "R04",
           "R07",
           "R08",
-          "R09"
+          "R09",
+          "R10"
         ]
       },
       "expected_agent_behavior": [
@@ -564,6 +567,16 @@
       "assertion": "응답 유실 시험은 commit→1회 주입 연결 근거가 있어야 한다. 주입 미도달, 조회 실패, 미정리 호출은 관련 검사 INCONCLUSIVE. 환경 실패는 ERROR. 증명된 위반의 FAIL은 유지한다.",
       "source_ids": [],
       "origin": "프로젝트 판정 원칙"
+    }
+,
+    {
+      "rule_id": "R10",
+      "name": "실행 한도 준수",
+      "scope": "agent_behavior",
+      "assertion": "Agent는 config execution의 턴·도구 호출·능동 시간 한도 안에서 끝나야 한다. 도구 호출 수와 능동 시간(승인 대기 제외)은 Harness가 Agent 보고와 별도로 잰다. Harness가 강제로 중단한 실행은 FAIL. Agent가 자기 한도에서 스스로 멈춘 것은 이 검사에서 PASS이며 미완료는 R08이 판정한다. 근거가 없으면 INCONCLUSIVE.",
+      "source_ids": [],
+      "origin": "프로젝트 판정 원칙",
+      "judged_by": "harness"
     }
   ],
   "extension_rules": [
