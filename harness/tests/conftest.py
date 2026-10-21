@@ -1,7 +1,7 @@
 import hashlib
 import json
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
@@ -33,6 +33,7 @@ class FakeMcp:
         )["seed"]["request"]
         self.orders = 1
         self.fault_status = "APPLIED"
+        self.approval_wait = 300  # seconds until the approval request expires
 
     async def initialize(self, body):
         self.calls.append(("initialize", body))
@@ -50,8 +51,8 @@ class FakeMcp:
             "approval_request_id": "APR-001",
             "request_id": request["request_id"],
             "payload_hash": payload_hash(request),
-            "requested_at": "2026-10-20T00:00:00Z",
-            "expires_at": "2026-10-20T00:05:00Z",
+            "requested_at": datetime.now(UTC).isoformat(),
+            "expires_at": (datetime.now(UTC) + timedelta(seconds=self.approval_wait)).isoformat(),
         }
 
     async def faults(self, run_id):
@@ -83,6 +84,9 @@ class FakeAgent:
         self.report_evidence = None  # investigation facts evidence override
         self.expire_approval = False
         self.fail_resume = 0  # fail this many resume calls first
+        self.extra_reads = 0  # extra get_inventory calls before waiting for approval
+        self.hang_after_approval = False  # stay RUNNING forever after resume
+        self.reported_turns = None  # override the reported turn count
 
     def _event(self, run_id, event_type, payload=None):
         log = self.log.setdefault(run_id, [])
@@ -152,6 +156,14 @@ class FakeAgent:
                 {"part_id": request["part_id"], "plant_id": request["plant_id"]},
             )
             self._tool(body["run_id"], "get_supplier", {"supplier_id": request["supplier_id"]})
+            for _ in range(self.extra_reads):
+                self._tool(
+                    body["run_id"],
+                    "get_inventory",
+                    {"part_id": request["part_id"], "plant_id": request["plant_id"]},
+                )
+            if self.reported_turns is not None:
+                run["turns"] = self.reported_turns
             if self.expire_approval:
                 self._finish(body["run_id"], "ERROR", reason="APPROVAL_WAIT_EXPIRED")
             else:
@@ -220,6 +232,8 @@ class FakeAgent:
             )
             return dict(run)
         arguments = {"request": request, "approval_id": body["approval_id"]}
+        if self.hang_after_approval:
+            return dict(run)
         if run.get("fixture_id") == "purchase-timeout-once":
             self._tool(run_id, "create_purchase_order", arguments, "ERROR", "TOOL_TIMEOUT")
         self._tool(run_id, "create_purchase_order", arguments)

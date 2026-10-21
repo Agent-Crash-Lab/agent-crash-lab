@@ -4,11 +4,11 @@ import asyncio
 import logging
 import time
 
-from harness import agent_checks, oracle
+from harness import agent_checks, limits, oracle
 from harness.catalog import Catalog, TestSpec
 from harness.clients import AgentClient, ClientError, McpClient
 from harness.config import Settings
-from harness.events import EventLog, epoch_iso, now_iso
+from harness.events import EventLog, epoch_iso, now_iso, occurred_epoch
 from harness.store import Store
 from harness.validation import collect_evidence_ids, validate_report
 
@@ -34,6 +34,14 @@ class RunFailed(Exception):
     def __init__(self, reason: str):
         super().__init__(reason)
         self.reason = reason
+
+
+class RunnerTimeout(Exception):
+    """The Agent did not end within the Runner deadline; the Harness stopped waiting."""
+
+    def __init__(self, agent: dict, active_seconds: float):
+        super().__init__("RUNNER_TIMEOUT")
+        self.agent, self.active_seconds = agent, active_seconds
 
 
 class Runner:
@@ -178,10 +186,7 @@ class Runner:
             else:
                 await self._investigation_unit(run_id, test)
         except RunFailed as exc:
-            run = self._run(run_id)
-            if exc.reason == "RUN_TIMEOUT":
-                run["agent"]["termination"] = "RUNNER_TIMEOUT"
-            await self._set_status(run, "ERROR", exc.reason)
+            await self._set_status(self._run(run_id), "ERROR", exc.reason)
         except asyncio.CancelledError:
             raise
         except Exception:
@@ -225,12 +230,16 @@ class Runner:
             raise RunFailed("INIT_FAILED") from exc
         await self._set_status(self._run(run_id), "RUNNING")
 
+        runner_timeout = False
         try:
-            agent = await self._follow_agent(run_id, run_id, self._register_approval)
+            agent, active = await self._follow_agent(run_id, run_id, self._register_approval)
+        except RunnerTimeout as exc:
+            # A runaway Agent is an Agent failure, not an environment error: evaluate it.
+            agent, active, runner_timeout = exc.agent, exc.active_seconds, True
         except (RunFailed, ClientError):
             await self._finalize_quietly(run_id)
             raise
-        termination = await self._agent_finished(run_id, agent)
+        termination = await self._agent_finished(run_id, agent, runner_timeout)
 
         run = self._run(run_id)
         try:
@@ -255,15 +264,16 @@ class Runner:
                 self.store.put_run(run)
                 raise RunFailed("INJECTION_ERROR")
             self.store.put_run(run)
+        oracle_rules = [r for r in test.rule_ids if r not in self.catalog.harness_rules]
         try:
             checks = oracle.evaluate(
                 oracle.OracleContext(
                     run_id=run_id,
                     test_id=test.test_id,
                     request_id=run["request"]["request_id"],
-                    rule_ids=test.rule_ids,
+                    rule_ids=oracle_rules,
                     rule_version=manifest["rule_version"],
-                    rule_scopes={r: self.catalog.rule_scopes(r) for r in test.rule_ids},
+                    rule_scopes={r: self.catalog.rule_scopes(r) for r in oracle_rules},
                     snapshot_complete=bool(run["snapshot_complete"]),
                     faults=[run["fault"]] if run["fault"] else [],
                     agent_result=run["agent"]["result"],
@@ -274,10 +284,14 @@ class Runner:
         except Exception as exc:
             log.exception("oracle failed for %s", run_id)
             raise RunFailed("ORACLE_ERROR") from exc
+        checks += await self._limit_checks(
+            run_id, test, "PURCHASE_AGENT", agent, active, termination
+        )
         await self._save_checks(run_id, checks)
         run = self._run(run_id)
         investigate = any(c["verdict"] in {"FAIL", "INCONCLUSIVE"} for c in run["checks"])
-        # Reserve the investigation before publishing COMPLETED; clients may start the next run immediately.
+        # Reserve the investigation before publishing COMPLETED;
+        # clients may start the next run immediately.
         if investigate:
             run["investigation"]["status"] = "RUNNING"
         await self._set_status(run, "COMPLETED")
@@ -317,31 +331,44 @@ class Runner:
             run["approval"] = {**body, "payload": agent["request"]}
             self.store.put_run(run)
 
-        agent = await self._follow_agent(run_id, run_id, fixed_approval)
-        termination = await self._agent_finished(run_id, agent)
+        runner_timeout = False
+        try:
+            agent, active = await self._follow_agent(run_id, run_id, fixed_approval)
+        except RunnerTimeout as exc:
+            agent, active, runner_timeout = exc.agent, exc.active_seconds, True
+        termination = await self._agent_finished(run_id, agent, runner_timeout)
         if termination is None:
             raise RunFailed(self._run(run_id)["status_reason"])
         await self._set_status(self._run(run_id), "EVALUATING")
         await self.events.settle(run_id)
         events = [e for e in self.store.list_events(run_id) if e["producer"] == "agents"]
         checks = agent_checks.evaluate_purchase_agent(test.test_id, agent, events)
+        checks += await self._limit_checks(
+            run_id, test, "PURCHASE_AGENT", agent, active, termination
+        )
         await self._save_checks(run_id, checks)
         await self._set_status(self._run(run_id), "COMPLETED")
 
     async def _investigation_unit(self, run_id: str, test: TestSpec):
         await self._set_status(self._run(run_id), "RUNNING")
-        validation, report_event = await self._investigate(
-            run_id, "mock", test.target_run_id, test.agent_fixture_id
+        validation, report_event, limit_check = await self._investigate(
+            run_id, "mock", test.target_run_id, test.agent_fixture_id, test
         )
         await self._set_status(self._run(run_id), "EVALUATING")
         checks = agent_checks.evaluate_investigation_agent(
             test.test_id, run_id, validation, report_event
         )
+        if limit_check:
+            checks.append(limit_check)
         await self._save_checks(run_id, checks)
         await self._set_status(self._run(run_id), "COMPLETED")
 
-    async def _investigate(self, run_id, mode, target_run_id, fixture_id):
-        """Run the investigation Agent; its events go to the Harness run `run_id`."""
+    async def _investigate(self, run_id, mode, target_run_id, fixture_id, test=None):
+        """Run the investigation Agent; its events go to the Harness run `run_id`.
+
+        Returns (validation, REPORT_READY event_id, R10 check). The R10 check is only built for
+        the IA unit test (`test`); after a SYSTEM run the usage is recorded but not judged.
+        """
         run = self._run(run_id)
         run["investigation"]["status"] = "RUNNING"
         self.store.put_run(run)
@@ -356,21 +383,31 @@ class Runner:
             body["agent_token"] = self.tokens.get(run_id, {}).get("investigation_agent")
         else:
             body["fixture_id"] = fixture_id
+        agent, active, runner_timeout = None, 0.0, False
         try:
             await self._start_agent(run_id, body)
-            agent = await self._follow_agent(run_id, agent_run_id, None)
+            agent, active = await self._follow_agent(run_id, agent_run_id, None)
+        except RunnerTimeout as exc:
+            agent, active, runner_timeout = exc.agent, exc.active_seconds, True
         except (ClientError, RunFailed):
             agent = None
+        await self.events.settle(run_id)
+        all_events = self.store.list_events(run_id)
+        termination = _termination(agent, runner_timeout)
+        measured = limits.measure("INVESTIGATION_AGENT", all_events, agent, active)
         run = self._run(run_id)
-        run["investigation"]["investigation_id"] = agent_run_id
+        run["investigation"].update(
+            investigation_id=agent_run_id, measured=_public(measured), termination=termination
+        )
+        limit_check = None
+        if test is not None and agent is not None and termination is not None:
+            limit_check = self._judge_limits(run, test, measured, termination)
         if not agent or agent["status"] != "COMPLETED":
             run["investigation"]["status"] = "ERROR"
             self.store.put_run(run)
-            return None, None
+            return None, None, limit_check
 
         report = agent["result"]
-        await self.events.settle(run_id)
-        all_events = self.store.list_events(run_id)
         agent_events = [
             e
             for e in all_events
@@ -399,7 +436,7 @@ class Runner:
             {"investigation_id": agent_run_id, "validation": validation},
             parent_event_id=report_ready["event_id"] if report_ready else None,
         )
-        return validation, report_ready["event_id"] if report_ready else None
+        return validation, report_ready["event_id"] if report_ready else None, limit_check
 
     # Agent polling
 
@@ -417,22 +454,44 @@ class Runner:
             }
         self.store.put_run(run)
 
-    async def _follow_agent(self, run_id: str, agent_run_id: str, on_waiting) -> dict:
-        """Poll the Agent until it ends; ingest its events into Harness run `run_id`."""
+    async def _follow_agent(self, run_id: str, agent_run_id: str, on_waiting):
+        """Poll the Agent until it ends; ingest its events into Harness run `run_id`.
+
+        Returns (agent status, active seconds measured by the Harness clock). Time spent in
+        WAITING_APPROVAL is not active time (README §10). Raises RunnerTimeout at the deadline
+        and RunFailed when the approval wait expires (HARNESS_SPEC 2.2).
+        """
         deadline = time.monotonic() + self.settings.runner_deadline_seconds
         handled_waiting = False
+        active, last_seen, last_status = 0.0, time.monotonic(), "PREPARING"
         while True:
             agent = await self.agents.status(agent_run_id)
+            now = time.monotonic()
+            if last_status in {"PREPARING", "RUNNING"}:
+                active += now - last_seen
+            last_seen, last_status = now, agent["status"]
             await self._ingest(run_id, agent_run_id)
             if agent["status"] in {"COMPLETED", "ERROR"}:
                 await self._ingest(run_id, agent_run_id)
-                return agent
-            if agent["status"] == "WAITING_APPROVAL" and not handled_waiting and on_waiting:
-                handled_waiting = True
-                await on_waiting(agent)
-            if time.monotonic() > deadline:
-                raise RunFailed("RUN_TIMEOUT")
+                return agent, active
+            if agent["status"] == "WAITING_APPROVAL":
+                if not handled_waiting and on_waiting:
+                    handled_waiting = True
+                    await on_waiting(agent)
+                self._check_approval_expiry(run_id)
+            if now > deadline:
+                raise RunnerTimeout(agent, active)
             await asyncio.sleep(self.settings.poll_interval_seconds)
+
+    def _check_approval_expiry(self, run_id: str):
+        """The Harness owns the approval wait limit, whatever the Agent does (MCP_SPEC 1.8)."""
+        run = self._run(run_id)
+        request = run.get("approval_request")
+        if not request or run.get("approval"):
+            return
+        expires = occurred_epoch(request.get("expires_at") or "")
+        if expires is not None and time.time() >= expires:
+            raise RunFailed("APPROVAL_WAIT_EXPIRED")
 
     async def _ingest(self, run_id: str, agent_run_id: str):
         while True:
@@ -467,7 +526,9 @@ class Runner:
         except ClientError:
             pass
 
-    async def _agent_finished(self, run_id: str, agent: dict) -> str | None:
+    async def _agent_finished(
+        self, run_id: str, agent: dict, runner_timeout: bool = False
+    ) -> str | None:
         """Record the Agent outcome. Returns termination, or None when the run must ERROR."""
         run = self._run(run_id)
         run["agent"].update(
@@ -481,18 +542,38 @@ class Runner:
             started_at=epoch_iso(agent.get("created_at")),
             finished_at=epoch_iso(agent.get("finished_at")),
         )
-        termination = None
-        if agent["status"] == "COMPLETED":
-            termination = "AGENT_FINISHED"
-        elif agent.get("reason") in LIMIT_REASONS:
-            termination = "LIMIT_ENFORCED"
-        elif agent.get("reason") == "APPROVAL_WAIT_EXPIRED":
-            run["status_reason"] = "APPROVAL_WAIT_EXPIRED"
-        else:
-            run["status_reason"] = "AGENT_SERVER_ERROR"
+        termination = _termination(agent, runner_timeout)
+        if termination is None:
+            reason = agent.get("reason")
+            run["status_reason"] = (
+                "APPROVAL_WAIT_EXPIRED"
+                if reason == "APPROVAL_WAIT_EXPIRED"
+                else "AGENT_SERVER_ERROR"
+            )
         run["agent"]["termination"] = termination
         self.store.put_run(run)
         return termination
+
+    async def _limit_checks(self, run_id, test, agent_kind, agent, active, termination):
+        """Measure the Agent's usage and, if the test lists R10, judge it."""
+        await self.events.settle(run_id)
+        measured = limits.measure(agent_kind, self.store.list_events(run_id), agent, active)
+        run = self._run(run_id)
+        run["agent"]["measured"] = _public(measured)
+        self.store.put_run(run)
+        if limits.RULE_ID not in test.rule_ids:
+            return []
+        return [self._judge_limits(run, test, measured, termination)]
+
+    def _judge_limits(self, run, test, measured, termination) -> dict:
+        return limits.judge(
+            run["run_id"],
+            measured,
+            run["manifest"]["limits"],
+            termination,
+            run["manifest"]["rule_version"],
+            self.settings.limit_tolerance_seconds,
+        )
 
     async def _save_checks(self, run_id: str, checks: list[dict]):
         run = self._run(run_id)
@@ -519,3 +600,19 @@ class Runner:
                 actor_id="oracle",
                 evidence_ids=check["evidence_ids"],
             )
+
+
+def _termination(agent: dict | None, runner_timeout: bool) -> str | None:
+    if runner_timeout:
+        return "RUNNER_TIMEOUT"
+    if agent is None:
+        return None
+    if agent["status"] == "COMPLETED":
+        return "AGENT_FINISHED"
+    if agent.get("reason") in LIMIT_REASONS:
+        return "LIMIT_ENFORCED"
+    return None
+
+
+def _public(measured: dict) -> dict:
+    return {k: v for k, v in measured.items() if k != "evidence_ids"}

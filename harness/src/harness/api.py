@@ -55,7 +55,9 @@ def public_view(run: dict) -> dict:
     return {
         **{k: v for k, v in run.items() if k != "observation"},
         "observed_order_count": (
-            len(run["observation"].get("orders", [])) if run.get("observation") is not None else None
+            len(run["observation"].get("orders", []))
+            if run.get("observation") is not None
+            else None
         ),
     }
 

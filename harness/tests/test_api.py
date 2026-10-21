@@ -123,7 +123,7 @@ def test_run_list(client):
     wait_for(client, run_id, done)
     runs = client.get("/api/runs").json()["runs"]
     assert runs[0]["run_id"] == run_id
-    assert runs[0]["summary"]["PASS"] == 3
+    assert runs[0]["summary"]["PASS"] == 4  # PA01-R1~R3 + R10
 
 
 def mcp_event_at(event_id, occurred_at):
