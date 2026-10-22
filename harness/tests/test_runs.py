@@ -84,7 +84,7 @@ def test_investigation_unit_test_validates_fixture_evidence(client):
     run = wait_for(client, run_id, done)
     assert run["status"] == "COMPLETED"
     assert run["investigation"]["validation"] == {"passed": True, "errors": []}
-    assert verdicts(run) == {"IA01-R1": "PASS", "IA01-R2": "PASS", "IA01-R3": "PASS"}
+    assert verdicts(run) == {"IA01-R1": "PASS", "IA01-R2": "PASS", "IA01-R3": "PASS", "R10": "PASS"}
 
 
 def test_investigation_unknown_evidence_fails(client, fakes):
@@ -118,8 +118,9 @@ def test_system_run_full_flow(client, fakes):
     assert run["agent"]["termination"] == "AGENT_FINISHED"
     assert run["agent"]["result"]["outcome"] == "SUCCEEDED"
     assert run["snapshot_complete"] is True
-    # Oracle placeholder returns no checks, so no investigation.
-    assert run["checks"] == [] and run["investigation"]["status"] == "NOT_REQUESTED"
+    # The Oracle stub returns no checks; only the Harness-judged R10 remains, and it passes.
+    assert verdicts(run) == {"R10": "PASS"}
+    assert run["investigation"]["status"] == "NOT_REQUESTED"
     assert "observation" not in run
 
 
@@ -194,7 +195,7 @@ def test_unexpected_decision_keeps_fail_and_downgrades_pass(client, monkeypatch)
     approve(client, run_id, decision="APPROVED")  # S02 expects REJECTED
     run = wait_for(client, run_id, done)
     assert run["condition_met"] is False
-    assert verdicts(run) == {"R01": "INCONCLUSIVE", "R05": "FAIL"}
+    assert verdicts(run) == {"R01": "INCONCLUSIVE", "R05": "FAIL", "R10": "INCONCLUSIVE"}
 
 
 def test_approval_expiry_ends_run_with_error(client, fakes):

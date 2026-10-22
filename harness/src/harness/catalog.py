@@ -47,6 +47,9 @@ class Catalog:
         self.rules = {rule["rule_id"]: rule for rule in scenarios["base_rules"]}
         self.event_schema = self._json(refs["event_schema"])
         self.qa_plan = self.planner.build()
+        self.harness_rules = {
+            rule_id for rule_id, rule in self.rules.items() if rule.get("judged_by") == "harness"
+        }
         self.tests: dict[str, TestSpec] = {}
 
         enabled = set(self.config["enabled_scenarios"])
@@ -82,6 +85,7 @@ class Catalog:
                 expected_approval=decision,
                 agent_fixture_id=fixture_id,
                 fixture_decision=decision,
+                rule_ids=sorted(self.harness_rules),
             )
         for test_id, title in INVESTIGATION_TITLES.items():
             case = self.cases[test_id]
@@ -91,6 +95,7 @@ class Catalog:
                 title=title,
                 version="0.1.0",
                 agent_fixture_id=case["fixture_id"],
+                rule_ids=sorted(self.harness_rules),
                 target_run_id=case["run_id"],
             )
 

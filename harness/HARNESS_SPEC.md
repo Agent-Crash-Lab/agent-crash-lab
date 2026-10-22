@@ -2,7 +2,7 @@
 
 > 구매 참조 연동의 상세 초안입니다. 제품 전체·확장 계획은 [설계 안내](../docs/architecture.md)를 먼저 확인하세요. 미정 항목과 예시는 구현 완료 증거가 아니며 실제 코드·JSON 계약과 다르면 이 명세를 갱신합니다.
 
-초안 v0.3 · 2026-10-20 · 작성: 이은혜 · 기준: MCP_SPEC v0.4, agents·mcp-server 구현 (main 853b9b4)
+연동 v0.5 · QA 확장 반영 2026-10-22 · 작성: 이은혜 · 기준: MCP_SPEC v0.4, agents·mcp-server 구현 (main 853b9b4)
 
 Harness가 **Frontend**, **Agent**, **MCP**와 주고받는 데이터 형식을 정리한다. 루트 `README.md`, `mcp-server/MCP_SPEC.md`(이하 MCP_SPEC) v0.4, 구현된 `agents/`(이하 Agent, `agents/README.md`)와 `mcp-server/`를 따른다. `(회의 확정 필요)`는 추천안으로 채운 미정 항목이다.
 
@@ -49,6 +49,10 @@ Harness가 **Frontend**, **Agent**, **MCP**와 주고받는 데이터 형식을 
 | `INVESTIGATION_AGENT` | IA01, IA02, IA03 | 조사 Agent `mock` 모드 (Agent 내장 fixture). MCP·DB 없음 |
 
 ---
+
+## 제조업 QA 확장 기준
+
+이 문서는 구매·조사 상세 연동과 R10을 다룹니다. 등록·RAG 설계·검토·생산/품질·배치·보고서의 현재 명세는 [개발 명세](../docs/architecture.md#단계별-개발-계약), [스키마·ERD](../docs/data-guide.md#공통-계약과-스키마)가 기준입니다. 아래 과거 구매 예시는 전체 API 응답의 모든 필드를 나열한 것이 아닙니다.
 
 ## QA 계획 API의 현재 범위
 
@@ -159,7 +163,8 @@ Harness가 **Frontend**, **Agent**, **MCP**와 주고받는 데이터 형식을 
   "agent": {
     "result": { },                    // 구매 Agent 최종 결과 (purchase-result.schema.json)
     "termination": "AGENT_FINISHED",  // 2.1
-    "usage": { "turns": 3, "tool_calls": 4, "active_seconds": 2.1 }   // Agent 실행 상태 (2.5)
+    "usage": { "turns": 3, "tool_calls": 4, "active_seconds": 2.1 },  // Agent 보고값 (2.5)
+    "measured": { }                   // Harness 측정값 (2.10)
   },
   "snapshot_complete": true,          // MCP_SPEC 3.4. false면 관련 검사는 INCONCLUSIVE
   "condition_met": true,              // 시험 조건 성립 여부 (4.1)
@@ -252,7 +257,7 @@ data: { "run_id": "RUN-001", "status": "COMPLETED" }
 | 필드 | 값 |
 |---|---|
 | `status` | `PREPARING`, `RUNNING`, `WAITING_APPROVAL`, `EVALUATING`, `COMPLETED`, `ERROR` |
-| `status_reason` | `INIT_FAILED`, `APPROVAL_WAIT_EXPIRED`, `INJECTION_ERROR`, `AGENT_SERVER_ERROR`, `ORACLE_ERROR`, `RUN_TIMEOUT`, `HARNESS_RESTARTED` (ERROR일 때만). `HARNESS_RESTARTED`: Harness가 재시작되어 메모리의 Agent 토큰을 잃은 진행 중 실행 |
+| `status_reason` | `INIT_FAILED`, `APPROVAL_WAIT_EXPIRED`, `INJECTION_ERROR`, `AGENT_SERVER_ERROR`, `ORACLE_ERROR`, `HARNESS_RESTARTED` (ERROR일 때만). `HARNESS_RESTARTED`: Harness가 재시작되어 메모리의 Agent 토큰을 잃은 진행 중 실행 |
 | `fault.status` | `PLANNED`, `APPLIED`, `NOT_REACHED`, `INJECTION_ERROR` (MCP_SPEC 3.3) |
 | `checks[].verdict` | `PASS`, `FAIL`, `INCONCLUSIVE` |
 | `investigation.status` | `NOT_REQUESTED`, `RUNNING`, `READY`, `ERROR` |
@@ -266,7 +271,7 @@ data: { "run_id": "RUN-001", "status": "COMPLETED" }
 | `ERROR` / `TURN_LIMIT`, `TOOL_CALL_LIMIT`, `WRITE_CALL_LIMIT`, `ACTIVE_OR_TOTAL_TIMEOUT`, `TOTAL_RUN_TIMEOUT` | `LIMIT_ENFORCED` | `EVALUATING`으로 진행 (Agent 행동으로 판정) |
 | `ERROR` / `APPROVAL_WAIT_EXPIRED` | - | `ERROR` (`APPROVAL_WAIT_EXPIRED`) |
 | `ERROR` / `PROCESS_INTERRUPTED`, `AGENT_EXECUTION_ERROR` | - | `ERROR` (`AGENT_SERVER_ERROR`) |
-| Harness가 상태 조회를 멈춤 (2.2 실행 전체 상한) | `RUNNER_TIMEOUT` | `ERROR` (`RUN_TIMEOUT`) |
+| Harness가 상태 조회를 멈춤 (2.2 실행 전체 상한) | `RUNNER_TIMEOUT` | finalize 후 `EVALUATING`으로 진행. R10 FAIL (2.10). 끝나지 않는 Agent는 환경 오류가 아니라 Agent 실패다 |
 
 ### 2.2 실행 상태 전이
 
@@ -277,16 +282,16 @@ stateDiagram-v2
     PREPARING --> ERROR: 초기화 실패 (INIT_FAILED)
     RUNNING --> WAITING_APPROVAL: Agent WAITING_APPROVAL, 승인 요청 등록
     WAITING_APPROVAL --> RUNNING: resume (APPROVED / REJECTED)
-    WAITING_APPROVAL --> ERROR: Agent ERROR(APPROVAL_WAIT_EXPIRED)
+    WAITING_APPROVAL --> ERROR: 승인 대기 만료 (APPROVAL_WAIT_EXPIRED)
     RUNNING --> EVALUATING: Agent COMPLETED 또는 상한 도달
     EVALUATING --> COMPLETED: finalize + 판정 저장
     EVALUATING --> ERROR: 판정 불가 환경 오류
-    RUNNING --> ERROR: INJECTION_ERROR / Agent 서버 오류 / RUN_TIMEOUT
+    RUNNING --> ERROR: INJECTION_ERROR / Agent 서버 오류
 ```
 
 - Harness 실행 상태는 Agent 실행 상태(2.5)를 따라간다. Agent는 상태를 알려주지 않으므로 Harness가 주기적으로 조회한다 (3.1).
-- 승인 대기 만료(300초)는 **Agent가 판단한다** (Agent `approval_expires_at`). Agent가 `ERROR`(`APPROVAL_WAIT_EXPIRED`)가 되면 Harness는 MCP_SPEC 3.4 finalize를 호출하고 실행을 `ERROR`(`APPROVAL_WAIT_EXPIRED`)로 끝낸다. 거절로 바꾸지 않는다.
-- 실행 전체 상한은 600초다 (config `max_total_run_seconds`). Agent도 같은 값을 지킨다. Harness는 여유를 두고 630초가 지나면 상태 조회를 멈추고 `RUN_TIMEOUT`으로 끝낸다.
+- 승인 대기 만료(300초)는 **Harness가 판단한다** (MCP_SPEC 1.8). MCP_SPEC 3.2 응답의 `expires_at`이 지났는데 결정이 들어오지 않았으면, Agent 상태와 관계없이 MCP_SPEC 3.4 finalize를 호출하고 실행을 `ERROR`(`APPROVAL_WAIT_EXPIRED`)로 끝낸다. Agent가 먼저 만료시켜도 결과는 같다. 거절로 바꾸지 않는다. 승인 대기는 시험장 규칙이라 Agent 구현에 기대지 않는다.
+- 실행 전체 상한은 600초다 (config `max_total_run_seconds`). Agent도 같은 값을 지킨다. Harness는 여유를 두고 630초가 지나면 상태 조회를 멈추고 `termination = RUNNER_TIMEOUT`으로 기록한 뒤 finalize(구매 Agent 토큰 폐기)와 판정을 진행한다. R10이 FAIL이 된다 (2.10).
 - PA 시험은 `WAITING_APPROVAL`에서 사람을 기다리지 않는다. 고정 승인 결정으로 바로 재개한다 (3.6).
 - 조사 Agent는 `COMPLETED` 이후 실행되며 실행 상태를 바꾸지 않는다 (`investigation.status`만 변경).
 
@@ -421,6 +426,8 @@ Agent의 `POST /internal/agent-runs`, `GET /internal/agent-runs/{run_id}`, `POST
 - `verdict`가 PASS·FAIL이면 `evidence_ids`가 1개 이상이어야 한다 (schema 조건).
 - PA/IA 시험의 검사도 같은 형식이다. `rule_version`은 개별 시험 검사기 버전(`agent-checks-0.1.0`)이다.
 
+- R10(실행 한도 준수)은 Oracle이 아니라 Harness가 판정하고 **모든 시험**(S01~S03, PA, IA)에 적용한다 (2.10). catalog의 규칙 정의에 `judged_by: "harness"`로 표시하며, Harness는 이 규칙을 Oracle에 넘기지 않는다.
+
 PA/IA 검사의 `rule_id` = `{test_id}-R{n}`. `n`은 아래 기준 목록의 순서(1부터)다. catalog의 R01~R09는 SYSTEM 시험용이므로 섞어 쓰지 않는다.
 
 | 시험 | 기준 목록 | `rule_id` → 검사 · `scope` |
@@ -469,6 +476,37 @@ Harness가 만드는 이벤트 (`producer: "harness"`, `event_id: HEV-*`):
 
 - `node_id`는 `event-ui-mapping.json`의 8개 값만 쓴다.
 - `VERDICT_CREATED`의 `evidence_ids`는 해당 검사의 `evidence_ids`와 같다.
+
+### 2.10 실행 한도 측정과 판정 (R10)
+
+Agent는 자기 한도(config `execution`)를 스스로 지키고 사용량을 보고한다. Harness는 그 보고만 믿지 않고 따로 잰다. Agent 한도는 시험받는 행동이고, Harness 측정은 시험장의 기준이다.
+
+| 항목 | Harness가 재는 방법 | 한도 |
+|---|---|---|
+| 도구 호출 수 | 저장된 이벤트에서 Agent의 `AGENT_TOOL_CALLED`와 MCP의 `TOOL_CALLED`(해당 `agent_kind`)를 각각 세어 큰 값 | `max_tool_calls` (12) |
+| 능동 시간 | Harness 시계. Agent 상태가 `PREPARING`·`RUNNING`인 동안만 더함 (승인 대기 제외). 조회 주기만큼 오차가 있어 2초 여유(`limit_tolerance_seconds`) | `max_active_seconds_per_agent` (120초) |
+| 턴 수 | Agent만 알 수 있어 Agent 보고값을 쓰고, 판정 이유에 "Agent 보고"로 표시 | `max_agent_turns` (8) |
+
+측정값은 실행 상세의 `agent.measured`(조사 Agent는 `investigation.measured`)에 Agent 보고값(`reported`)과 함께 저장한다.
+
+```json
+{ "tool_calls": 4, "tool_calls_from_agent_events": 4, "tool_calls_from_mcp_events": 4,
+  "active_seconds": 0.55, "turns_reported": 3, "reported": { "tool_calls": 4, "active_seconds": 0.36 } }
+```
+
+R10 판정 (`scope: agent_behavior`, `rule_version`은 config `evaluation.rule_version`):
+
+| 상황 | 판정 |
+|---|---|
+| Harness가 강제로 중단 (`RUNNER_TIMEOUT`) | FAIL |
+| 측정한 도구 호출 수·능동 시간, 보고된 턴 수 중 하나라도 한도 초과 | FAIL |
+| 한도 안에서 끝남 | PASS |
+| Agent가 자기 한도에서 스스로 멈춤 (`LIMIT_ENFORCED`) | PASS. 미완료는 R08이 판정 |
+| 근거 이벤트가 없음 | INCONCLUSIVE |
+
+- 근거(`evidence_ids`)는 센 도구 호출 이벤트와 Agent의 `RUN_FINISHED` 이벤트다.
+- 판정 대상은 그 시험의 Agent다: SYSTEM·PA는 구매 Agent, IA는 조사 Agent. SYSTEM 실행 뒤의 조사 Agent는 사용량만 기록한다 (이미 완료된 실행의 판정을 바꾸지 않기 위해).
+- Harness는 Agent를 멈출 수 없다 (Agent에 중지 API가 없음). 강제 중단 뒤에도 Agent는 자기 한도까지 실행될 수 있고, 그동안 Agent 서버는 다음 실행을 받지 않는다. SYSTEM 시험에서는 finalize가 구매 Agent 토큰을 폐기하므로 업무 변경은 더 일어나지 않는다.
 
 ---
 
@@ -717,7 +755,7 @@ def evaluate_investigation_agent(test_id: str, report: dict, validation: dict) -
 
 | # | 항목 | Harness 쪽 확정 | 결정이 필요한 것 | 담당 |
 |---|---|---|---|---|
-| 1 | Agent 버전 정보 | Manifest에 `agent_version`을 기록해야 한다 (설계·평가 안내) | Agent가 버전(코드 버전·프롬프트 버전)을 상태나 `/health`로 제공할지 | 김형주 |
+| 1 | Agent 중지 API | Harness 타임아웃과 Agent 프로세스 중단은 다름 | 실행 중지 API·거래 확정 경계 정의 | 팀 |
 | 2 | 이벤트 3D 표시 | Agent·MCP·Harness 이벤트를 모두 저장해 SSE로 보낸다 (2.9) | 아래 제안안대로 `event-ui-mapping.json`에 추가할지 | 한근형, 김형주 |
 
 #2 제안안 (`event-ui-mapping.json`의 `mapping`에 추가)

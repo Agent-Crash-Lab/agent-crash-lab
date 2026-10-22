@@ -33,7 +33,7 @@
     "exclude_rejected_or_validation_failed_calls": true
   },
   "evaluation": {
-    "rule_version": "0.2.0",
+    "rule_version": "0.3.0",
     "snapshot_requires_no_inflight_calls": true,
     "independent_business_snapshot": true,
     "confirmed_violation_keeps_fail": true,
@@ -69,6 +69,9 @@
       ],
       "R09": [
         "qa_evidence"
+      ],
+      "R10": [
+        "agent_behavior"
       ]
     }
   },

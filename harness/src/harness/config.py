@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     poll_interval_seconds: float = 0.5
     # Agent enforces 600s itself; the Runner stops polling a little later.
     runner_deadline_seconds: float = 630
+    # Slack for the Harness-measured active time: polling only sees status every poll interval.
+    limit_tolerance_seconds: float = 2.0
     finalize_wait_ms: int = 5000
     sse_keepalive_seconds: float = 15
     # Events wait this long before numbering so polled Agent events can catch up

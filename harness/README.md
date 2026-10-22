@@ -26,6 +26,7 @@
 | `src/harness/oracle/__init__.py` | SYSTEM 판정 호출 경계 |
 | `src/harness/adapters/reference_purchase/` | 구매 참조 설명·실제 상태 조회·업무 판정 |
 | `src/harness/agent_checks.py`, `validation.py` | 개별 행동 검사·보고서 구조/근거 검사 |
+| `src/harness/limits.py` | 구매·조사 호출/시간 측정·R10 검사 |
 | `src/harness/store.py`, `events.py` | 실행 저장·이벤트 수집 |
 
 ## 로컬 설치·검증
@@ -67,3 +68,5 @@ uv run --locked ruff format --check .
 | `HARNESS_PROJECT_ROOT` | `config/`, `qa/` 자료가 있는 저장소 경로 |
 
 Agent 모델·프롬프트 버전과 사용량을 실행에 기록하고 실제 키는 보관하지 않습니다. [모델 실행·비교](../agents/MODEL_EVALUATION.md#llm-실행과-모델-비교)를 참고합니다.
+
+R10은 구매 SYSTEM·구매/조사 개별 시험에 연결됩니다. 생산·품질 참조 실행에 같은 측정이 적용되는 것은 아닙니다. 턴 수는 Agent 보고이며, 호출 수·능동 시간은 Harness 기록으로 따로 측정합니다.

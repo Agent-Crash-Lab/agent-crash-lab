@@ -1,4 +1,6 @@
-# 시스템 설계
+# 개발·아키텍처 명세
+
+기준: 2026-10-22의 구현. 코드·계약이 바뀌면 이 문서와 [데이터·스키마](data-guide.md)를 함께 갱신합니다.
 
 ## 무엇을 만드는가?
 
@@ -117,3 +119,52 @@ flowchart LR
 - 연결 확인용 SMOKE만 지원합니다. 외부 모델 비용은 운영자가 제공한 상한으로 예약하며 이 시스템이 외부 사업자의 청구를 강제로 제한하지는 못합니다. 종료·실패·재시작 시 시험 토큰은 무효화됩니다.
 
 생산·품질의 저장은 QA DB의 `harness_simulation`에 실행별로 분리됩니다. Agent에는 DB 계정이나 내부 서비스 토큰을 주지 않습니다. 판정은 Agent가 제출한 자체 점수 대신 저장된 호출·승인·변경 기록을 읽습니다. 새 산업 전체나 임의의 Agent 코드·MCP 서버를 자동 검증하는 범용 연결은 아닙니다.
+
+
+## 단계별 개발 계약
+
+| 단계 | 입력 → 출력 | 구현 위치 |
+|---|---|---|
+| 1. 대상 등록 | 업무·도구·기능·정책·샘플 → 사용자별 등록/분석 | `harness/registrations.py`, `agents/qa/analysis.py` |
+| 2. 근거 검색 | 적용 가능한 위험·업무 유형 → 출처·문단·색인 버전 | `agents/qa/design.py`, `knowledge/retrieval.py` |
+| 3. 시험 생성 | 대상·샘플·검색 근거 → 최대 3개 시험안·변경분·기대 행동 | `agents/qa/proposals.py`, `design.py` |
+| 4. 시험안 검토 | 제안·실제 적용 전 상태 미리보기 → 수용/보완/거절·이유 | `agents/qa/review.py` |
+| 5. 실행 연결 | 검토 결과·변경 데이터 → READY/UNSUPPORTED·등록 시험·규칙 | `harness/planning.py`, `generation.py` |
+| 6. 실험 | 저장 계획·시험·서버 설정 → 실행 ID·승인·도구·DB 관측 | `harness/runner.py`, `simulation.py` |
+| 7. 판정·보고 | 실제 관측·채택 정책 → 검사 결과·QA 보고서·필요 시 조사 | `harness/adapters/`, `reporting.py`, `agents/qa/investigation.py` |
+
+위 경로는 각 서비스의 `src/` 이하입니다. 입력 형식은 [데이터·스키마](data-guide.md#공통-계약과-스키마)를 확인합니다. 생성·검토는 같은 서비스 안의 별도 단계이며, 별도 프로세스나 독립 감사 기관을 뜻하지 않습니다.
+
+### 핵심 API
+
+브라우저는 Spring의 인증된 `/api`만 호출합니다. 아래는 Spring이 전달하는 Harness 경로이며 내부 서비스 토큰은 브라우저에 노출하지 않습니다.
+
+| API | 요청·응답의 핵심 |
+|---|---|
+| `GET /api/qa/target?target_type=PRODUCTION` | 참조 `target`·`sample_data` 조회 |
+| `POST /api/qa/registrations` | 등록 양식 → 사용자별 `profile_id`·분석; 정책 미입력 허용 |
+| `POST /api/qa/registrations/{profile_id}/design` | `generation_mode` → 저장된 계획 |
+| `POST /api/qa/design` | `target`·`sample_data`·`generation_mode` → 저장된 계획 |
+| `GET /api/qa/plans/{plan_id}` | 본인 계획 조회 |
+| `POST /api/runs` | `plan_id`·`case_id`·`system_id` → 202·`run_id`; `test_id`와 동시 지정 불가 |
+| `GET /api/runs/{run_id}` | 실행 상태·검사·업무 변경 건수·`qa_report` |
+| `POST /api/qa/batches` | `request_id`·`plan_id`·`case_ids`·`systems`·한도 → 순차 실험 |
+| `POST /api/qa/batches/{batch_id}/stop` | 본인 배치 중단 요청; 현재 실험 종료 후 중단 |
+
+구매 승인은 Spring `POST /api/runs/{run_id}/approval`, 생산·품질 승인은 Spring이 중계하는 `POST /api/qa/runs/{run_id}/approval`입니다. 실제 요청 필드·기본값은 `harness/api.py`·`registrations.py`·`batches.py`가 기준입니다.
+
+### 개발 시 지킬 경계
+
+- **정책과 문헌:** 사고·논문은 시험의 근거입니다. 합격·위반 규칙은 해당 참조 환경에 채택한 정책과 코드로 결정합니다.
+- **제안과 결과:** `ACCEPT_FOR_BINDING`은 시험안을 실행 연결 검사에 넘긴다는 뜻입니다. `READY`도 시험 실행 완료나 안전성 합격이 아닙니다.
+- **판정과 종료:** `COMPLETED`는 종료 상태입니다. 각 검사는 PASS/FAIL/INCONCLUSIVE이며, 보고서는 근거 부족·위반·실행 오류를 구분합니다.
+- **재현:** 대상·정책·데이터·모델·프롬프트·색인 버전과 해시를 저장합니다. 계획은 실행 시 다시 검사하고, 변경된 실행기와 맞지 않으면 재설계를 요구합니다.
+- **복구:** 실행·배치를 저장하고 중단 기록을 남깁니다. 응답이 불명확한 거래나 재시작한 배치를 자동으로 다시 실행하지 않습니다.
+- **실행 한도:** 최신 main의 R10은 구매·조사 경로에 통합했습니다. 호출 이벤트와 능동 시간은 Harness가 측정하고 턴 수는 Agent 보고로 구분합니다. 생산·품질 경로에 같은 측정이 연결됐다고 표시하지 않습니다.
+
+### 다음 개발 순서
+
+1. 검토/실행 연결의 오류 이유를 생성기에 돌려주는 제한된 수정 절차. 출처·정책·식별자를 임의 생성하지 않고 수정 횟수·비용을 제한합니다. 현재 미구현입니다.
+2. 새 생성·검토 모델 조합으로 자유 생성부터 실행까지 다시 측정합니다. 생성 수·수용·보류·실행·위반을 분리 집계합니다.
+3. 조사 Agent의 추가 실험 제안과 동일 Harness 실행 연결, 생산·품질의 R10 측정을 확장합니다.
+4. 실제 기업 Agent 연결은 보류하며, 재개 시 회사 정책·샌드박스·판정기를 별도 검증합니다.

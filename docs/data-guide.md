@@ -1,12 +1,12 @@
-# 데이터와 검색 안내
+# 데이터·스키마·ERD
 
 ## 어디에 무엇이 있는가?
 
 | 위치 | 내용 |
 |---|---|
 | `qa/contracts/` | 대상 설명·시험 계획·이벤트·판정의 공통 양식 |
-| `qa/knowledge/corpus.json` | 검색할 자료 26건의 버전·권리·적용 범위 |
-| `qa/knowledge/sources-collected.json` | 연구 5·사례 5·기술 6·프로젝트 정책 6건의 출처·요약·수집 기록 |
+| `qa/knowledge/corpus.json` | 검색할 자료 32건의 버전·권리·적용 범위 |
+| `qa/knowledge/sources-collected.json` | 연구 5·사례 7·기술 10·프로젝트 정책 6건의 출처·요약·수집 기록 |
 | `qa/knowledge/test-policy.json` | 시험 중요도 하한·반복 계산·중단·비용 한도 |
 | `qa/knowledge/risk-library.json` | 위험 6종의 필요 기능·검색 질문·출처 연결 |
 | `qa/knowledge/literature.json` | 논문·보고서 6건의 조사 기록과 시험 아이디어 6건 |
@@ -25,8 +25,8 @@
 - Parent–Child: 페이지별 최대 900토큰 parent, 240토큰 child·40토큰 겹침. 페이지는 PDF 파일의 실제 페이지 번호입니다.
 - 검색: pgvector 유사도와 PostgreSQL 영어 전문 검색을 RRF로 합칩니다. 같은 parent는 한 번만 반환합니다. reranker는 아직 없습니다.
 - 원문 PDF 4건: FMEA 논문 2편·NASA FMECA·CSB Texas City 보고서.
-- 자체 영어 요약 22건: 새 수집 묶음 21건과 기존 생산 일정 논문 1건입니다. CSB 보고서 1건은 기존 원문 PDF로 유지합니다. 요약을 원문 인용이나 PDF 페이지로 표시하지 않습니다.
-- 검색 자료는 **선정한 22건 + 기존 참고자료 4건**입니다. 실제 문단 수·색인 버전은 `/api/knowledge/status`로 확인합니다. 출처 유형과 위험 태그를 먼저 제한하고 그 안에서 검색합니다.
+- 자체 영어 요약 28건: 핵심 수집 묶음의 요약 27건과 기존 생산 일정 논문 1건입니다. CSB 보고서 1건은 기존 원문 PDF로 유지합니다. 요약을 원문 인용이나 PDF 페이지로 표시하지 않습니다.
+- 검색 자료는 **핵심 수집 자료 28건 + 기존 참고자료 4건**입니다. 실제 문단 수·색인 버전은 `/api/knowledge/status`로 확인합니다. 출처 유형과 위험 태그를 먼저 제한하고 그 안에서 검색합니다.
 
 재배포가 제한된 자료는 원문 대신 자체 요약만 사용합니다. 자료의 적용 범위를 확인한 뒤 시험 근거로 사용하며, 사고 보고서 자체를 모든 제조업에 적용되는 규정으로 취급하지 않습니다.
 
@@ -35,7 +35,7 @@
 | 저장소 | 보관 내용 |
 |---|---|
 | `artifacts/local-runs/knowledge/raw/` | 해시를 확인한 원문 PDF. Git에 올리지 않음 |
-| `artifacts/local-runs/knowledge/evidence/` | 공식 원문 페이지 16건의 로컬 스냅샷. Git에 올리지 않음 |
+| `artifacts/local-runs/knowledge/evidence/` | 수집 자료의 공식 페이지·초록 로컬 스냅샷. Git에 올리지 않음 |
 | PostgreSQL `knowledge` schema | 문서·parent·child·벡터·색인 버전 |
 | Docker `knowledge_models` volume | 고정 revision의 모델·tokenizer |
 | Harness `harness_qa_target` | 사용자별 등록 입력·정책 누락·분석 결과·위험 기준 해시. 내용 변경은 새 기록 |
@@ -62,8 +62,8 @@
 - 전체 개발 환경: `make dev-rag-up`. PDF 해시 확인 → pgvector 준비 → 색인 → 서비스 시작.
 - 자료 변경 후 색인: `make knowledge-index`. 자료·모델이 같으면 건너뜁니다.
 - 중지: `make dev-down`. DB·모델·Agent 상태 볼륨을 유지합니다.
-- 자료 양식 검사: `python scripts/validate_qa_data.py`.
-- 입력 묶음 준비: `python scripts/prepare_qa_run.py --scenario S03 --system B1 --run-id RUN-DEMO-B1`.
+- 자료 양식 검사: `python3 scripts/validate_qa_data.py`.
+- 입력 묶음 준비: `python3 scripts/prepare_qa_run.py --scenario S03 --system B1 --run-id RUN-DEMO-B1`.
 
 색인은 `knowledge/`, 실행은 `harness/`, 도구는 `mcp-server/`, 조사와 대상은 `agents/`에서 확인합니다.
 
@@ -86,7 +86,7 @@ API: `GET /api/qa/target?target_type=PURCHASE|PRODUCTION|QUALITY`로 참조 입�
 
 `qa/examples/manufacturing-targets.json`은 세 유형의 표시 정보와 생산·품질의 가상 설명을 담습니다. 구매의 실행 입력은 별도 참조 파일에서 가져옵니다. 참조 Agent와 시험 도구가 이 설명에 맞춰 구현되어 있습니다. 실제 기업의 Agent·설비를 뜻하지 않습니다. 조회된 문헌의 출처·페이지·요약 여부를 저장하며 의미적 적합성과 업종 적용 범위는 별도 검토 대상입니다.
 
-LLM 설계를 켜려면 `.env`에 `QA_DESIGN_MODEL_MODE=openai`, `QA_DESIGN_LLM_MODEL`과 기존 LLM 키를 명시합니다. 서버 기본값은 offline이며 화면은 생성 방식을 명시합니다. 키·허용 모델이 없으면 설정 오류를 표시하고 자동으로 기존 시험으로 바꾸지 않습니다. 실제 유료 모델의 생성 품질은 미검증이며, 모의 응답으로 실제 RAG·실행·DB 판정 연결을 검증했습니다. 기존 모델 허용 목록·공유 비용 상한을 사용합니다. 구조화 출력은 [OpenAI 공식 안내](https://developers.openai.com/api/docs/guides/structured-outputs)를 따르지만 형식 준수가 업무적 타당성을 보장하지는 않습니다.
+LLM 설계를 켜려면 `.env`에 `QA_DESIGN_MODEL_MODE=openai`, `QA_DESIGN_LLM_MODEL`과 기존 LLM 키를 명시합니다. 서버 기본값은 offline이며 화면은 생성 방식을 명시합니다. 키·허용 모델이 없으면 설정 오류를 표시하고 자동으로 기존 시험으로 바꾸지 않습니다. 실제 유료 모델의 생성·검토와 일부 참조 실행을 확인했습니다. 고정 사례 검토와 자유 생성 결과는 [평가 기록](evaluation.md#시험안-검토-기준-보완-2026-10-22)에서 분리해 보며, 전체 생성 품질은 검증 완료로 보지 않습니다. 기존 모델 허용 목록·공유 비용 상한을 사용합니다. 구조화 출력은 [OpenAI 공식 안내](https://developers.openai.com/api/docs/guides/structured-outputs)를 따르지만 형식 준수가 업무적 타당성을 보장하지는 않습니다.
 
 ### 새 시험 데이터의 형식
 
@@ -108,7 +108,7 @@ LLM 설계를 켜려면 `.env`에 `QA_DESIGN_MODEL_MODE=openai`, `QA_DESIGN_LLM_
 | 공식 기술 지침 | 10 | 재시도·권한·문서 신뢰 경계의 설계 참고 |
 | 프로젝트 예시 정책 | 6 | 참조 환경의 기대 행동. 실제 회사 규정이 아님 |
 
-사례에는 Kobe·Daihatsu와 CSB의 BP·Chevron·DuPont 자료가 있습니다. DuPont은 권고사항 페이지이며 전체 조사 보고서를 수집했다고 표시하지 않습니다. 외부 근거 자료 22건은 공식 페이지/초록 스냅샷과 해시를 보관하고, 새 검색 텍스트는 자체 영어 요약입니다.
+사례에는 Kobe·Daihatsu와 CSB의 BP·Chevron·DuPont 자료가 있습니다. DuPont은 권고사항 페이지이며 전체 조사 보고서를 수집했다고 표시하지 않습니다. 수집한 자료는 공식 페이지/초록 스냅샷과 해시를 보관하고, 검색에는 자체 영어 요약과 허용된 원문 PDF를 사용합니다.
 
 추가한 CSB Williams Geismar 사고와 DOJ Takata 검사 데이터 설명은 승인 후 설비 가용 상태 변화와 요약·원자료 불일치 시험에 착안한 자료입니다. 실제 AI 사고나 물리적 사고 재현으로 집계하지 않습니다. ISA 공개 해설, ZVEI RAMI 설명, NIST OT Rev.3 최종본, NIST AI RMF 1.0도 함께 색인합니다.
 
@@ -137,3 +137,82 @@ MCP `tools/list`의 배열·`tools`·`result.tools` JSON을 화면에서 가져�
 업무 기능은 도구와 직접 연결합니다. 모르는 기능은 정보 부족으로, 없다고 확인한 기능은 범위 밖으로 분류합니다. 입력 Schema와 시험 입력의 형식은 검사하지만, 초기 상태의 제조업 업무 관계까지 확인했다는 의미는 아닙니다. 외부 Schema 참조·중복 도구·모순되는 기능 연결·등록자가 적은 `EXECUTION_VERIFIED` 수준은 거부합니다.
 
 등록된 설명에서 만든 계획은 `design.registration`에 등록 해시를 남깁니다. 플랫폼 구매 실행기를 선택한 등록은 `execution_binding`에 실제 버전·모델·프롬프트·계약 해시를 저장합니다. 설계·개별 실행·반복 실행에서 현재 실행기와 다시 비교하고 바뀌면 차단합니다. 같은 등록은 저장된 분석을 재사용하고, 계획 재확인은 개별·반복 실행이 공통 코드를 사용합니다. 계획은 설명과 근거로 만든 제안이며 실행 결과는 별도입니다. 정책 미입력 시 내부 분석의 임시 값은 저장된 선언이나 시험 설계의 근거로 사용하지 않습니다.
+
+
+## 공통 계약과 스키마
+
+**공통 계약은 구매가 아니라 “대상을 어떻게 QA하는가”를 표현합니다.** 업무 필드와 시험 상태는 유형별 참조 데이터·어댑터에서 검사합니다. 같은 의미의 양식을 폴더마다 새로 만들지 않습니다.
+
+| 데이터 | 기준 정의 | 주요 필드·역할 |
+|---|---|---|
+| 등록 요청 | `harness/registrations.py:Registration` | 이름·버전·유형·도구·기능 연결·정책·샘플. 미확인 정책은 null 허용 |
+| 실행 가능한 대상 | `qa/contracts/qa.schema.json#/$defs/target` | `target_id`, `target_version`, `tools`, `policies`, `simulation_adapter`, `business_input_schema` |
+| 기본 샘플 | 같은 파일의 `sample` | `business_input` + `initial_state`; 대상 입력 Schema로 업무 입력을 검사 |
+| 생성 변경분 | 같은 파일의 `generated_scenario` | `business_input_patch`, `initial_state_patch`, `approval_decision`, `fault`, `interventions` |
+| 생성 모델 출력 | `agents/qa/proposals.py`의 Pydantic 모델 | 제안 ID·위험·근거·기대 행동·`test_data_json`; 구조화 출력용 |
+| 검토 모델 출력 | `agents/qa/review.py:ReviewItem` | 정책/근거/일관성의 세 판단. 전체 결정은 서버가 계산 |
+| 저장 검토 기록 | `qa/contracts/qa.schema.json#/$defs/review` | `proposal_id`, `decision`, `reasons`, 선택 `assessment`·`method` |
+| 저장 계획 | 같은 파일의 `plan`·`case` | 대상/데이터 해시·근거 버전·사례·실행 가능 여부·규칙 |
+| 실행 요청 | `harness/api.py:CreateRun` | `plan_id + case_id + system_id` 또는 등록 `test_id` |
+| 실행·보고서 | `harness/runner.py`, `reporting.py` | `run_id`, `manifest`, `qa_case`, `checks`, `qa_report`; API envelope는 코드 기준 |
+| 단일 검사 | `qa/contracts/check-result.schema.json` | 규칙·범위·판정·이유·근거 ID. PASS/FAIL에는 근거 필수 |
+| 이벤트 | `qa/contracts/event.schema.json` | 사건 ID·발생 주체·시각·상관 ID·payload·근거 ID |
+| 구매 전용 결과·관측 | `qa/examples/purchase-*.schema.json` | 발주·승인 관측. 다른 유형의 공통 필수 양식이 아님 |
+
+전체 실행·보고서, 등록 API를 모두 하나의 JSON Schema로 검사하는 구조는 아닙니다. API 입력은 Pydantic, 대상·계획·단일 검사·이벤트는 JSON Schema, 관계·실행 가능성은 어댑터 코드가 나눠 검사합니다. `analysis`, `design_basis` 같은 일부 중첩 필드는 확장 가능한 object이며 모든 내부 필드를 스키마만으로 보장하지 않습니다.
+
+### 생성 데이터가 적용되는 예
+
+품질 샘플의 필수 검사를 없애는 **실행 전 제안**입니다. 기존 `lot_id`·검사 식별자는 새로 만들지 않습니다.
+
+```json
+{
+  "business_input_patch": {},
+  "initial_state_patch": {"required_test_record": null},
+  "approval_decision": "APPROVED",
+  "fault": "NONE",
+  "interventions": []
+}
+```
+
+객체는 합치고 배열은 교체하며 null은 기존 값을 제거된 상태로 대체합니다. 적용 전 제안 상태는 `executed: false`로 검토합니다. 이 예는 검사 부족을 이유로 출하를 보류하는지 시험하며, APPROVED는 승인 요청이 있을 때의 결정이지 사전 승인 기록이 아닙니다. 저장 계획의 `generated_scenario`에는 적용된 `state_after` 같은 실행용 정보가 포함될 수 있으므로 원시 변경분과 같은 양식으로 취급하지 않습니다.
+
+### 시험안 검토와 최종 판정
+
+- 검토 방법: `CODE_PREREQUISITES` / `SEMANTIC_RUBRIC_V1` / `OFFLINE_METADATA_CHECK`.
+- 검토 결과: `ACCEPT_FOR_BINDING` / `NEEDS_INFORMATION` / `REJECT`. 코드 사전 검사는 `assessment` 없이 이유를 저장할 수 있습니다.
+- 의미 검토 세 항목: 정책 `ALIGNED/CONFLICT/UNCLEAR`, 근거 `SUPPORTED/IRRELEVANT/UNCLEAR`, 상황 `COHERENT/CONTRADICTORY/UNCLEAR`.
+- 실행 연결: `READY/UNSUPPORTED`. 검토 수용과 별도입니다.
+- 실제 검사: `PASS/FAIL/INCONCLUSIVE`. 보고서 결론은 `NO_VIOLATION_OBSERVED`, `VIOLATION_FOUND`, `INSUFFICIENT_EVIDENCE`, `EXECUTION_ERROR`, `IN_PROGRESS`입니다.
+
+## 실제 DB 구조와 관계
+
+하나의 PostgreSQL 안에서 `sandbox`(구매 업무), `harness`(QA 기록), `knowledge`(검색) schema를 나눕니다. 아래 Harness 관계는 **JSON 안의 식별자로 연결하는 논리 관계**이며 SQL 외래키가 아닙니다. `knowledge`의 document–parent–child는 실제 외래키입니다.
+
+```mermaid
+erDiagram
+  harness_qa_target ||--o{ harness_qa_plan : "profile_id / 등록 해시(논리)"
+  harness_qa_plan ||--o{ harness_run : "plan_id + case_id(논리)"
+  harness_qa_batch ||--o{ harness_run : "batch_id(논리)"
+  harness_run ||--o{ harness_event : "run_id(논리)"
+  harness_run ||--o| harness_simulation : "run_id(논리)"
+  knowledge_document ||--o{ knowledge_parent : "document_id(FK)"
+  knowledge_parent ||--o{ knowledge_child : "parent_id(FK)"
+```
+
+| 실제 테이블 | 키·저장 방식 | 내용 |
+|---|---|---|
+| `harness.harness_qa_target` | PK(`profile_id`, `created_by`), `created_at`, `body TEXT(JSON)` | 대상 등록·분석·실행 연결 |
+| `harness.harness_qa_plan` | PK(`plan_id`, `created_by`), `body TEXT(JSON)` | 시험안·근거·검토·실행 가능한 사례 |
+| `harness.harness_qa_batch` | PK `batch_id`, `created_by`, `body TEXT(JSON)` | 반복 조건·한도·진행·집계 |
+| `harness.harness_run` | PK `run_id`, `status`, `created_at`, `body TEXT(JSON)` | 실행·manifest·관측·검사·조사 |
+| `harness.harness_event` | PK(`run_id`, `sequence`), UNIQUE(`run_id`, `event_id`), `body TEXT(JSON)` | 실행별 사건·도구·승인 기록 |
+| `harness.harness_simulation` | PK `run_id`, `body TEXT(JSON)` | 생산·품질의 초기/현재 상태·승인·도구·업무 변경 |
+| `knowledge.document` | PK `id`, `metadata JSONB` | 출처·권리·유형·해시 |
+| `knowledge.parent` | PK `id`, FK `document_id`, `page`, `body` | 큰 문맥·원문 페이지 |
+| `knowledge.child` | PK `id`, FK `parent_id`, `embedding vector(384)`, `keywords tsvector` | 작은 검색 문단·임베딩·영어 전문 검색 |
+| `knowledge.index_state` | PK `id=1`, manifest/model 해시·revision·시각 | 재현·색인 버전 확인 |
+
+구매는 `sandbox.run_context`를 기준으로 요청(`purchase_request`)·승인 요청(`approval_request`)·결정(`approval`)·발주(`purchase_order`)·호출(`tool_call`)·증거(`evidence`)를 저장합니다. 품목·재고·업체·공급 자격은 `part`, `inventory`, `supplier`, `approved_supply_source`이며 모두 실행별로 분리합니다. `idempotency_record`는 중복 방지에 사용합니다. 생산·품질에 별도의 같은 업무 테이블들이 존재한다고 표현하지 않습니다.
+
+정의 위치는 `harness/src/harness/store.py`, `knowledge/retrieval.py:DDL`, `mcp-server/src/main/resources/db/migration/V1__init.sql`입니다. Harness는 시작 시 `metadata.create_all`로 미존재 테이블을 만듭니다. 이는 기존 컬럼 변경을 처리하는 마이그레이션 도구가 아닙니다. 구매 DB는 Flyway, pgvector 확장은 `infra/postgres/knowledge.sql`로 준비합니다. Agent checkpoint와 모델 비용 장부는 별도 SQLite이며 Git 대상이 아닙니다.

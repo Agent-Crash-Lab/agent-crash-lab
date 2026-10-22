@@ -361,7 +361,16 @@
           "type": "object"
         },
         "design": {
-          "type": "object"
+          "type": "object",
+          "properties": {
+            "reviews": {
+              "type": "array",
+              "maxItems": 3,
+              "items": {
+                "$ref": "#/$defs/review"
+              }
+            }
+          }
         },
         "base_sample": {
           "$ref": "#/$defs/sample"
@@ -529,6 +538,74 @@
         "fault",
         "interventions"
       ]
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proposal_id",
+        "decision",
+        "reasons"
+      ],
+      "properties": {
+        "proposal_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "decision": {
+          "enum": [
+            "ACCEPT_FOR_BINDING",
+            "NEEDS_INFORMATION",
+            "REJECT"
+          ]
+        },
+        "reasons": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "method": {
+          "enum": [
+            "CODE_PREREQUISITES",
+            "SEMANTIC_RUBRIC_V1",
+            "OFFLINE_METADATA_CHECK"
+          ]
+        },
+        "assessment": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "policy_alignment",
+            "evidence_relevance",
+            "scenario_consistency"
+          ],
+          "properties": {
+            "policy_alignment": {
+              "enum": [
+                "ALIGNED",
+                "CONFLICT",
+                "UNCLEAR"
+              ]
+            },
+            "evidence_relevance": {
+              "enum": [
+                "SUPPORTED",
+                "IRRELEVANT",
+                "UNCLEAR"
+              ]
+            },
+            "scenario_consistency": {
+              "enum": [
+                "COHERENT",
+                "CONTRADICTORY",
+                "UNCLEAR"
+              ]
+            }
+          }
+        }
+      }
     }
   }
 }

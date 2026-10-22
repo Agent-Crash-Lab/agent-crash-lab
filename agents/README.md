@@ -9,7 +9,7 @@
 | `src/agents/qa/analysis.py`, `design.py`, `proposals.py` | 기능 분석 → 근거 검색 → 시험 데이터 생성 | Harness 설계 API·MCP 문서 검색 |
 | `src/agents/qa/review.py` | 코드 사전 검사 → 제안 상태 계산 → 항목별 의미 검토 | 생성된 시험안·검색 문헌 |
 | `src/agents/qa/investigation.py` | 실행 기록·DB 관측·문서를 읽고 조사 보고서 작성 | Harness 조사 요청·MCP 증거 도구 |
-| `src/agents/targets/` | 검증 대상인 구매 Agent 참조 구현 | 시험용 MCP 재고·승인·발주 도구 |
+| `src/agents/targets/` | 검증 대상인 구매·생산·품질 Agent 참조 구현 | 시험용 MCP 재고·승인·발주 도구 |
 | `src/agents/runtime.py`, `execution.py`, `store.py` | 실행·승인 대기·재개·저장 | 내부 HTTP API·SQLite checkpoint |
 | `src/agents/tools/` | 실제 MCP 연결과 테스트용 가상 도구 | MCP 서버 또는 mock |
 | `src/agents/llm.py` | 모델 호출·구조화 출력·비용 제한 | 선택형 OpenAI 연결 |

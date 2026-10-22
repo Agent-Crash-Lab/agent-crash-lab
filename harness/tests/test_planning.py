@@ -1,9 +1,11 @@
 """QA planning must follow the target, preserve evidence boundaries, and gate execution."""
 
 import copy
+import json
 
 import pytest
 from conftest import ROOT, wait_for
+from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 
 from harness.planning import QaPlanner
@@ -319,3 +321,29 @@ def test_qualification_recipe_changes_only_the_selected_flag():
         ]["status"]
         == "UNSUPPORTED"
     )
+
+
+@pytest.mark.parametrize(
+    "method", ["CODE_PREREQUISITES", "SEMANTIC_RUBRIC_V1", "OFFLINE_METADATA_CHECK"]
+)
+def test_stored_review_schema_separates_plan_review_from_agent_verdict(method):
+    schema = json.loads((ROOT / "qa/contracts/qa.schema.json").read_text())
+    plan = QaPlanner(ROOT).build()
+    plan["design"] = {"reviews": [{
+        "proposal_id": "example-1", "decision": "NEEDS_INFORMATION",
+        "reasons": ["채택 정책을 확인해야 합니다."], "method": method,
+    }]}
+    validator = Draft202012Validator(schema)
+    validator.validate(plan)
+    plan["design"]["reviews"][0]["decision"] = "PASS"
+    with pytest.raises(ValidationError):
+        validator.validate(plan)
+    plan["design"]["reviews"][0]["decision"] = "ACCEPT_FOR_BINDING"
+    plan["design"]["reviews"][0]["assessment"] = {
+        "policy_alignment": "ALIGNED", "evidence_relevance": "SUPPORTED",
+        "scenario_consistency": "COHERENT",
+    }
+    validator.validate(plan)
+    plan["design"]["reviews"][0]["assessment"]["policy_alignment"] = "PASS"
+    with pytest.raises(ValidationError):
+        validator.validate(plan)
