@@ -181,6 +181,7 @@ test('repair and investigation experiment summaries escape input and distinguish
   const {repairMarkup,followupMarkup}=await import('../dist/live-api.js');
   const repair=repairMarkup({attempts:1,status:'NOT_REPAIRED',feedback:[{proposal_id:'<id>',reasons:['<script>']}]});
   assert.match(repair,/최대 1회/);assert.match(repair,/&lt;script&gt;/);assert.match(repair,/합격 판정이 아닙니다/);
+  assert.equal(repairMarkup({attempts:1,status:'REPAIR_UNAVAILABLE',feedback:[]}), '');
   assert.equal(followupMarkup({status:'UNAVAILABLE'}),'');
   const next=followupMarkup({status:'READY',question:'<unsafe>',rule_ids:['R03'],evidence_ids:['E1']});
   assert.match(next,/&lt;unsafe&gt;/);assert.match(next,/data-live-follow-up/);

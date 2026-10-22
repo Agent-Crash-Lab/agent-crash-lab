@@ -177,7 +177,7 @@ export function qaReportCollectionDocument(reports) {
 
 
 export function repairMarkup(repair) {
-  if(!repair || !repair.attempts)return '';
+  if(!repair || !repair.attempts || !repair.feedback?.length)return '';
   const labels={REPAIRED:'수정 후 실행 연결 확인',PARTIALLY_REPAIRED:'일부 보완 필요',NOT_REPAIRED:'보완 필요',BUDGET_EXHAUSTED:'비용 한도로 수정 중단',REPAIR_UNAVAILABLE:'수정 요청 실패',INVALID_REPAIR:'수정안 검사 실패'};
   return `<details><summary>시험안 보완 ${escapeHtml(repair.attempts)}회 · ${escapeHtml(labels[repair.status] || repair.status)}</summary><p>보류된 시험만 최대 1회 수정합니다. 실행 결과나 합격 판정이 아닙니다.</p><ul>${(repair.feedback || []).map(f=>`<li>${escapeHtml(f.proposal_id)}: ${(f.reasons || []).map(escapeHtml).join(' · ')}</li>`).join('')}</ul></details>`;
 }
