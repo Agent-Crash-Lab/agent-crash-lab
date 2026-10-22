@@ -369,6 +369,9 @@
               "items": {
                 "$ref": "#/$defs/review"
               }
+            },
+            "repair": {
+              "$ref": "#/$defs/repair"
             }
           }
         },
@@ -603,6 +606,61 @@
                 "UNCLEAR"
               ]
             }
+          }
+        }
+      }
+    },
+    "repair": {
+      "type": "object",
+      "required": [
+        "max_attempts",
+        "attempts",
+        "status",
+        "feedback"
+      ],
+      "properties": {
+        "max_attempts": {
+          "const": 1
+        },
+        "attempts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "status": {
+          "enum": [
+            "NOT_NEEDED",
+            "NOT_REPAIRED",
+            "REPAIRED",
+            "PARTIALLY_REPAIRED",
+            "BUDGET_EXHAUSTED",
+            "REPAIR_UNAVAILABLE",
+            "INVALID_REPAIR"
+          ]
+        },
+        "feedback": {
+          "type": "array",
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "required": [
+              "proposal_id",
+              "reasons"
+            ],
+            "properties": {
+              "proposal_id": {
+                "type": "string"
+              },
+              "reasons": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 6,
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false
           }
         }
       }

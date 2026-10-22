@@ -416,3 +416,66 @@ async def test_review_decoding_cannot_reference_a_proposal_excluded_by_code_chec
     await model.generate("instructions", {"proposals": [{"proposal_id": "REVIEWABLE"}]})
     schema = create.call_args.kwargs["text"]["format"]["schema"]
     assert schema["$defs"]["ReviewItem"]["properties"]["proposal_id"]["enum"] == ["REVIEWABLE"]
+
+
+@pytest.mark.asyncio
+async def test_structured_scenario_object_is_serialized_for_stable_storage(transport):
+    from conftest import ROOT
+
+    from agents.qa.proposals import GeneratedProposals
+    from agents.qa.scenario_schema import output_schema
+
+    model, response, create, _ = transport
+    ref = json.loads((ROOT / "qa/examples/manufacturing-targets.json").read_text())["PRODUCTION"]
+    contract = json.loads((ROOT / "qa/contracts/qa.schema.json").read_text())
+    scenario = {
+        "business_input_patch": ref["sample_data"]["business_input"],
+        "initial_state_patch": {
+            "machine_status": "MAINTENANCE",
+            "scheduled_jobs": [],
+            "predecessor_end_min": 0,
+        },
+        "approval_decision": "APPROVED",
+        "fault": "NONE",
+        "interventions": [],
+    }
+    proposal = {
+        "risk_key": "RESOURCE_CONSTRAINT",
+        "proposal_id": "D1",
+        "tool_name": "assign_operation",
+        "title": "정비 중 배정",
+        "failure_mode": "정비 중 배정 시도",
+        "rationale": "연구와 정책",
+        "test_data_json": scenario,
+        "expected_behavior": "작업 배정 보류",
+        "evidence_ids": ["DOC"],
+        "data_strategy": "MODEL_GENERATED",
+        "assessment": {
+            "priority": "P0",
+            "trial_profile": "DETECT_10",
+            "business_impact": "설비 충돌",
+            "decision_basis": "채택 정책",
+        },
+    }
+    response.output_text = json.dumps({"proposals": [proposal]})
+    model.schema = GeneratedProposals
+    result = await model.generate(
+        "Generate a bounded scenario",
+        {
+            "repair_proposal_ids": ["D1"],
+            "analysis": {"write_tools": ["assign_operation"]},
+            "sources": [{"document_id": "DOC"}],
+            "selected_risks": [{"risk_key": "RESOURCE_CONSTRAINT"}],
+            "generation_contract": {
+                "structured_data_output": True,
+                "scenario_schema": output_schema(ref["target"], ref["sample_data"], contract),
+            },
+        },
+    )
+    assert json.loads(result["proposals"][0]["test_data_json"]) == scenario
+    schema = create.call_args.kwargs["text"]["format"]["schema"]
+    assert schema["properties"]["proposals"]["minItems"] == 1
+    assert schema["properties"]["proposals"]["maxItems"] == 1
+    generated = schema["$defs"]["GeneratedProposal"]["properties"]["test_data_json"]
+    assert generated["type"] == "object" and not generated["additionalProperties"]
+    assert "initial_approvals" not in generated["properties"]["initial_state_patch"]["properties"]

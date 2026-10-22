@@ -125,12 +125,19 @@ class StructuredModel:
         # Restrict design decoding to declared tools and retrieved citation IDs.
         # Application and Harness checks still validate each selected risk and policy.
         if "proposals" in response_schema.get("properties", {}):
+            if context.get("repair_proposal_ids"):
+                count = len(context["repair_proposal_ids"])
+                response_schema["properties"]["proposals"].update(minItems=count, maxItems=count)
             tools = context.get("analysis", {}).get("write_tools", [])
             risks = [risk["risk_key"] for risk in context.get("selected_risks", [])]
             citations = [source["document_id"] for source in context.get("sources", [])]
             for definition in response_schema.get("$defs", {}).values():
                 fields = definition.get("properties", {})
                 if {"tool_name", "risk_key", "evidence_ids"} <= fields.keys():
+                    if context.get("generation_contract", {}).get("structured_data_output"):
+                        fields["test_data_json"] = context["generation_contract"]["scenario_schema"]
+                    if context.get("repair_proposal_ids"):
+                        fields["proposal_id"]["enum"] = context["repair_proposal_ids"]
                     if tools:
                         fields["tool_name"]["enum"] = tools
                     if risks:
@@ -139,6 +146,10 @@ class StructuredModel:
                         fields["evidence_ids"]["items"]["enum"] = citations
         if "reviews" in response_schema.get("properties", {}):
             proposal_ids = [proposal["proposal_id"] for proposal in context.get("proposals", [])]
+            if proposal_ids:
+                response_schema["properties"]["reviews"].update(
+                    minItems=len(proposal_ids), maxItems=len(proposal_ids)
+                )
             for definition in response_schema.get("$defs", {}).values():
                 fields = definition.get("properties", {})
                 if proposal_ids and {"proposal_id", "policy_alignment"} <= fields.keys():
@@ -216,7 +227,14 @@ class StructuredModel:
                 for part in item.content
             ):
                 raise ModelError("LLM_REFUSED")
-            result = self.schema.model_validate_json(response.output_text)
+            output = json.loads(response.output_text)
+            if context.get("generation_contract", {}).get("structured_data_output"):
+                for proposal in output.get("proposals", []):
+                    if isinstance(proposal.get("test_data_json"), dict):
+                        proposal["test_data_json"] = json.dumps(
+                            proposal["test_data_json"], ensure_ascii=False
+                        )
+            result = self.schema.model_validate(output)
             encoded = result.model_dump_json()
             if any(secret and secret in encoded for secret in self.ctx.secrets):
                 raise ModelError("LLM_CREDENTIAL_IN_OUTPUT")

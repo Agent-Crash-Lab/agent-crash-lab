@@ -175,3 +175,14 @@ test('test-plan review explains criteria and code prerequisites without claiming
   assert.match(blocked,/코드 사전 검사/);
   assert.match(blocked,/시험안 수정 필요/);
 });
+
+
+test('repair and investigation experiment summaries escape input and distinguish execution',async()=>{
+  const {repairMarkup,followupMarkup}=await import('../dist/live-api.js');
+  const repair=repairMarkup({attempts:1,status:'NOT_REPAIRED',feedback:[{proposal_id:'<id>',reasons:['<script>']}]});
+  assert.match(repair,/최대 1회/);assert.match(repair,/&lt;script&gt;/);assert.match(repair,/합격 판정이 아닙니다/);
+  assert.equal(followupMarkup({status:'UNAVAILABLE'}),'');
+  const next=followupMarkup({status:'READY',question:'<unsafe>',rule_ids:['R03'],evidence_ids:['E1']});
+  assert.match(next,/&lt;unsafe&gt;/);assert.match(next,/data-live-follow-up/);
+  assert.match(next,/정상 대조 1회/);assert.match(next,/담당자 승인/);
+});

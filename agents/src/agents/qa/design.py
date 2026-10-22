@@ -24,8 +24,10 @@ from agents.qa.analysis import screen_risks as screen_risks
 from agents.qa.proposals import (
     GENERATIVE_PROMPT,
     PROMPT,
+    REPAIR_PROMPT,
     GeneratedProposals,
     OfflineDesigner,
+    Proposal,
     Proposals,
 )
 from agents.qa.review import (
@@ -36,6 +38,7 @@ from agents.qa.review import (
     review_prerequisites,
     scenario_preview,
 )
+from agents.qa.scenario_schema import output_schema
 
 
 class DesignState(TypedDict, total=False):
@@ -47,11 +50,25 @@ class DesignState(TypedDict, total=False):
     reviews: list
 
 
+class RepairFeedback(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    proposal_id: str = Field(min_length=1, max_length=64)
+    reasons: list[str] = Field(min_length=1, max_length=6)
+
+
+class RepairInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    previous_proposals: list[Proposal] = Field(min_length=1, max_length=3)
+    feedback: list[RepairFeedback] = Field(min_length=1, max_length=3)
+    index_version: str = Field(min_length=1, max_length=128)
+
+
 class DesignRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     target: dict
     sample_data: dict
     generation_mode: Literal["configured", "llm", "offline"] = "configured"
+    repair: RepairInput | None = None
 
 
 class AnalyzeRequest(DesignRequest):
@@ -113,6 +130,10 @@ async def design_qa(settings, body, model=None, search=None, reviewer=None):
             "Post-approval changes are production/quality only."
         ),
     }
+    bounded_schema = output_schema(body.target, body.sample_data, contract) if generative else None
+    if bounded_schema:
+        generation_contract["scenario_schema"] = bounded_schema
+        generation_contract["structured_data_output"] = True
     if model is None:
         if mode == "openai":
             if not settings.llm_api_key.get_secret_value():
@@ -228,6 +249,8 @@ async def design_qa(settings, body, model=None, search=None, reviewer=None):
                     "document_ids": [s["document_id"] for s in result["results"]],
                 }
             )
+        if body.repair and versions != {body.repair.index_version}:
+            raise ModelError("REPAIR_EVIDENCE_CHANGED")
         if len(versions) > 1:
             raise ValueError("Knowledge index changed during design; retry")
         trace.append({"stage": "RETRIEVE_EVIDENCE", "searches": requests})
@@ -261,9 +284,24 @@ async def design_qa(settings, body, model=None, search=None, reviewer=None):
             return {"proposals": []}
         context = proposal_context(state)
         trace.append({"stage": "PROPOSE_TESTS"})
-        generated = response_type.model_validate(
-            await model.generate(GENERATIVE_PROMPT if generative else PROMPT, context)
-        )
+        prompt = GENERATIVE_PROMPT if generative else PROMPT
+        if body.repair:
+            if not generative:
+                raise ModelError("REPAIR_REQUIRES_GENERATIVE_MODE")
+            previous = {p.proposal_id: p.model_dump() for p in body.repair.previous_proposals}
+            ids = {f.proposal_id for f in body.repair.feedback}
+            if len(previous) != len(body.repair.previous_proposals) or not ids <= previous.keys():
+                raise ModelError("INVALID_REPAIR_IDENTITY")
+            context["repair_proposal_ids"] = sorted(ids)
+            context["repair_feedback"] = [f.model_dump() for f in body.repair.feedback]
+            context["previous_proposals"] = [previous[pid] for pid in sorted(ids)]
+            context["selected_risks"] = [
+                risk
+                for risk in context["selected_risks"]
+                if risk["risk_key"] in {previous[pid]["risk_key"] for pid in ids}
+            ]
+            prompt += REPAIR_PROMPT
+        generated = response_type.model_validate(await model.generate(prompt, context))
         proposals = [p.model_dump() for p in generated.proposals]
         if generative:
             recipes = {risk["risk_key"]: risk["recipe"] for risk in state["selected_risks"]}
@@ -271,6 +309,18 @@ async def design_qa(settings, body, model=None, search=None, reviewer=None):
                 if proposal["risk_key"] not in recipes:
                     raise ModelError("DESIGN_RISK_OUTSIDE_SCOPE")
                 proposal["risk_type"] = recipes[proposal["risk_key"]]
+        if body.repair:
+            replacements = {p["proposal_id"]: p for p in proposals}
+            if len(replacements) != len(proposals) or replacements.keys() != ids:
+                raise ModelError("REPAIR_COVERAGE_MISMATCH")
+            for pid, replacement in replacements.items():
+                if any(replacement[k] != previous[pid][k] for k in ("risk_key", "tool_name")):
+                    raise ModelError("REPAIR_SCOPE_CHANGED")
+            proposals = [
+                replacements.get(p.proposal_id, p.model_dump())
+                for p in body.repair.previous_proposals
+            ]
+            trace.append({"stage": "REPAIR_WITH_FEEDBACK", "proposal_ids": sorted(ids)})
         return {"proposals": proposals}
 
     async def validate_node(state):
@@ -415,8 +465,14 @@ async def design_qa(settings, body, model=None, search=None, reviewer=None):
         "review_model": getattr(reviewer, "model", None),
         "review_method": "SEMANTIC_RUBRIC_V1" if generative else "OFFLINE_METADATA_CHECK",
         "review_prompt_version": hashlib.sha256(REVIEW_PROMPT.encode()).hexdigest(),
+        "generation_schema_version": hashlib.sha256(
+            json.dumps(generation_contract["scenario_schema"], sort_keys=True).encode()
+        ).hexdigest(),
         "generation_prompt_version": hashlib.sha256(
-            (GENERATIVE_PROMPT if generative else PROMPT).encode()
+            (
+                (GENERATIVE_PROMPT if generative else PROMPT)
+                + (REPAIR_PROMPT if body.repair else "")
+            ).encode()
         ).hexdigest(),
         "analysis": result["analysis"],
         "sources": result["sources"],

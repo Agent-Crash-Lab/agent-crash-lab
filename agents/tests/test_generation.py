@@ -303,3 +303,76 @@ def test_preview_applies_null_without_mutating_the_reference_sample():
     assert preview["initial_state"]["required_test_record"] is None
     assert sample["initial_state"]["required_test_record"]["result"] == "PASS"
     assert not preview["executed"]
+
+
+@pytest.mark.parametrize("fault", ["none", "new-id", "changed-risk", "changed-index"])
+@pytest.mark.asyncio
+async def test_repair_is_restricted_to_supplied_identity_and_same_evidence(settings, fault):
+    import copy
+
+    from agents.llm import ModelError
+    from agents.qa.design import RepairInput
+
+    original = await design_qa(
+        settings, production(), model=NovelModel(), search=found, reviewer=OfflineReviewer()
+    )
+    body = production()
+    body.repair = RepairInput(
+        previous_proposals=original["proposals"],
+        feedback=[{"proposal_id": "NOVEL_AFTER_APPROVAL", "reasons": ["설비 상태 확인"]}],
+        index_version="changed-index"
+        if fault == "changed-index"
+        else original["retrieval"][0]["index_version"],
+    )
+
+    class RepairModel:
+        async def generate(self, prompt, context):
+            assert context["repair_proposal_ids"] == ["NOVEL_AFTER_APPROVAL"]
+            p = copy.deepcopy(original["proposals"][0])
+            p.pop("risk_type")
+            if fault == "new-id":
+                p["proposal_id"] = "OTHER_ID"
+            if fault == "changed-risk":
+                p["risk_key"] = "APPROVAL_BYPASS"
+            return {"proposals": [p]}
+
+    async def invoke():
+        return await design_qa(
+            settings, body, model=RepairModel(), search=found, reviewer=OfflineReviewer()
+        )
+
+    if fault != "none":
+        with pytest.raises(ModelError):
+            await invoke()
+    else:
+        result = await invoke()
+        assert result["proposals"] == original["proposals"]
+        assert any(t["stage"] == "REPAIR_WITH_FEEDBACK" for t in result["trace"])
+
+
+@pytest.mark.parametrize("kind", ["PURCHASE", "PRODUCTION", "QUALITY"])
+def test_generation_schema_pins_business_identity_and_excludes_transaction_records(kind):
+    from jsonschema import Draft202012Validator, ValidationError
+
+    from agents.qa.scenario_schema import output_schema
+
+    example = json.loads((ROOT / "qa/examples/manufacturing-targets.json").read_text())[kind]
+    if kind == "PURCHASE":
+        from test_design import reference
+        body = reference()
+        target, sample = body.target, body.sample_data
+    else:
+        target, sample = example["target"], example["sample_data"]
+    contract = json.loads((ROOT / "qa/contracts/qa.schema.json").read_text())
+    schema = output_schema(target, sample, contract)
+    Draft202012Validator.check_schema(schema)
+    business = schema["properties"]["business_input_patch"]
+    validator = Draft202012Validator(business)
+    validator.validate(sample["business_input"])
+    changed = dict(sample["business_input"])
+    key = next(k for k in changed if k.endswith("_id") and k != "request_id")
+    changed[key] = "INVENTED-ID"
+    with pytest.raises(ValidationError):
+        validator.validate(changed)
+    assert "initial_approvals" not in schema["properties"]["initial_state_patch"]["properties"]
+    assert schema["additionalProperties"] is False

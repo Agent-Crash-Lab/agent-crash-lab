@@ -18,7 +18,9 @@ from harness.catalog import Catalog
 from harness.clients import AgentClient, ClientError, McpClient
 from harness.compare import NotComparable, compare
 from harness.config import Settings
+from harness.designing import design_with_repair
 from harness.events import EventLog, InvalidEvent
+from harness.followups import recommendation
 from harness.registrations import (
     CAPABILITY_OPTIONS,
     Registration,
@@ -373,8 +375,10 @@ def create_app(settings: Settings | None = None, mcp=None, agents=None) -> FastA
                         409, "TARGET_RUNTIME_CHANGED", "실행기가 바뀌었습니다. 다시 등록하세요."
                     )
                 data["target"] = planner.target_input(body.agent_type)["target"]
-            designed = await request.app.state.runner.agents.design(
-                {**data, "generation_mode": options.generation_mode}
+            designed = await design_with_repair(
+                request.app.state.runner.agents,
+                planner,
+                {**data, "generation_mode": options.generation_mode},
             )
             designed["registration"] = {
                 k: saved[k]
@@ -407,8 +411,10 @@ def create_app(settings: Settings | None = None, mcp=None, agents=None) -> FastA
             planner.build(body.target, body.sample_data)
             target = body.target if body.target is not None else planner.reference_target
             sample = body.sample_data if body.sample_data is not None else planner.reference_sample
-            designed = await request.app.state.runner.agents.design(
-                {"target": target, "sample_data": sample, "generation_mode": body.generation_mode}
+            designed = await design_with_repair(
+                request.app.state.runner.agents,
+                planner,
+                {"target": target, "sample_data": sample, "generation_mode": body.generation_mode},
             )
             plan = planner.build_designed(target, sample, designed)
             request.app.state.store.put_plan(plan, who[0])
@@ -492,8 +498,39 @@ def create_app(settings: Settings | None = None, mcp=None, agents=None) -> FastA
         }
 
     @app.get("/api/runs/{run_id}")
-    async def run_detail(run_id: str, request: Request, _: User):
-        return public_view(get_run(request, run_id))
+    async def run_detail(run_id: str, request: Request, who: User):
+        run = get_run(request, run_id)
+        return public_view(
+            {**run, "follow_up": recommendation(run, request.app.state.store, who[0])}
+        )
+
+    @app.post("/api/qa/runs/{run_id}/follow-up", status_code=202)
+    async def follow_up(run_id: str, request: Request, who: User):
+        if "REQUESTER" not in who[1]:
+            raise ApiError(403, "PERMISSION_DENIED")
+        run = get_run(request, run_id)
+        if run.get("created_by") != who[0]:
+            raise ApiError(404, "NOT_FOUND")
+        proposal = recommendation(run, request.app.state.store, who[0])
+        if proposal["status"] != "READY":
+            raise ApiError(422, "FOLLOW_UP_UNAVAILABLE", proposal["reason"])
+        batch = await request.app.state.batches.create(
+            BatchRequest(
+                request_id="followup-" + run_id,
+                plan_id=proposal["plan_id"],
+                case_ids=proposal["case_ids"],
+                systems=proposal["systems"],
+                mode="SMOKE",
+                max_runs=2,
+                max_seconds=900,
+                max_cost_usd=1.0,
+            ),
+            who[0],
+            source_run_id=run_id,
+        )
+        run["follow_up_batch_id"] = batch["batch_id"]
+        request.app.state.store.put_run(run)
+        return {**batch, "source_run_id": run_id, "experiment_question": proposal["question"]}
 
     @app.get("/api/runs/{run_id}/events")
     async def run_events(

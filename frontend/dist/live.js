@@ -1,8 +1,8 @@
-import {api, mergeEvents, isFinished, sceneEvents, escapeHtml as esc, testsForAgent, normalizeDraft, startPayload, runGuidance, nextActionHint, preparedPurchaseSample, completedSystemRuns, qaReportMarkup, qaReportDocument, qaReportCollectionDocument, reviewMarkup} from './live-api.js?v=0.13.1';
-import {registrationMarkup,parseTools,exampleDeclaration,fillDeclaration,renderToolBindings,collectDeclaration,profileAnalysis,capabilityLabel,registeredCaseReady} from './qa-targets.js?v=0.13.1';
-import {purchaseTopology} from './topologies.js?v=0.13.1';
-import {mountScene, pauseScene} from './scene.js?v=0.13.1';
-import {frameFor} from './topology.js?v=0.13.1';
+import {api, mergeEvents, isFinished, sceneEvents, escapeHtml as esc, testsForAgent, normalizeDraft, startPayload, runGuidance, nextActionHint, preparedPurchaseSample, completedSystemRuns, qaReportMarkup, qaReportDocument, qaReportCollectionDocument, reviewMarkup, repairMarkup, followupMarkup} from './live-api.js?v=0.14.0';
+import {registrationMarkup,parseTools,exampleDeclaration,fillDeclaration,renderToolBindings,collectDeclaration,profileAnalysis,capabilityLabel,registeredCaseReady} from './qa-targets.js?v=0.14.0';
+import {purchaseTopology} from './topologies.js?v=0.14.0';
+import {mountScene, pauseScene} from './scene.js?v=0.14.0';
+import {frameFor} from './topology.js?v=0.14.0';
 
 const graph = {...purchaseTopology, version:'live-topology-v1', nodes:[...purchaseTopology.nodes,
   {id:'guide',label:'조사 지침',role:'store',layer:3,lane:2},
@@ -236,7 +236,7 @@ function renderDesign() {
   const scopeNames={APPLICABLE:'적용 가능',NEEDS_INFORMATION:'추가 정보 필요',OUT_OF_SCOPE:'범위 밖'};
   const screening=(analysis.risk_screening || []).map(r=>`<tr><td>${esc(r.title)}</td><td>${esc(scopeNames[r.status])}</td><td>${esc(r.reason)}${r.missing_capabilities.length?`<br><small>${esc(r.missing_capabilities.map(n=>capabilityLabel(n,state.capabilityOptions)).join(', '))}</small>`:''}</td></tr>`).join('');
   area.innerHTML=`<p><strong>${esc(names[analysis.target_type])}</strong> · ${esc(plan.design.model_kind==='offline'?'규칙 기반 설계':plan.design.model_kind==='injected_model'?'모의 LLM 응답 검증':'LLM 상황·데이터 생성')}</p>
-    <p class="live-hint">${plan.design.registration?`${esc(plan.design.registration.name)} · ${plan.design.registration.execution_binding?'선택한 실행기와 해당 업무의 예시 정책에 연결된 시험입니다.':'설명으로 만든 시험안입니다. 실행에는 업무 정책·시험 환경·판정 코드 연결이 필요합니다.'}`:'제조 운영 예시 · 시험용 환경'}</p><p>위험 유형 ${(analysis.risk_screening || []).filter(r=>r.status==='APPLICABLE').length}종을 바탕으로 시험 조건 ${plan.cases.filter(c=>c.design_basis).length}개를 구성했습니다.</p>${analysis.manufacturing_context?`<details><summary>제조 운영 기준</summary><p>${esc(analysis.manufacturing_context.scope)}</p><ul>${analysis.manufacturing_context.features.map(f=>`<li><strong>${esc(f.name)}</strong> · ${esc(f.question)}</li>`).join('')}</ul><p class="live-hint">업무 상태의 모의 시험 · 설비 실시간 제어·여러 Agent 동시 충돌은 미검증</p></details>`:''}<details><summary>위험 선정 근거</summary><div class="live-table-wrap"><table class="live-table"><thead><tr><th>위험 유형</th><th>대상 적합성</th><th>이유</th></tr></thead><tbody>${screening}</tbody></table></div></details>`+
+    <p class="live-hint">${plan.design.registration?`${esc(plan.design.registration.name)} · ${plan.design.registration.execution_binding?'선택한 실행기와 해당 업무의 예시 정책에 연결된 시험입니다.':'설명으로 만든 시험안입니다. 실행에는 업무 정책·시험 환경·판정 코드 연결이 필요합니다.'}`:'제조 운영 예시 · 시험용 환경'}</p>${repairMarkup(plan.design.repair)}<p>위험 유형 ${(analysis.risk_screening || []).filter(r=>r.status==='APPLICABLE').length}종을 바탕으로 시험 조건 ${plan.cases.filter(c=>c.design_basis).length}개를 구성했습니다.</p>${analysis.manufacturing_context?`<details><summary>제조 운영 기준</summary><p>${esc(analysis.manufacturing_context.scope)}</p><ul>${analysis.manufacturing_context.features.map(f=>`<li><strong>${esc(f.name)}</strong> · ${esc(f.question)}</li>`).join('')}</ul><p class="live-hint">업무 상태의 모의 시험 · 설비 실시간 제어·여러 Agent 동시 충돌은 미검증</p></details>`:''}<details><summary>위험 선정 근거</summary><div class="live-table-wrap"><table class="live-table"><thead><tr><th>위험 유형</th><th>대상 적합성</th><th>이유</th></tr></thead><tbody>${screening}</tbody></table></div></details>`+
     plan.cases.filter(c=>c.design_basis).map(c=>`<article class="live-design-case"><h3>${esc(c.hypothesis)}</h3><p>${badge(c.execution.status==='READY'?'실행 가능':'추가 구현 필요')}</p><p class="live-hint">${c.design_basis.execution_data_origin==='VALIDATED_MODEL_DATA'?'모델 생성 데이터를 검증해 적용 · 실행 전':c.design_basis.execution_data_origin==='NOT_APPLIED'?'제안 데이터 미적용 · 실행 보류':'등록된 시험 예시 사용'}</p><p><strong>확인할 실패:</strong> ${esc(c.design_basis.failure_mode)}</p>${c.execution.status!=='READY'?`<p class="live-hint">필요한 연결: ${esc((c.execution.missing_capabilities || []).map(x=>capabilityLabel(x,state.capabilityOptions)).join(' · '))}</p>`:''}
 
 
@@ -265,7 +265,7 @@ function renderBatch() {
   const results={FAIL:'위반 발견',NO_VIOLATION_OBSERVED:'시험 범위에서 위반 미관측',INSUFFICIENT_EVIDENCE:'추가 검증 필요'};
   const previous=!active && state.run && state.run.qa_batch_id!==b.batch_id;
   area.innerHTML=`${previous?'<details><summary>이전 실험 계획 결과</summary>':''}<h3>${esc(labels[b.status] || b.status)}</h3>${b.plan_id!==state.designPlan?.plan_id?'<p class="live-hint">현재 설계와 별도로 저장된 실험 결과입니다.</p>':''}<p>${esc(b.batch_id)} · ${esc(reasons[b.stop_reason] || b.stop_reason || '')}</p>
-    <p>계획 ${b.planned_runs}회 · 시작 ${b.slots.length}회 · 비용 집계 $${Number(b.cost_accounted_usd).toFixed(4)}</p><p><strong>${esc(results[b.report.conclusion])}</strong></p>
+    ${b.source_run_id?`<p class="live-hint">추가 조사 · 원본 ${esc(b.source_run_id)}</p>`:''}<p>계획 ${b.planned_runs}회 · 시작 ${b.slots.length}회 · 비용 집계 $${Number(b.cost_accounted_usd).toFixed(4)}</p><p><strong>${esc(results[b.report.conclusion])}</strong></p>
     ${b.active_run_id?`<button class="primary" data-live-run="${esc(b.active_run_id)}">현재 실행 열기 · 승인·거절 처리</button>`:''}
     ${['RUNNING','WAITING_APPROVAL'].includes(b.status)?`<button class="secondary" data-live-stop-batch>현재 실험 뒤 중단</button>`:''}
     <div class="live-table-wrap"><table class="live-table"><thead><tr><th>조건</th><th>서버</th><th>완료 / 계획</th><th>위반</th><th>보류·오류</th></tr></thead><tbody>${b.report.groups.map(g=>`<tr><td>${esc(b.cases.find(c=>c.case_id===g.case_id)?.risk_id==='CONTROL_BASELINE'?'정상 처리':b.cases.find(c=>c.case_id===g.case_id)?.hypothesis || g.case_id)}${b.cases.find(c=>c.case_id===g.case_id)?.business_input?.quantity!=null?`<br><small>수량 ${esc(b.cases.find(c=>c.case_id===g.case_id).business_input.quantity)}</small>`:''}</td><td>${esc(g.system_id)}</td><td>${g.completed} / ${g.planned}</td><td>${g.counts.FAIL}</td><td>${g.counts.INCONCLUSIVE+g.counts.ERROR}</td></tr>`).join('')}</tbody></table></div>
@@ -391,7 +391,7 @@ function renderRun(force=false) {
       <form data-live-approval-form><label>승인자 계정<input name="user_id" value="approver-01" autocomplete="username" required></label><label>비밀번호<input name="password" type="password" autocomplete="current-password" required></label><div class="live-row"><button class="primary" name="decision" value="APPROVED">승인</button><button class="secondary" name="decision" value="REJECTED">거절</button></div></form></section>` : '';
   }
   $('[data-live-analysis]').hidden=page!=='execution';$('[data-live-result]').hidden=page!=='execution';renderEvents();
-  $('[data-live-result]').innerHTML=`<section class="panel section-pad"><div class="live-row"><h2>QA 보고서</h2><button class="secondary" data-live-qa-report ${!state.settled || !run.qa_report?'disabled':''}>이 실험 보고서 저장</button><button class="secondary" data-live-qa-summary>최근 시험 요약 저장</button></div>${qaReportMarkup(run.qa_report)}
+  $('[data-live-result]').innerHTML=`<section class="panel section-pad"><div class="live-row"><h2>QA 보고서</h2><button class="secondary" data-live-qa-report ${!state.settled || !run.qa_report?'disabled':''}>이 실험 보고서 저장</button><button class="secondary" data-live-qa-summary>최근 시험 요약 저장</button></div>${qaReportMarkup(run.qa_report)}${state.settled?followupMarkup(run.follow_up):''}
     <details><summary>검사 상세 · ${run.checks?.length || 0}개</summary><h2>검사 결과</h2>${run.checks?.length ? `<div class="live-table-wrap"><table class="live-table"><thead><tr><th>규칙</th><th>대상</th><th>판정</th><th>근거</th></tr></thead><tbody>${run.checks.map(c=>`<tr><td>${esc(ruleTitle(c.rule_id))}</td><td>${esc(scopeTitle(c.scope))}</td><td>${badge(c.verdict)}</td><td>${esc(c.reason || c.message || '')}<details><summary>검사 근거</summary><pre>${json(c)}</pre></details></td></tr>`).join('')}</tbody></table></div>` : '<p>아직 판정이 없습니다.</p>'}</details>
     ${run.investigation?.report?`<details><summary>추가 조사 기록</summary><p class="live-hint">${run.investigation.method==='CODE_EVIDENCE_SUMMARY'?'코드 기반 기록 요약':'조사 Agent 결과 · 사실과 원인 후보 구분'}</p>${reportView(run.investigation.report)}</details>`:''}
     <details><summary>실행 정보</summary><pre>${json({agent:run.agent,manifest:run.manifest,investigation_validation:run.investigation?.validation})}</pre></details></section>`;
@@ -527,6 +527,12 @@ function click(event) {
     $('[data-qa-editor]').open=true;$('[data-qa-editor]').scrollIntoView({block:'start'});
   }
   if(target.hasAttribute('data-qa-plan'))go('prepare');
+  if(target.hasAttribute('data-live-follow-up')) {
+    target.disabled=true;
+    api(`/qa/runs/${encodeURIComponent(state.run.run_id)}/follow-up`,{token:state.session.access_token,body:{}})
+      .then(b=>{state.batch=b;renderBatch();pollBatch();notify('추가 실험을 연결했습니다. 각 실행의 승인 요청을 확인하세요.');})
+      .catch(failure).finally(()=>{target.disabled=false;});
+  }
   if(target.hasAttribute('data-live-stop-batch'))api(`/qa/batches/${encodeURIComponent(state.batch.batch_id)}/stop`,{token:state.session.access_token,body:{}}).then(b=>{state.batch=b;renderBatch();pollBatch();}).catch(failure);
   if(target.hasAttribute('data-live-clear-design')){state.designCaseId=null;account();}
   if(target.hasAttribute('data-live-use-design')){

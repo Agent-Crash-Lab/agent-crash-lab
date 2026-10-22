@@ -543,3 +543,8 @@ Compose에서 mcp-server에 `depends_on: harness`를 넣지 않는다. harness�
 `get_supplier_eligibility(part_id, supplier_id, plant_id, purchasing_org_id)`는 실행의 공급원 표를 정확한 네 키로 조회합니다. `allowed`, `policy_found`, `policy_version`과 조회 범위를 반환합니다. 레코드가 없으면 false/false/0입니다.
 `create_purchase_order`는 승인 확인 후 같은 트랜잭션에서 업체 활성 여부와 해당 공급 자격을 재확인합니다. 미승인·누락은 재시도 불가 `SUPPLIER_NOT_QUALIFIED`로 차단하며 주문을 저장하지 않습니다.
 시험 초기 상태는 선택된 공급원의 allowed만 변경할 수 있습니다. 다른 공급원 식별자·권한·정책 버전 변경은 허용하지 않습니다. 조사 snapshot에는 suppliers와 supply_sources가 포함됩니다.
+
+
+## 후속 개발 연결 (2026-10-22)
+
+공동 입력·출력·담당 경계는 [팀별 개발 계약](../docs/architecture.md#팀별-개발-계약), 저장 양식은 [데이터·스키마](../docs/data-guide.md#보완과-추가-실험-데이터)를 기준으로 맞춥니다. 시험안은 보류된 안만 1회 보완하며, 추가 실험은 원래 계획의 정상 대조·위험 조건을 기존 배치·승인 경로로 실행합니다.

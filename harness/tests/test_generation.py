@@ -167,7 +167,7 @@ async def test_novel_post_approval_situation_is_injected_and_judged_from_databas
 async def test_generated_normal_control_has_no_hidden_intervention(runtime):
     configure_reference(runtime)
     run = await execute_generated(runtime, compile_plan(runtime.catalog.planner), control=True)
-    assert run["summary"] == {"PASS": 7, "FAIL": 0, "INCONCLUSIVE": 0}
+    assert run["summary"] == {"PASS": 8, "FAIL": 0, "INCONCLUSIVE": 0}
     state = runtime.store.get_simulation(run["run_id"])
     assert not state["interventions_applied"] and len(state["changes"]) == 1
 

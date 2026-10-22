@@ -15,7 +15,7 @@ const server = http.createServer(async (req, res) => {
           'content-type': 'application/json', accept: 'application/json',
           ...(req.headers.authorization ? {authorization: req.headers.authorization} : {})
         } }, response => { res.writeHead(response.statusCode, {'Content-Type':'application/json', 'Cache-Control':'no-store'}); response.pipe(res); });
-      proxy.setTimeout(15000, () => proxy.destroy());
+      proxy.setTimeout(125000, () => proxy.destroy());
       proxy.on('error', () => { if (!res.headersSent) res.writeHead(502, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:{code:'MCP_UNAVAILABLE',message:'MCP 서버 연결을 확인해 주세요.'}})); });
       req.on('aborted', () => proxy.destroy());
       req.pipe(proxy); return;

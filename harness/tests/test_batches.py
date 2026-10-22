@@ -321,3 +321,44 @@ def test_completed_runs_with_different_versions_cannot_claim_no_violation():
     assert not report["groups"][0]["version_consistent"]
     assert report["groups"][0]["result"] == "INSUFFICIENT_EVIDENCE"
     assert report["conclusion"] == "INSUFFICIENT_EVIDENCE"
+
+
+async def test_investigation_followup_uses_original_plan_and_enforces_owner(
+    client, fakes, monkeypatch
+):
+    from conftest import GATEWAY
+
+    from harness.followups import recommendation
+
+    plan = prepare(client, fakes, monkeypatch, failure=True)
+    case = next(c for c in plan["cases"] if c.get("design_basis"))
+    source = {
+        "run_id": "RUN-SOURCE",
+        "created_at": "2026-10-22T00:00:00Z",
+        "created_by": "requester-01",
+        "test_kind": "SYSTEM",
+        "status": "COMPLETED",
+        "system_id": "B1",
+        "qa_batch_id": None,
+        "manifest": {"qa_plan_id": plan["plan_id"], "qa_case_id": case["case_id"]},
+        "checks": [{"rule_id": "R03", "verdict": "FAIL", "evidence_ids": ["EV-SOURCE"]}],
+        "investigation": {"status": "READY", "report": {"retest_scenario_ids": ["S03"]}},
+    }
+    store = client.app.state.store
+    store.put_run(source)
+    proposed = recommendation(source, store, "requester-01")
+    assert proposed["status"] == "READY" and proposed["max_runs"] == 2
+    assert proposed["evidence_ids"] == ["EV-SOURCE"]
+    assert proposed["case_ids"] == [case["case_id"]]
+    wrong_owner = {**GATEWAY, "X-User-Id": "another-user"}
+    assert (
+        client.post("/api/qa/runs/RUN-SOURCE/follow-up", headers=wrong_owner, json={}).status_code
+        == 404
+    )
+    first = client.post("/api/qa/runs/RUN-SOURCE/follow-up", json={})
+    assert first.status_code == 202, first.text
+    second = client.post("/api/qa/runs/RUN-SOURCE/follow-up", json={})
+    assert second.json()["batch_id"] == first.json()["batch_id"]
+    assert first.json()["planned_runs"] == 2
+    child = {**source, "qa_batch_id": first.json()["batch_id"]}
+    assert recommendation(child, store, "requester-01")["status"] == "UNAVAILABLE"

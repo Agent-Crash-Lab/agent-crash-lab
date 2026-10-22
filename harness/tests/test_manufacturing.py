@@ -281,3 +281,87 @@ async def test_sandbox_tokens_are_scoped_and_mcp_initialization_does_not_expose_
         "get_changes",
     }
     assert "initial_state" not in json.dumps(initialized)
+
+
+async def test_r10_counts_invalid_calls_and_stops_before_business_change(runtime):
+    async def runaway(runtime_id, body):
+        run_id = body["mcp_url"].split("/")[-2]
+        for number in range(13):
+            await runtime.simulations.rpc(
+                run_id,
+                "Bearer " + body["sandbox_token"],
+                {
+                    "jsonrpc": "2.0",
+                    "id": number,
+                    "method": "tools/call",
+                    "params": {"name": "UNKNOWN_TOOL", "arguments": {}},
+                },
+            )
+        return {"status": "HELD", "commit_count": 0}
+
+    runtime.simulations.dispatch = runaway
+    run = await run_case(runtime, "QUALITY", "CONTROL_BASELINE")
+    check = next(c for c in run["checks"] if c["rule_id"] == "R10")
+    assert check["verdict"] == "FAIL" and check["evidence_ids"]
+    assert run["agent"]["measured"]["tool_calls"] == 13
+    state = runtime.store.get_simulation(run["run_id"])
+    assert not state["changes"] and len(state["tool_attempts"]) == 13
+    assert len(state["calls"]) == 0
+
+
+async def test_r10_cancels_hung_target_and_closes_sandbox(runtime):
+    runtime.settings.poll_interval_seconds = 0.001
+    runtime.settings.runner_deadline_seconds = 0.01
+
+    async def hung(runtime_id, body):
+        await asyncio.Event().wait()
+
+    runtime.simulations.dispatch = hung
+    run = await run_case(runtime, "PRODUCTION", "CONTROL_BASELINE")
+    assert run["status"] == "COMPLETED"
+    assert run["agent"]["termination"] == "RUNNER_TIMEOUT"
+    assert next(c for c in run["checks"] if c["rule_id"] == "R10")["verdict"] == "FAIL"
+    assert runtime.store.get_simulation(run["run_id"])["closed"]
+    assert run["run_id"] not in runtime.simulations.sessions
+
+    from harness.reporting import qa_report
+
+    assert qa_report(run)["conclusion"] == "VIOLATION_FOUND"
+
+
+async def test_manufacturing_active_time_excludes_human_approval_wait(runtime):
+    import time
+
+    configure_reference(runtime)
+    runtime.settings.poll_interval_seconds = 0.005
+    runtime.catalog.config["execution"]["max_active_seconds_per_agent"] = 0.2
+    ref = runtime.catalog.planner.target_input("QUALITY")
+    plan = runtime.catalog.planner.build(ref["target"], ref["sample_data"])
+    runtime.store.put_plan(plan, "requester")
+    case = next(c for c in plan["cases"] if c["risk_id"] == "CONTROL_BASELINE")
+    started = await runtime.create_run(None, "B1", "requester", plan["plan_id"], case["case_id"])
+    began = time.monotonic()
+    decided = False
+    for _ in range(500):
+        run = runtime.store.get_run(started["run_id"])
+        if run["status"] == "WAITING_APPROVAL" and not decided:
+            await asyncio.sleep(0.4)
+            approval = run["approval_request"]
+            await runtime.simulations.decide(
+                run["run_id"],
+                Decision(
+                    approval_request_id=approval["approval_request_id"],
+                    payload_hash=approval["payload_hash"],
+                    decision="APPROVED",
+                ),
+                "approver",
+            )
+            decided = True
+        if run["status"] in {"COMPLETED", "ERROR"}:
+            await runtime.close()
+            break
+        await asyncio.sleep(0.005)
+    assert decided and time.monotonic() - began >= 0.4
+    assert run["status"] == "COMPLETED"
+    assert run["agent"]["measured"]["active_seconds"] < 0.2
+    assert next(c for c in run["checks"] if c["rule_id"] == "R10")["verdict"] == "PASS"

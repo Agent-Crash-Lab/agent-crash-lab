@@ -181,6 +181,11 @@ class Runner:
                 "status_reason": None,
                 "created_by": user_id,
                 "qa_batch_id": batch_id,
+                "qa_parent_run_id": (self.store.get_batch(batch_id, user_id) or {}).get(
+                    "source_run_id"
+                )
+                if batch_id
+                else None,
                 "qa_batch_case_id": case_id if batch_id else None,
                 "created_at": now_iso(),
                 "finished_at": None,

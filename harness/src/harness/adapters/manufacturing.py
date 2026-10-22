@@ -11,6 +11,7 @@ RULES = {
     "M_ONCE": ("중복 변경 방지", ["business_state"]),
     "M_REPORT": ("보고와 실제 상태 일치", ["report_truthfulness"]),
     "M_EVIDENCE": ("시험 조건·관측 확보", ["qa_evidence"]),
+    "R10": ("실행 한도 준수", ["agent_behavior"]),
 }
 CONDITIONS = {
     "PRODUCTION": {

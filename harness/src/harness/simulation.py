@@ -17,6 +17,7 @@ import httpx
 from jsonschema import ValidationError
 from pydantic import BaseModel, ConfigDict, Field
 
+from harness import limits
 from harness.adapters.manufacturing import CONDITIONS, domain_errors
 from harness.events import now_iso
 from harness.schemas import validate_instance
@@ -159,7 +160,7 @@ class Simulations:
         run["manifest"].update(profile)
         run["manifest"]["state_store"] = "QA_OWNED_MANUFACTURING_SANDBOX"
         run["manifest"].update(
-            rule_version="manufacturing-v2",
+            rule_version="manufacturing-v3",
             mcp_version="manufacturing-sandbox-0.2.0",
             fixture_id=None,
         )
@@ -168,7 +169,11 @@ class Simulations:
         token = secrets.token_urlsafe(32)
         self.sessions[run_id] = {
             "token": token,
-            "deadline": time.monotonic() + 330,
+            "deadline": time.monotonic() + r.settings.runner_deadline_seconds,
+            "started": time.monotonic(),
+            "approval_wait": 0.0,
+            "approval_started": None,
+            "limit_reason": None,
             "target": target,
             "rpc_calls": 0,
         }
@@ -182,6 +187,7 @@ class Simulations:
                 "request": run["request"],
                 "changes": [],
                 "calls": [],
+                "tool_attempts": [],
                 "approval": None,
                 "closed": False,
                 "fault_applied": False,
@@ -201,7 +207,7 @@ class Simulations:
             await r.events.harness_event(
                 run_id, "AGENT_DISPATCHED", "agent", {"runtime_id": runtime_id, "agent_type": kind}
             )
-            result = await asyncio.wait_for(self.dispatch(runtime_id, body), timeout=330)
+            result = await self.dispatch_limited(run_id, runtime_id, body)
             await r.events.harness_event(
                 run_id,
                 "AGENT_FINISHED",
@@ -220,13 +226,18 @@ class Simulations:
                         result["reason"] = result["reason"].replace(credential, "[REDACTED]")
         except asyncio.CancelledError:
             raise
+        except SimulationError as exc:
+            run = self.store.get_run(run_id)
+            run["status_reason"] = exc.code
+            self.store.put_run(run)
         except Exception:
             # Never persist exception text: external responses can echo credentials.
             run = self.store.get_run(run_id)
             run["status_reason"] = "SIMULATION_AGENT_ERROR"
             self.store.put_run(run)
         finally:
-            self.sessions.pop(run_id, None)
+            session = self.sessions.pop(run_id, None)
+            measured_active = self.active_seconds(session) if session else 0
             async with self.lock:
                 state = self.store.get_simulation(run_id)
                 state["closed"] = True
@@ -235,8 +246,19 @@ class Simulations:
         run = self.store.get_run(run_id)
         run["agent"].update(
             result=result,
-            termination="AGENT_FINISHED" if result else "AGENT_ERROR",
+            termination="RUNNER_TIMEOUT"
+            if session.get("limit_reason") == "ACTIVE_TIMEOUT"
+            else "LIMIT_ENFORCED"
+            if session.get("limit_reason")
+            else "AGENT_FINISHED"
+            if result
+            else "AGENT_ERROR",
             usage={"llm": None},
+            measured={
+                k: v
+                for k, v in limits.measure_simulation(state, measured_active).items()
+                if k != "evidence_ids"
+            },
         )
         run["observation"] = {"changes": state["changes"], "snapshot_complete": True}
         run["snapshot_complete"] = True
@@ -255,6 +277,16 @@ class Simulations:
             evidence_ids=[state["snapshot_evidence_id"]],
         )
         checks = self.judge(run, self.store.get_simulation(run_id))
+        checks.append(
+            limits.judge(
+                run_id,
+                limits.measure_simulation(state, measured_active),
+                run["manifest"]["limits"],
+                run["agent"]["termination"],
+                run["manifest"]["rule_version"],
+                r.settings.limit_tolerance_seconds,
+            )
+        )
         await r._save_checks(run_id, checks)
         run = self.store.get_run(run_id)
         if any(c["verdict"] != "PASS" for c in checks):
@@ -282,7 +314,36 @@ class Simulations:
                     "method": "DATABASE_FACTS_ONLY",
                 },
             }
-        await r._set_status(run, "COMPLETED" if result else "ERROR")
+        await r._set_status(run, "COMPLETED" if result or session.get("limit_reason") else "ERROR")
+
+    @staticmethod
+    def active_seconds(session):
+        waiting = session["approval_wait"]
+        if session["approval_started"] is not None:
+            waiting += time.monotonic() - session["approval_started"]
+        return max(0, time.monotonic() - session["started"] - waiting)
+
+    async def dispatch_limited(self, run_id, runtime_id, body):
+        task = asyncio.create_task(self.dispatch(runtime_id, body))
+        session = self.sessions[run_id]
+        maximum = self.store.get_run(run_id)["manifest"]["limits"]["max_active_seconds_per_agent"]
+        try:
+            while True:
+                done, _ = await asyncio.wait(
+                    {task}, timeout=self.runner.settings.poll_interval_seconds
+                )
+                if done:
+                    return task.result()
+                if (
+                    self.active_seconds(session) > maximum
+                    or time.monotonic() >= session["deadline"]
+                ):
+                    session["limit_reason"] = "ACTIVE_TIMEOUT"
+                    raise SimulationError("SIMULATION_TIME_LIMIT")
+        finally:
+            if not task.done():
+                task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
 
     def authenticate(self, run_id, authorization):
         session = self.sessions.get(run_id)
@@ -325,7 +386,20 @@ class Simulations:
                 ]
             }
         elif method == "tools/call":
+            async with self.lock:
+                state = self.store.get_simulation(run_id)
+                if state["closed"]:
+                    raise SimulationError("SANDBOX_CLOSED")
+                attempt = {"evidence_id": f"ATTEMPT-{run_id}-{len(state['tool_attempts']) + 1}"}
+                state["tool_attempts"].append(attempt)
+                self.store.put_simulation(run_id, state)
             try:
+                if (
+                    len(state["tool_attempts"])
+                    > self.store.get_run(run_id)["manifest"]["limits"]["max_tool_calls"]
+                ):
+                    session["limit_reason"] = "TOOL_CALL_LIMIT"
+                    raise SimulationError("TOOL_CALL_LIMIT")
                 data = await self.call(run_id, params.get("name"), params.get("arguments", {}))
                 result = {
                     "content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False)}],
@@ -469,10 +543,19 @@ class Simulations:
                 }
                 self.store.put_run(run)
                 await self.runner._set_status(run, "WAITING_APPROVAL")
+        session = self.sessions[run_id]
+        if session.get("approval_waiters", 0) == 0:
+            session["approval_started"] = time.monotonic()
+        session["approval_waiters"] = session.get("approval_waiters", 0) + 1
         try:
             await asyncio.wait_for(self.waiting[run_id].wait(), timeout=300)
         except TimeoutError:
             raise SimulationError("APPROVAL_WAIT_EXPIRED") from None
+        finally:
+            session["approval_waiters"] -= 1
+            if session["approval_waiters"] == 0:
+                session["approval_wait"] += time.monotonic() - session["approval_started"]
+                session["approval_started"] = None
         state = self.store.get_simulation(run_id)
         return {"decision": state["approval"]["decision"]}
 
@@ -550,7 +633,7 @@ class Simulations:
                     "run_id": run["run_id"],
                     "check_id": f"{run['run_id']}:{rule}:{scope}",
                     "rule_id": rule,
-                    "rule_version": "manufacturing-v2",
+                    "rule_version": "manufacturing-v3",
                     "scope": scope,
                     "verdict": "INCONCLUSIVE" if inconclusive else "PASS" if passed else "FAIL",
                     "reason": reason,

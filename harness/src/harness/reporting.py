@@ -279,10 +279,10 @@ def qa_report(run):
         if run.get("status") == "ERROR"
         else "IN_PROGRESS"
         if not complete
-        else "INSUFFICIENT_EVIDENCE"
-        if not evidence_ok or raw == "INCONCLUSIVE"
         else "VIOLATION_FOUND"
         if raw == "FAIL"
+        else "INSUFFICIENT_EVIDENCE"
+        if not evidence_ok or raw == "INCONCLUSIVE"
         else "NO_VIOLATION_OBSERVED"
     )
     labels = {
@@ -372,6 +372,8 @@ def qa_report(run):
     return {
         "narrative": narrative,
         "version": "1.1.0",
+        "follow_up": run.get("follow_up"),
+        "source_run_id": run.get("qa_parent_run_id"),
         "method": "OBSERVED_QA_FACTS",
         "run_id": run["run_id"],
         "created_at": run.get("created_at"),
@@ -395,6 +397,7 @@ def qa_report(run):
             "title": case.get("hypothesis") or run.get("test_id"),
             "business_impact": strategy.get("business_impact"),
             "design_review": strategy.get("review"),
+            "design_repair": basis.get("repair"),
             "business_input": case.get("business_input") or run.get("request"),
             "condition_changes": basis.get("changes", []),
             "generation_model_kind": basis.get("generation_model_kind", "NOT_RECORDED"),

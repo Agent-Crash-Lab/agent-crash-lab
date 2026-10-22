@@ -44,13 +44,13 @@ class Batches:
             raise RunnerError(404, "QA_BATCH_NOT_FOUND")
         return batch
 
-    async def create(self, body, owner):
+    async def create(self, body, owner, source_run_id=None):
         payload = body.model_dump()
         identity = hashlib.sha256((owner + ":" + body.request_id).encode()).hexdigest()[:24]
         batch_id = "QAB-" + identity
         existing = self.store.get_batch(batch_id, owner)
         if existing:
-            if existing["request"] != payload:
+            if existing["request"] != payload or existing.get("source_run_id") != source_run_id:
                 raise RunnerError(409, "QA_BATCH_REQUEST_CHANGED")
             return existing
         plan = self.store.get_plan(body.plan_id, owner)
@@ -128,6 +128,7 @@ class Batches:
             "created_epoch": time.time(),
             "finished_at": None,
             "plan_id": body.plan_id,
+            "source_run_id": source_run_id,
             "request": payload,
             "mode": body.mode,
             "systems": body.systems,
@@ -145,7 +146,7 @@ class Batches:
         async with self.runner.lock:
             existing = self.store.get_batch(batch_id, owner)
             if existing:
-                if existing["request"] != payload:
+                if existing["request"] != payload or existing.get("source_run_id") != source_run_id:
                     raise RunnerError(409, "QA_BATCH_REQUEST_CHANGED")
                 return existing
             if self.runner.batch_owner or self.runner.busy():

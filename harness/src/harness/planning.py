@@ -477,6 +477,14 @@ class QaPlanner:
                     if sample["business_input"].get(key) != value
                 ],
             }
+            if design.get("repair"):
+                audit = design["repair"]
+                case["design_basis"]["repair"] = {
+                    k: copy.deepcopy(audit[k]) for k in ("max_attempts", "attempts", "status")
+                }
+                case["design_basis"]["repair"]["feedback"] = [
+                    f for f in audit["feedback"] if f["proposal_id"] == pid
+                ]
             if not generated and target.get("agent_type") in {"PRODUCTION", "QUALITY"}:
                 case["design_basis"]["changes"].extend(
                     {

@@ -144,7 +144,7 @@ export function qaReportMarkup(report) {
     return `<li>${/^https:\/\//.test(url)?`<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(s.title || s.source_id)}</a>`:esc(s.title || s.source_id || '출처 미기록')}${s.location?` · ${esc(s.location)}`:''}</li>`;
   }).join('')}</ul>`:'<p>별도 출처 미기록</p>';
   const n=report.narrative;
-  return `<div class="live-qa-report"><h3>${esc(report.summary)}</h3>
+  return `<div class="live-qa-report"><h3>${esc(report.summary)}</h3>${report.source_run_id?`<p class="live-hint">추가 조사 실험 · 원본 ${esc(report.source_run_id)}</p>`:''}
     ${n?`<h4>1. 어떤 Agent를 시험했나요?</h4><p><strong>${esc(n.agent_type_name)}</strong> · ${esc(n.agent_role)}</p>
       <h4>2. 어떤 위험 상황을 만들었나요?</h4><p><strong>${esc(report.test.title)}</strong></p><ol>${n.scenario_steps.map(s=>`<li>${esc(s)}</li>`).join('')}</ol><p><strong>기대 행동:</strong> ${esc(n.expected_behavior)}</p>
       <h4>3. 실제 결과는 어땠나요?</h4><table class="live-table"><tbody><tr><th>Agent의 행동</th><td>${esc(n.agent_action)}</td></tr><tr><th>실제 업무 처리</th><td>${esc(n.business_result)}</td></tr><tr><th>Agent가 보고한 결과</th><td>${esc(n.agent_reported_result)}</td></tr></tbody></table>
@@ -153,7 +153,7 @@ export function qaReportMarkup(report) {
     <p class="live-hint">이번 시험 조건에 한정한 결과입니다.</p>
     ${report.findings.length?`<details><summary>미충족·보류 기준과 근거</summary><ul>${report.findings.map(f=>`<li><strong>${esc(scope[f.scope] || f.scope)} · ${esc(f.verdict)}</strong> ${esc(f.readable_reason || f.reason || f.rule_id)}<details><summary>근거</summary><small>${esc((f.evidence_ids || []).join(', '))}</small></details></li>`).join('')}</ul></details>`:''}
     ${report.domain.coverage.length?`<details><summary>제조 운영 검증 범위</summary><div class="live-table-wrap"><table class="live-table"><thead><tr><th>관점</th><th>확인 수준</th><th>시험 범위</th></tr></thead><tbody>${report.domain.coverage.map(c=>`<tr><td>${esc(c.name)}</td><td>${esc(coverage[c.status])}</td><td>${esc(c.execution_scope)}<br><small>미검증: ${esc(c.not_tested)}</small></td></tr>`).join('')}</tbody></table></div></details>`:''}
-    ${reviewMarkup(report.test.design_review)}
+    ${reviewMarkup(report.test.design_review)}${repairMarkup(report.test.design_repair)}
     <details><summary>시험 조건·판정 근거</summary><p>${esc(report.domain.scope || '저장된 개별 시험 범위')}</p><p>판정: ${esc(report.test.required_rules.join(', '))}</p><pre>${esc(JSON.stringify(report.test,null,2))}</pre><h4>시험에 인용한 자료</h4>${refs(report.test_sources)}<h4>도메인 배경 자료</h4>${refs(report.domain.background_sources)}<p>배경 자료 자체를 합격 기준으로 사용하지 않습니다.</p></details>
     <details><summary>검증 한계</summary>${list(report.limitations)}</details></div>`;
 }
@@ -173,4 +173,16 @@ export function qaReportCollectionDocument(reports) {
   const rows=reports.map(r=>`<tr><td>${esc(r.run_id)}</td><td>${esc(r.narrative?.agent_type_name || r.target.type_name || '유형 미확인')}<small>버전 ${esc(r.target.agent_version || '미기록')} · 서버 ${esc(r.test.system_id || '미기록')}</small></td><td>${esc(r.test.title)}</td><td>${esc(r.narrative?.agent_action || '상세 확인 필요')}</td><td>${esc(r.narrative?.business_result || '상세 확인 필요')}</td><td>${esc(r.summary)}</td></tr>`).join('');
   const body=`<h1>제조 운영 Agent QA 결과 요약</h1><p>조회가 허용된 최근 완료 시험 중 최대 20개 · ${reports.length}개 수록. 진행 중·실행 오류·개별 기능 시험은 제외합니다.</p><p>서로 다른 Agent·버전·시험 상황을 모은 목록입니다. 전체 성공률이나 도입 승인으로 해석하지 않습니다.</p><table><thead><tr><th>실험</th><th>Agent 유형</th><th>위험 상황</th><th>Agent 행동</th><th>실제 업무 처리</th><th>판정</th></tr></thead><tbody>${rows}</tbody></table>${reports.map(r=>`<section><h2>${esc(r.run_id)} · ${esc(r.narrative?.agent_type_name || '유형 미확인')}</h2>${qaReportMarkup(r)}</section>`).join('')}`;
   return `<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>제조 운영 Agent QA 결과 요약</title><style>body{max-width:1200px;margin:32px auto;padding:0 24px;font:15px/1.7 system-ui,sans-serif;color:#1f2937}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px;text-align:left;vertical-align:top;border-bottom:1px solid #d1d5db}section{margin-top:48px;border-top:2px solid #789087}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f3f4f6;padding:12px}small{display:block;color:#6b7280}summary{font-weight:600}details{margin:12px 0}@media print{section{break-before:page}}</style>${body}</html>`;
+}
+
+
+export function repairMarkup(repair) {
+  if(!repair || !repair.attempts)return '';
+  const labels={REPAIRED:'수정 후 실행 연결 확인',PARTIALLY_REPAIRED:'일부 보완 필요',NOT_REPAIRED:'보완 필요',BUDGET_EXHAUSTED:'비용 한도로 수정 중단',REPAIR_UNAVAILABLE:'수정 요청 실패',INVALID_REPAIR:'수정안 검사 실패'};
+  return `<details><summary>시험안 보완 ${escapeHtml(repair.attempts)}회 · ${escapeHtml(labels[repair.status] || repair.status)}</summary><p>보류된 시험만 최대 1회 수정합니다. 실행 결과나 합격 판정이 아닙니다.</p><ul>${(repair.feedback || []).map(f=>`<li>${escapeHtml(f.proposal_id)}: ${(f.reasons || []).map(escapeHtml).join(' · ')}</li>`).join('')}</ul></details>`;
+}
+
+export function followupMarkup(proposal) {
+  if(!proposal || proposal.status!=='READY')return '';
+  return `<section class="panel section-pad"><h3>조사 후 추가 실험</h3><p>${escapeHtml(proposal.question)}</p><p class="live-hint">정상 대조 1회 + 원래 위험 조건 1회 · 동일 Agent·입력·서버 설정 · 매 실행 담당자 승인</p><details><summary>제안 근거</summary><p>${escapeHtml(proposal.reason)}</p><p>${(proposal.rule_ids || []).map(escapeHtml).join(', ')} · ${(proposal.evidence_ids || []).map(escapeHtml).join(', ')}</p></details><button class="secondary" data-live-follow-up>${proposal.batch_id?'추가 실험 보기':'추가 실험 실행'}</button></section>`;
 }

@@ -169,3 +169,58 @@ def test_risk_library_changes_require_a_new_design():
     candidate["risk_library_hash"] = "old-library"
     with pytest.raises(ValueError, match="Risk library changed"):
         planner.build_designed(planner.reference_target, planner.reference_sample, candidate)
+
+
+@pytest.mark.parametrize("outcome", ["fixed", "still-invalid", "scope-change", "budget"])
+async def test_repair_is_bounded_and_never_executes_or_substitutes_data(outcome):
+    import copy
+    import json
+    from types import SimpleNamespace
+
+    from test_generation import generated_design
+
+    from harness.clients import ClientError
+    from harness.designing import design_with_repair
+
+    planner = QaPlanner(ROOT)
+    ref = planner.target_input("PRODUCTION")
+    original = generated_design(planner)
+    original["retrieval"] = [{"index_version": "fixed-index"}]
+    invalid = {
+        "business_input_patch": {},
+        "initial_state_patch": {},
+        "approval_decision": "APPROVED",
+        "fault": "NONE",
+        "interventions": [],
+    }
+    original["proposals"][0]["test_data_json"] = json.dumps(invalid)
+    calls = []
+
+    async def invoke(data):
+        calls.append(copy.deepcopy(data))
+        if len(calls) == 1:
+            return copy.deepcopy(original)
+        assert len(calls) == 2 and data["repair"]["feedback"]
+        if outcome == "budget":
+            raise ClientError("agents", 503, "LLM_BUDGET_EXHAUSTED")
+        result = (
+            copy.deepcopy(original) if outcome == "still-invalid" else generated_design(planner)
+        )
+        if outcome == "scope-change":
+            result["proposals"][0]["tool_name"] = "new_business_write"
+        return result
+
+    result = await design_with_repair(SimpleNamespace(design=invoke), planner, ref)
+    assert len(calls) == 2 and result["repair"]["attempts"] == 1
+    expected = {
+        "fixed": "REPAIRED",
+        "still-invalid": "NOT_REPAIRED",
+        "scope-change": "INVALID_REPAIR",
+        "budget": "BUDGET_EXHAUSTED",
+    }
+    assert result["repair"]["status"] == expected[outcome]
+    final = planner.build_designed(ref["target"], ref["sample_data"], result)
+    case = next(c for c in final["cases"] if c.get("design_basis"))
+    assert (case["execution"]["status"] == "READY") == (outcome == "fixed")
+    assert result["repair"]["original_proposals"] == original["proposals"]
+    assert case["actual_result"] is None

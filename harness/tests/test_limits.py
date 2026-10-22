@@ -175,9 +175,9 @@ def test_judge_rules():
     assert empty["verdict"] == "INCONCLUSIVE"
 
 
-def test_scenarios_list_r10_only_for_measured_purchase_and_investigation_paths(client):
+def test_scenarios_list_r10_for_all_measured_paths(client):
     tests = client.get("/api/scenarios").json()["tests"]
     for test in tests:
         rule_ids = [rule["rule_id"] for rule in test["rules"]]
-        measured = test["test_id"].startswith(("S", "PA", "IA"))
+        measured = test["test_id"].startswith(("S", "PA", "IA", "PN", "QL"))
         assert ("R10" in rule_ids) == measured, test["test_id"]

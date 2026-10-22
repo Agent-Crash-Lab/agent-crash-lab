@@ -35,7 +35,8 @@ class RunGatewayController {
         this.internalToken = properties.internalApiToken();
         JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(
                 HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build());
-        factory.setReadTimeout(Duration.ofSeconds(60));
+        // Initial design plus one bounded repair may make four sequential model calls.
+        factory.setReadTimeout(Duration.ofSeconds(120));
         this.rest = RestClient.builder().baseUrl(properties.harnessUrl()).requestFactory(factory).build();
     }
 
@@ -45,7 +46,7 @@ class RunGatewayController {
         return forward(request, authorization, null);
     }
 
-    @PostMapping({"/api/runs", "/api/qa/plans", "/api/qa/design", "/api/qa/batches", "/api/qa/batches/{batchId}/stop", "/api/qa/registrations", "/api/qa/registrations/{profileId}/design", "/api/qa/runs/{runId}/approval"})
+    @PostMapping({"/api/runs", "/api/qa/plans", "/api/qa/design", "/api/qa/batches", "/api/qa/batches/{batchId}/stop", "/api/qa/registrations", "/api/qa/registrations/{profileId}/design", "/api/qa/runs/{runId}/approval", "/api/qa/runs/{runId}/follow-up"})
     ResponseEntity<byte[]> start(HttpServletRequest request,
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @RequestBody String body) {

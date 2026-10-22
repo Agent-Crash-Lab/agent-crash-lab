@@ -66,7 +66,7 @@ QA는 기능이 없으면 시험 범위에서 제외하고, 기능 설명이 부
 생산·품질은 공통 `harness/simulation.py`가 시험 DB·승인·오류·판정을 관리하고, `agents/targets/manufacturing.py`가 실제 HTTP MCP 도구를 호출합니다. 데이터·조건은 `harness/adapters/manufacturing.py`와 기존 `qa/examples/manufacturing-targets.json`에 있습니다. 구매는 기존 Spring 업무 DB 경로를 유지합니다. 생산·품질의 실패 보고서는 LLM 조사 결과와 구분해 **규칙 기반 조사 요약**으로 표시합니다.
 LLM 생성 데이터는 `harness/generation.py`가 기존 샘플에 변경분을 적용하며, 기존 시험 수치로 바꾸지 않습니다. 허용되지 않은 필드·식별자·실행 불가능한 조합은 실행을 보류합니다. 생산·품질의 `AFTER_APPROVAL_BEFORE_WRITE`는 승인이 끝난 뒤 업무 변경 전에 상태를 바꿉니다. 예: 정상 설비를 조회한 뒤 승인 시점에 정비 상태와 선행 공정 지연이 발생하면, Agent가 재확인하는지 시험합니다. 판정은 각 변경 시점에 기록된 실제 상태를 사용합니다.
 
-분석(`qa/analysis.py`), 설계 흐름(`qa/design.py`), 생성 형식(`qa/proposals.py`), 검토 기준·제안 상태 계산(`qa/review.py`)을 분리합니다. 입력 검사는 한 번 수행하고 검색 연결을 재사용합니다. 근거 검색은 최대 4개씩 병렬 처리하며 한 설계 중 색인 버전이 바뀌면 중단합니다. 실제 LLM은 위험 상황과 데이터를 생성하며, 실행 방식은 선택한 위험 유형에 따라 등록 기준에서 연결합니다. 도구·위험 유형·인용 ID를 구조화 출력에서 제한하고, Harness가 인용·채택 정책·실행 가능성을 다시 검사합니다. 생성·검토 모델과 프롬프트 버전은 시험 근거에 저장합니다. 검토 모델은 `QA_REVIEW_LLM_MODEL`로 별도 선택하며, 코드 사전 검사를 통과한 제안만 세 항목의 의미 검토를 받습니다. 조사 중 추가 실험은 별도 개발 항목입니다.
+분석(`qa/analysis.py`), 설계 흐름(`qa/design.py`), 생성 형식(`qa/proposals.py`), 검토 기준·제안 상태 계산(`qa/review.py`)을 분리합니다. 입력 검사는 한 번 수행하고 검색 연결을 재사용합니다. 근거 검색은 최대 4개씩 병렬 처리하며 한 설계 중 색인 버전이 바뀌면 중단합니다. 실제 LLM은 위험 상황과 데이터를 생성하며, 실행 방식은 선택한 위험 유형에 따라 등록 기준에서 연결합니다. 도구·위험 유형·인용 ID를 구조화 출력에서 제한하고, Harness가 인용·채택 정책·실행 가능성을 다시 검사합니다. 생성·검토 모델과 프롬프트 버전은 시험 근거에 저장합니다. 검토 모델은 `QA_REVIEW_LLM_MODEL`로 별도 선택하며, 코드 사전 검사를 통과한 제안만 세 항목의 의미 검토를 받습니다. 조사 후 추가 실험은 미충족 검사와 저장 계획으로 정상 대조·원래 조건을 연결합니다. 문헌·입력·정책을 바꾸는 새로운 실험 생성은 이 추가 실험 경로의 범위가 아닙니다.
 
 ## QA 보고서
 
@@ -160,11 +160,57 @@ flowchart LR
 - **판정과 종료:** `COMPLETED`는 종료 상태입니다. 각 검사는 PASS/FAIL/INCONCLUSIVE이며, 보고서는 근거 부족·위반·실행 오류를 구분합니다.
 - **재현:** 대상·정책·데이터·모델·프롬프트·색인 버전과 해시를 저장합니다. 계획은 실행 시 다시 검사하고, 변경된 실행기와 맞지 않으면 재설계를 요구합니다.
 - **복구:** 실행·배치를 저장하고 중단 기록을 남깁니다. 응답이 불명확한 거래나 재시작한 배치를 자동으로 다시 실행하지 않습니다.
-- **실행 한도:** 최신 main의 R10은 구매·조사 경로에 통합했습니다. 호출 이벤트와 능동 시간은 Harness가 측정하고 턴 수는 Agent 보고로 구분합니다. 생산·품질 경로에 같은 측정이 연결됐다고 표시하지 않습니다.
+- **실행 한도:** 최신 main의 R10은 구매·조사 경로에 통합했습니다. 호출 이벤트와 능동 시간은 Harness가 측정하고 턴 수는 Agent 보고로 구분합니다. 생산·품질의 시험 MCP도 호출 시도와 승인 대기를 제외한 능동 시간을 측정하며 R10에 연결합니다.
 
-### 다음 개발 순서
+### 이번에 연결한 후속 흐름
 
-1. 검토/실행 연결의 오류 이유를 생성기에 돌려주는 제한된 수정 절차. 출처·정책·식별자를 임의 생성하지 않고 수정 횟수·비용을 제한합니다. 현재 미구현입니다.
-2. 새 생성·검토 모델 조합으로 자유 생성부터 실행까지 다시 측정합니다. 생성 수·수용·보류·실행·위반을 분리 집계합니다.
-3. 조사 Agent의 추가 실험 제안과 동일 Harness 실행 연결, 생산·품질의 R10 측정을 확장합니다.
-4. 실제 기업 Agent 연결은 보류하며, 재개 시 회사 정책·샌드박스·판정기를 별도 검증합니다.
+- **시험안 보완:** `harness/designing.py`가 첫 설계를 실행 연결 검사합니다. 수정 가능한 데이터·검토 문제만 같은 생성기에 1회 돌려보냅니다. 이미 가능한 제안·위험·도구는 유지하고, 근거 색인이 달라지면 보완을 중단합니다. 예산·호출·출력 오류가 나면 최초 보류안을 보존합니다. 최대 생성/검토 4회이며 예산을 늘리지 않습니다.
+- **조사 후 실험:** `harness/followups.py`가 미충족 검사·조사 기록·원래 계획을 읽고, 같은 서버 설정에서 정상 대조 1회와 원래 위험 조건 1회를 제안합니다. 조사 Agent의 재시험 제안도 표시하지만 실행 조건 선택은 등록된 계획과 코드로 제한합니다. 현재 구현은 코드로 근거를 연결하는 방식이며 LLM이 새 원인 실험을 자유 생성하는 기능은 아닙니다.
+- **추가 실험 실행:** `POST /api/qa/runs/{run_id}/follow-up`. 본인 실행·REQUESTER 역할만 허용하고, 같은 원본 실행에는 하나의 배치만 만듭니다. 기존 승인·비용·중단·재시작 처리를 사용합니다. 일반 배치의 실패에서도 제안하지만 추가 조사 배치의 실행에서 다음 배치를 연쇄 생성하지 않습니다.
+- **생산·품질 한도:** 시험 MCP가 승인 요청·잘못된 호출·차단된 호출을 시도로 기록합니다. 능동 시간은 서버 시계에서 승인 대기를 제외합니다. 초과 시 저장 경로를 닫고 판정하며 실제 프로세스/원격 서버 자체를 종료했다는 뜻은 아닙니다. 턴 수는 이 경로에서 관측하지 않습니다.
+
+## 팀별 개발 계약
+
+### Harness
+
+- 시작 파일: `src/harness/api.py`, `designing.py`, `planning.py`, `generation.py`, `runner.py`, `simulation.py`, `followups.py`, `batches.py`.
+- Agent에서 받은 제안은 `QaPlanner.build_designed`로 검사합니다. 모델이 READY·PASS·판정 규칙을 직접 지정하지 못하게 유지합니다.
+- 보완 요청에는 기존 제안·보류 이유·색인 버전만 포함합니다. 위험·도구·제안 ID 변경과 이미 수용한 제안 변경을 거부합니다. 지원하지 않는 업무 도구·미채택 정책은 보완 반복으로 해결하지 않습니다.
+- Frontend에 `plan.design.repair`, `run.follow_up`, `run.agent.measured`, `qa_report`를 제공합니다. 추가 조사 자식 실행은 `qa_parent_run_id`, 배치는 `source_run_id`로 원본과 연결합니다.
+- 필수 확인: `tests/test_design_plans.py`, `test_batches.py`, `test_manufacturing.py`, `test_generation.py`, `test_limits.py`.
+
+### Agent
+
+- 시작 파일: `src/agents/qa/analysis.py`, `design.py`, `proposals.py`, `scenario_schema.py`, `review.py`, `investigation.py`.
+- 내부 `DesignRequest.repair`는 `{previous_proposals, feedback:[{proposal_id,reasons}], index_version}`입니다. 브라우저에서 임의의 보완 상태를 받는 계약이 아닙니다.
+- 생성/보완 결과는 같은 Proposal 형식이며 Harness가 다시 검사합니다. 이전 READY 제안은 복사하고 지정한 ID만 수정합니다. 근거는 다시 검색하고 같은 색인 버전인지 확인합니다.
+- 검토는 안전한 기대 행동을 평가합니다. 위험한 시험 자극 자체를 위험 행동 지시와 혼동하지 않습니다. 생성·검토·대상 실행 모델은 각각 구분합니다.
+- 필수 확인: `tests/test_generation.py`, `test_design.py`, `test_investigation.py`, `test_llm.py`. 일반 테스트는 유료 호출을 하지 않습니다.
+
+### MCP
+
+- 시작 파일: `RunGatewayController`, `BusinessTools`, `RagTools`, `ReferencePurchaseSimulation`, `Observations`, `KnowledgeSearch`.
+- Spring은 로그인·역할·구매 승인·공개 API 중계를 담당합니다. `/api/qa/runs/{runId}/follow-up`은 REQUESTER만 허용합니다. 생산·품질 승인 경로만 APPROVER를 요구합니다.
+- 구매 시험 MCP는 Spring, 생산·품질 시험 MCP는 Harness가 소유합니다. 새 도구가 어느 업무 DB를 바꾸는지 먼저 결정하고 독립 판정 관측을 함께 제공합니다.
+- 보완은 외부 업무 API를 실행하지 않습니다. 네 번의 모델 호출이 가능한 설계 요청을 위해 Spring 120초·Nginx/개발 프록시 125초 대기 상한을 맞췄습니다.
+- 필수 확인: `./gradlew test`, 도구 계약 검사, `publicapi/RunGatewayTests`, 실제 세 서비스 연동. 키·내부 토큰은 브라우저나 보고서에 넣지 않습니다.
+
+### Frontend
+
+- 시작 파일: `dist/live.js`, `live-api.js`, `qa-targets.js`. `dist/`는 직접 관리하는 소스이며 빌드 산출물 정리 대상으로 삭제하지 않습니다.
+- 설계 화면은 `plan.design.repair`의 수정 횟수·상태·이유를 접어서 표시합니다. 보완 수용을 Agent 합격으로 표시하지 않습니다.
+- 실행 화면은 `run.follow_up.status === READY`일 때 추가 실험 버튼을 표시합니다. 반환된 배치를 기존 진행·승인 화면에 연결하고 원래 실행 보고서를 덮어쓰지 않습니다.
+- R10은 서버 측정 호출/시간과 Agent 보고 턴을 구분합니다. 모델 생성과 offline 실행, 잘못된 변경 시도와 실제 DB 반영도 구분합니다.
+- 필수 확인: `npm run check`, `npm test`, 실제 로그인→설계→승인→보고서→추가 실험 화면 확인. 상태/오류는 API 값을 사용하고 모든 외부 텍스트를 escape합니다.
+
+### 공동 변경 순서
+
+1. `qa/contracts/qa.schema.json`·서비스 Pydantic 입력·MCP 도구 계약 중 변경할 원본을 정합니다.
+2. 제공 서비스와 소비 서비스가 함께 사용하는 예제·오류·버전·테스트를 수정합니다.
+3. 실제 MCP·승인·DB 관측까지 연결한 한 사례로 확인하고 [평가 기록](evaluation.md)에 범위를 적습니다.
+4. 기능 브랜치→PR→검사 결과 확인→main 반영 순서를 사용합니다. 기존 계획의 해시·규칙이 달라지면 재설계합니다.
+
+
+### 공동 연동 점검 실행
+
+루트의 `python3 scripts/verify_qa_flow.py --approve --follow-up`은 규칙 기반 설계로 로컬 개발 계정·승인 API·실제 MCP·DB·보고서를 확인합니다. `--llm`은 유료 QA 생성/검토를 명시적으로 켜며 기존 비용 한도를 따릅니다. `--types PRODUCTION QUALITY`처럼 일부 유형만 점검할 수 있습니다. `--approve`는 개발 승인자 계정을 사용하는 시연 옵션이며 실제 기업의 자동 승인 기능이 아닙니다. 실제 키·계정 정보·원시 실행 결과는 커밋하지 않고 `artifacts/local-runs/qa-regression/`에 저장합니다.

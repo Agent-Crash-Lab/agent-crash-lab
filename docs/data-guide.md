@@ -216,3 +216,28 @@ erDiagram
 구매는 `sandbox.run_context`를 기준으로 요청(`purchase_request`)·승인 요청(`approval_request`)·결정(`approval`)·발주(`purchase_order`)·호출(`tool_call`)·증거(`evidence`)를 저장합니다. 품목·재고·업체·공급 자격은 `part`, `inventory`, `supplier`, `approved_supply_source`이며 모두 실행별로 분리합니다. `idempotency_record`는 중복 방지에 사용합니다. 생산·품질에 별도의 같은 업무 테이블들이 존재한다고 표현하지 않습니다.
 
 정의 위치는 `harness/src/harness/store.py`, `knowledge/retrieval.py:DDL`, `mcp-server/src/main/resources/db/migration/V1__init.sql`입니다. Harness는 시작 시 `metadata.create_all`로 미존재 테이블을 만듭니다. 이는 기존 컬럼 변경을 처리하는 마이그레이션 도구가 아닙니다. 구매 DB는 Flyway, pgvector 확장은 `infra/postgres/knowledge.sql`로 준비합니다. Agent checkpoint와 모델 비용 장부는 별도 SQLite이며 Git 대상이 아닙니다.
+
+
+## 보완과 추가 실험 데이터
+
+| 데이터 | 저장·의미 |
+|---|---|
+| `plan.design.repair` | 최대/실제 수정 횟수, 상태, 보류 이유, 최초 제안·검토. 최종 제안은 기존 proposals에 저장 |
+| `case.design_basis.repair` | 해당 제안에 대한 수정 상태·이유만 보고서에 전달 |
+| `qa_report.test.design_repair` | 화면과 HTML 보고서의 동일한 보완 설명 |
+| `run.follow_up` | 현재 사용자·저장 계획·조사/검사 근거로 계산하는 추가 실험 제안. SQL 별도 테이블이 아님 |
+| `run.follow_up_batch_id` | 원본 실행에서 생성한 추가 조사 배치 ID |
+| `batch.source_run_id`, `run.qa_parent_run_id` | 추가 조사 배치와 자식 실행의 원본 실행 연결. JSON 안의 논리 관계 |
+| `harness_simulation.body.tool_attempts` | 잘못된/차단된 도구를 포함한 호출 시도 근거 ID. 기존 calls는 처리한 업무 호출 기록 |
+| `run.agent.measured` | 서버 측정 호출 수·승인 대기 제외 능동 시간. 생산/품질 턴 수는 미관측으로 null |
+
+`repair`의 저장 양식은 공통 계약 `$defs/repair`에 있습니다. 1회 수정 후에도 불충분하면 UNSUPPORTED로 남깁니다. 자동으로 예시 데이터나 다른 위험으로 교체하지 않습니다. 새로운 API의 요청은 본문 없는 `POST /api/qa/runs/{run_id}/follow-up`이며, 원본 계획·같은 서버 설정·최대 2회 SMOKE로 서버에서 고정합니다. 사용자에게 임의 DB 변경이나 다른 사용자의 계획 선택을 허용하지 않습니다.
+
+생산·품질 규칙 버전은 `manufacturing-v3`입니다. 이전 계획은 R10 연결 등 규칙 변경 때문에 실행 재검사를 통과하지 못할 수 있으므로 재설계해야 합니다. 새 JSON 필드 때문에 기존 DB 컬럼을 삭제·재생성하지 않습니다.
+
+
+### 모델 출력에서 막는 범위
+
+`agents/qa/scenario_schema.py`가 세 참조 유형의 SDK 출력 양식을 만듭니다. 실제 존재하는 요청 식별자는 enum으로 고정하고, 초기 승인·기존 거래 같은 지원하지 않는 필드는 모델 출력에 포함시키지 않습니다. 수량·시간·재고·검사/설비 상태는 허용 범위에서 생성합니다. 구매 배열은 기존 행 후보와 길이를 제한하지만 행 중복·가격 관계·위험 활성화는 여전히 Harness가 검사합니다.
+
+모델의 SDK 출력에서는 `test_data_json`을 구조화 객체로 받고 저장할 때만 JSON 문자열로 직렬화합니다. 기존 계획·도구·프론트의 저장 계약은 유지합니다. 보완 응답은 요청한 제안 개수와 ID를 제한하고, 개수·중복·위험·도구 일치는 코드로 다시 확인합니다. 최초/보완 프롬프트와 생성 스키마 해시는 설계에 남깁니다. 관련 규칙은 [OpenAI Structured Outputs 공식 안내](https://developers.openai.com/api/docs/guides/structured-outputs)를 참고했으며 형식 제한을 업무 정답으로 취급하지 않습니다.

@@ -95,3 +95,17 @@ def judge(
         "reason": reason,
         "evidence_ids": evidence,
     }
+
+
+def measure_simulation(state, active_seconds):
+    """Server-recorded attempts include approval and rejected/invalid calls."""
+    attempts = state.get("tool_attempts", [])
+    return {
+        "tool_calls": len(attempts),
+        "tool_calls_from_agent_events": None,
+        "tool_calls_from_mcp_events": len(attempts),
+        "active_seconds": round(active_seconds, 2),
+        "turns_reported": None,
+        "reported": {},
+        "evidence_ids": [a["evidence_id"] for a in attempts] + [state["snapshot_evidence_id"]],
+    }
