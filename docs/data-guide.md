@@ -5,7 +5,7 @@
 | 위치 | 내용 |
 |---|---|
 | `qa/contracts/` | 대상 설명·시험 계획·이벤트·판정의 공통 양식 |
-| `qa/knowledge/corpus.json` | 검색할 자료 32건의 버전·권리·적용 범위 |
+| `qa/knowledge/corpus.json` | 검색할 자료의 버전·권리·적용 범위. 현재 32건; 추가 등록의 기준 파일 |
 | `qa/knowledge/sources-collected.json` | 연구 5·사례 7·기술 10·프로젝트 정책 6건의 출처·요약·수집 기록 |
 | `qa/knowledge/test-policy.json` | 시험 중요도 하한·반복 계산·중단·비용 한도 |
 | `qa/knowledge/risk-library.json` | 위험 6종의 필요 기능·검색 질문·출처 연결 |
@@ -75,7 +75,7 @@
 
 - 입력: Agent의 업무·READ/WRITE 도구·입력 Schema·승인/재시도 정책·샘플 상태. 실제 소스 코드나 실행 경로를 자동 분석한 결과는 아닙니다.
 - 분류: 선언한 `agent_type`으로 유형을 정합니다. 유형이 없으면 입력 필드 조합을 참고하고, 혼합되거나 알려지지 않은 형식은 COMMON으로 남깁니다. 시험 적용 여부는 실제 도구·기능을 별도로 확인합니다.
-- 설계 Agent: `agents/src/agents/qa/design.py`의 LangGraph가 기능 확인 → 위험 적용 여부 확인 → 유형별 근거 검색 → 최대 3개 제안 → 출처 확인 → 별도 검토를 수행합니다. 적용 위험 최대 3종 × 출처 유형 4종으로 최대 12회 검색하며 동시에 최대 4회 처리합니다. `analysis.py`는 모델 호출 없이 기능을 분석합니다. offline은 규칙 기반 시연입니다.
+- 설계 Agent: `agents/src/agents/qa/design.py`의 LangGraph가 기능 확인 → 위험 적용 여부 확인 → 유형별 근거 검색 → 최대 3개 제안 → 출처 확인 → 제조업 검토 → Agent 행동 검토를 수행합니다. 적용 위험 최대 3종 × (출처 유형 4종 + 검토 영역 2종)으로 최대 18회 검색하며 동시에 최대 4회 처리합니다. 같은 검색 질문의 BGE 임베딩은 최대 128개 메모리 캐시에 재사용하고, 자료 종류·영역 필터는 매번 DB에 적용합니다. `analysis.py`는 모델 호출 없이 기능을 분석합니다. offline은 규칙 기반 시연입니다.
 - Harness: 제안과 실제 시험을 구분하고, 등록된 어댑터·입력 검사·판정 규칙으로 실행 여부를 결정합니다. LLM이 새 정책·도구·판정기를 등록할 수 없습니다.
 - 구매 예시: 초기 재고 20개라면 수량 21개의 새 입력을 만들고, 발주 저장 후 응답 유실을 주입합니다. 실제 수량·변경 이유·사례 데이터 해시를 저장합니다.
 - 성적서 불일치·설비 중복 배정은 해당 기능이 있는 대상에만 제안합니다. 생산·품질은 참조 환경에 채택한 정책과 코드 판정기로 실행합니다. 다른 업무 도구나 미채택 정책은 UNSUPPORTED로 유지합니다.
@@ -179,7 +179,7 @@ MCP `tools/list`의 배열·`tools`·`result.tools` JSON을 화면에서 가져�
 
 ### 시험안 검토와 최종 판정
 
-- 검토 방법: `CODE_PREREQUISITES` / `SEMANTIC_RUBRIC_V1` / `OFFLINE_METADATA_CHECK`.
+- 검토 방법: `CODE_PREREQUISITES` / `TWO_STAGE_SEMANTIC_V1` / `OFFLINE_METADATA_CHECK` (기존 기록의 `SEMANTIC_RUBRIC_V1`도 읽기 지원).
 - 검토 결과: `ACCEPT_FOR_BINDING` / `NEEDS_INFORMATION` / `REJECT`. 코드 사전 검사는 `assessment` 없이 이유를 저장할 수 있습니다.
 - 의미 검토 세 항목: 정책 `ALIGNED/CONFLICT/UNCLEAR`, 근거 `SUPPORTED/IRRELEVANT/UNCLEAR`, 상황 `COHERENT/CONTRADICTORY/UNCLEAR`.
 - 실행 연결: `READY/UNSUPPORTED`. 검토 수용과 별도입니다.
@@ -241,3 +241,35 @@ erDiagram
 `agents/qa/scenario_schema.py`가 세 참조 유형의 SDK 출력 양식을 만듭니다. 실제 존재하는 요청 식별자는 enum으로 고정하고, 초기 승인·기존 거래 같은 지원하지 않는 필드는 모델 출력에 포함시키지 않습니다. 수량·시간·재고·검사/설비 상태는 허용 범위에서 생성합니다. 구매 배열은 기존 행 후보와 길이를 제한하지만 행 중복·가격 관계·위험 활성화는 여전히 Harness가 검사합니다.
 
 모델의 SDK 출력에서는 `test_data_json`을 구조화 객체로 받고 저장할 때만 JSON 문자열로 직렬화합니다. 기존 계획·도구·프론트의 저장 계약은 유지합니다. 보완 응답은 요청한 제안 개수와 ID를 제한하고, 개수·중복·위험·도구 일치는 코드로 다시 확인합니다. 최초/보완 프롬프트와 생성 스키마 해시는 설계에 남깁니다. 관련 규칙은 [OpenAI Structured Outputs 공식 안내](https://developers.openai.com/api/docs/guides/structured-outputs)를 참고했으며 형식 제한을 업무 정답으로 취급하지 않습니다.
+
+## 검토 자료 추가하기
+
+초기 검토 자료는 기존 5건을 재사용합니다. 제조업 영역은 ISA-95 공개 해설·NIST OT·Kobe Steel 조사 요약·Oracle 승인 공급원 자료 4건, Agent 행동 영역은 Agent-SafetyBench 1건입니다. 제조업 실제 사고와 Agent 실패의 합성 전이는 구분하며, 모든 위험에 실제 사고 사례가 있다는 뜻은 아닙니다. 근거가 부족하면 보류합니다. 나머지 기존 자료는 생성·조사의 일반 근거로 계속 검색합니다.
+
+- `source_type`: 연구/사례/기술 등 **자료의 종류**.
+- `evidence_domains`: `MANUFACTURING` 또는 `AGENTIC` 중 하나인 **검토 용도**. 프로젝트 정책은 어느 쪽의 외부 근거도 대체하지 않습니다.
+- 검색 요청의 `evidence_domain`은 DB metadata로 제한하며 반환 문단에도 같은 태그를 제공합니다.
+- `design.morphology`에 축·제외 조합 수·후보를, `proposal.morphology_id`에 선택한 조합을 저장합니다. `review.stages`에는 각 단계의 기준·결정·문단 ID·건너뜀 여부를 저장합니다.
+
+추가할 논문·보고서는 사람이 원문과 위험 연결을 확인하고, 다음 형식의 영문 자체 요약 JSON으로 준비합니다. 원문 사실과 시험으로 옮긴 해석을 구분합니다.
+
+```json
+{
+  "source_id": "TEAM-REPORT-001",
+  "title": "실제 원문 제목", "url": "https://publisher.example/report",
+  "attribution": "실제 발행기관", "source_version": "원문 버전", "source_locator": "관련 절/페이지",
+  "scope": "영문 적용 범위와 한계", "content_kind": "CURATED_SUMMARY", "source_type": "TECHNICAL",
+  "roles": ["PRODUCTION"], "risk_types": ["RESOURCE_CONSTRAINT"], "evidence_domains": ["MANUFACTURING"],
+  "source_facts_en": "영문 원문 사실", "qa_transfer_en": "영문 시험 전이 해석", "text_en": "실제 검색할 영문 자체 요약",
+  "mapping_review": "TEAM_REVIEWED", "rights": {"license": "SELF_WRITTEN_SUMMARY_OF_LINKED_SOURCE"}
+}
+```
+
+```sh
+make knowledge-add record=/path/to/reviewed-source.json
+make knowledge-index
+```
+
+등록은 `corpus.json`을 원자적으로 갱신하고 해시를 계산합니다. 같은 자료는 중복 추가하지 않으며 기존 ID 변경은 `python3 scripts/prepare_knowledge.py --record /path/to/record.json --replace`로 명시합니다. 정책 채택/덮어쓰기는 금지합니다. 이 경로는 검토한 요약 등록이며 임의 URL 자동 수집·새 PDF 자동 업로드는 제공하지 않습니다. 기존 고정 PDF 수집은 기존 절차를 유지합니다.
+
+색인 작업은 BGE Parent–Child와 기존 벡터 캐시를 재사용하고 변경된 문단만 임베딩한 뒤 DB를 한 트랜잭션으로 교체합니다. 실패하면 이전 검색 색인을 유지합니다. 등록만 하고 재색인하지 않으면 검색에 나타나지 않습니다. Harness는 새 설계 시 현재 corpus를 읽어 신규 출처도 확인합니다. `sources-collected.json`은 초기 수집 이력이며, 추가 등록을 위해 같은 정보를 두 파일에 쓰지 않습니다. 기존 계획은 원래 색인 버전으로 보존하고 새 근거를 쓰려면 재설계합니다.

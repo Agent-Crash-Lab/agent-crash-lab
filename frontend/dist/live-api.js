@@ -130,7 +130,13 @@ export function reviewMarkup(review) {
   const names={policy_alignment:'기대 행동과 정책 일치',evidence_relevance:'문헌 적합성',scenario_consistency:'상황 일관성'};
   const values={ALIGNED:'일치',CONFLICT:'정책과 충돌',UNCLEAR:'보완 필요',SUPPORTED:'근거 있음',IRRELEVANT:'근거 부적합',COHERENT:'일관됨',CONTRADICTORY:'조건 상충'};
   const scores=Object.entries(review.assessment || {}).map(([key,value])=>`<li>${esc(names[key] || key)}: ${esc(values[value] || value)}</li>`).join('');
-  return `<details><summary>시험안 검토: ${esc(decision[review.decision] || review.decision)}</summary><p class="live-hint">${review.method==='CODE_PREREQUISITES'?'코드 사전 검사':'시험안 검토 기록'} · 대상 Agent의 합격 판정이 아닙니다.</p>${scores?`<ul>${scores}</ul>`:''}<ul>${(review.reasons || []).map(reason=>`<li>${esc(reason)}</li>`).join('')}</ul></details>`;
+  const stageNames={MANUFACTURING:'1. 제조업 위험',AGENTIC:'2. Agent 행동 위험'};
+  const stages=(review.stages || []).map(stage=>{
+    const criteria=Object.entries(stage.assessment || {}).map(([k,v])=>`${esc(names[k] || k)}: ${esc(values[v] || v)}`).join(' · ');
+    return `<li><strong>${esc(stageNames[stage.stage] || stage.stage)}</strong> · ${esc(stage.status==='SKIPPED'?'앞 단계 보완 후 진행':decision[stage.decision] || stage.decision)}${criteria?`<p class="live-hint">${criteria}</p>`:''}<details><summary>판단 근거</summary><ul>${(stage.reasons || []).map(reason=>`<li>${esc(reason)}</li>`).join('')}</ul><small>근거: ${(stage.evidence_ids || []).map(esc).join(', ') || '미검토'}</small></details></li>`;
+  }).join('');
+  const method=review.method==='CODE_PREREQUISITES'?'코드 사전 검사':review.method==='OFFLINE_METADATA_CHECK'?'오프라인 출처 연결 검사 · 문단 의미 미검증':'시험안 검토 기록';
+  return `<details><summary>시험안 검토: ${esc(decision[review.decision] || review.decision)}</summary><p class="live-hint">${method} · 대상 Agent의 합격 판정이 아닙니다.</p>${stages?`<ol>${stages}</ol>`:`${scores?`<ul>${scores}</ul>`:''}<ul>${(review.reasons || []).map(reason=>`<li>${esc(reason)}</li>`).join('')}</ul>`}</details>`;
 }
 
 // One summary is shared by the screen and the downloadable QA report.
@@ -144,6 +150,8 @@ export function qaReportMarkup(report) {
     return `<li>${/^https:\/\//.test(url)?`<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(s.title || s.source_id)}</a>`:esc(s.title || s.source_id || '출처 미기록')}${s.location?` · ${esc(s.location)}`:''}</li>`;
   }).join('')}</ul>`:'<p>별도 출처 미기록</p>';
   const n=report.narrative;
+  const conditionNames={NORMAL:'정상 업무 상태',UNQUALIFIED_SOURCE:'공급 자격 없음',MAINTENANCE:'설비 정비 중',OVERLAP:'일정 겹침',PREDECESSOR_DELAY:'선행 공정 지연',MISSING_RECORD:'검사 원자료 누락',FAILED_RECORD:'검사 원자료 불합격',FAILED_CERTIFICATE:'성적서 불합격',NONE:'응답 오류 없음',RESPONSE_LOSS:'처리 후 응답 유실',APPROVAL_DENIED:'승인 거절',INITIAL:'시작 시점',AFTER_APPROVAL_BEFORE_WRITE:'승인 직후·실행 전'};
+
   return `<div class="live-qa-report"><h3>${esc(report.summary)}</h3>${report.source_run_id?`<p class="live-hint">추가 조사 실험 · 원본 ${esc(report.source_run_id)}</p>`:''}
     ${n?`<h4>1. 어떤 Agent를 시험했나요?</h4><p><strong>${esc(n.agent_type_name)}</strong> · ${esc(n.agent_role)}</p>
       <h4>2. 어떤 위험 상황을 만들었나요?</h4><p><strong>${esc(report.test.title)}</strong></p><ol>${n.scenario_steps.map(s=>`<li>${esc(s)}</li>`).join('')}</ol><p><strong>기대 행동:</strong> ${esc(n.expected_behavior)}</p>
@@ -151,6 +159,7 @@ export function qaReportMarkup(report) {
       <h4>4. 이 결과는 무엇을 뜻하나요?</h4><p>${esc(n.meaning)}</p><p class="live-hint">${esc(n.provenance)}</p>`:`<p>${esc(report.test.title)}</p>`}
     <p class="live-hint">미충족 기준 ${esc(report.results.failed_checks)}개 · 실제 업무 변경 ${esc(report.results.changes ?? '미확인')}건. 기준 개수는 사고 건수가 아닙니다.</p>
     <p class="live-hint">이번 시험 조건에 한정한 결과입니다.</p>
+    ${report.test.morphology?`<details><summary>상황을 만든 조합</summary><p>${[report.test.morphology.tool_name,report.test.morphology.business_condition,report.test.morphology.event,report.test.morphology.phase].map(value=>esc(conditionNames[value] || value)).join(' → ')}</p></details>`:''}
     ${report.findings.length?`<details><summary>미충족·보류 기준과 근거</summary><ul>${report.findings.map(f=>`<li><strong>${esc(scope[f.scope] || f.scope)} · ${esc(f.verdict)}</strong> ${esc(f.readable_reason || f.reason || f.rule_id)}<details><summary>근거</summary><small>${esc((f.evidence_ids || []).join(', '))}</small></details></li>`).join('')}</ul></details>`:''}
     ${report.domain.coverage.length?`<details><summary>제조 운영 검증 범위</summary><div class="live-table-wrap"><table class="live-table"><thead><tr><th>관점</th><th>확인 수준</th><th>시험 범위</th></tr></thead><tbody>${report.domain.coverage.map(c=>`<tr><td>${esc(c.name)}</td><td>${esc(coverage[c.status])}</td><td>${esc(c.execution_scope)}<br><small>미검증: ${esc(c.not_tested)}</small></td></tr>`).join('')}</tbody></table></div></details>`:''}
     ${reviewMarkup(report.test.design_review)}${repairMarkup(report.test.design_repair)}

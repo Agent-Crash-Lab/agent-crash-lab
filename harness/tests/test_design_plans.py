@@ -1,7 +1,57 @@
 import pytest
 from conftest import ROOT, wait_for
 
+from harness.design_reviews import validate_staged_review
 from harness.planning import QaPlanner, fingerprint
+
+
+@pytest.mark.parametrize(
+    "mutation", ["none", "missing-stage", "wrong-domain", "overridden-rejection"]
+)
+def test_harness_independently_enforces_two_review_gates(mutation):
+    import copy
+
+    proposal = {
+        "proposal_id": "P1",
+        "risk_key": "RESOURCE_CONSTRAINT",
+        "evidence_ids": ["MF:p0", "AG:p0"],
+    }
+    records = {
+        sid: {"sha256": sid, "risk_types": ["RESOURCE_CONSTRAINT"], "evidence_domains": [domain]}
+        for sid, domain in (("MF", "MANUFACTURING"), ("AG", "AGENTIC"))
+    }
+    sources = {sid + ":p0": {"source_id": sid, "version": sid} for sid in records}
+    review = {
+        "method": "TWO_STAGE_SEMANTIC_V1",
+        "decision": "ACCEPT_FOR_BINDING",
+        "stages": [
+            {
+                "stage": domain,
+                "status": "COMPLETED",
+                "decision": "ACCEPT_FOR_BINDING",
+                "evidence_ids": [sid + ":p0"],
+                "assessment": {
+                    "policy_alignment": "ALIGNED",
+                    "evidence_relevance": "SUPPORTED",
+                    "scenario_consistency": "COHERENT",
+                },
+            }
+            for sid, domain in (("MF", "MANUFACTURING"), ("AG", "AGENTIC"))
+        ],
+    }
+    changed = copy.deepcopy(review)
+    if mutation == "missing-stage":
+        changed["stages"].pop()
+    elif mutation == "wrong-domain":
+        changed["stages"][1]["evidence_ids"] = ["MF:p0"]
+    elif mutation == "overridden-rejection":
+        changed["stages"][1]["assessment"]["evidence_relevance"] = "IRRELEVANT"
+        changed["stages"][1]["decision"] = "REJECT"
+    if mutation == "none":
+        validate_staged_review(changed, proposal, sources, records)
+    else:
+        with pytest.raises(ValueError):
+            validate_staged_review(changed, proposal, sources, records)
 
 
 def design(planner):

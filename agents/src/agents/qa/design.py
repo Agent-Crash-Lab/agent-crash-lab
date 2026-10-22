@@ -21,6 +21,7 @@ from agents.llm import ModelError, StructuredModel, resolve_model
 from agents.qa.analysis import analyze as analyze
 from agents.qa.analysis import analyze_description as analyze_description
 from agents.qa.analysis import screen_risks as screen_risks
+from agents.qa.morphology import build_field
 from agents.qa.proposals import (
     GENERATIVE_PROMPT,
     PROMPT,
@@ -32,11 +33,13 @@ from agents.qa.proposals import (
 )
 from agents.qa.review import (
     REVIEW_PROMPT,
+    STAGE_PROMPTS,
     OfflineReviewer,
-    Reviews,
+    StageReviews,
+    combine_stages,
     evidence_options,
     review_prerequisites,
-    scenario_preview,
+    review_stage,
 )
 from agents.qa.scenario_schema import output_schema
 
@@ -48,6 +51,8 @@ class DesignState(TypedDict, total=False):
     proposals: list
     selected_risks: list
     reviews: list
+    morphology: dict
+    manufacturing_reviews: list
 
 
 class RepairFeedback(BaseModel):
@@ -158,7 +163,7 @@ async def design_qa(settings, body, model=None, search=None, reviewer=None):
                     or settings.qa_design_llm_model
                     or settings.llm_model
                 ),
-                schema=Reviews,
+                schema=StageReviews,
                 max_output_tokens=1024,
             )
             if mode == "openai"
@@ -189,32 +194,42 @@ async def design_qa(settings, body, model=None, search=None, reviewer=None):
         )[:3]
         found, requests, versions = {}, [], set()
         jobs = [
-            (risk, category)
+            (risk, category, domain)
             for risk in selected
-            for category in ("RESEARCH", "INCIDENT", "TECHNICAL", "PROJECT_POLICY")
+            for category, domain in (
+                ("RESEARCH", None),
+                ("INCIDENT", None),
+                ("TECHNICAL", None),
+                ("PROJECT_POLICY", None),
+                ("ALL", "MANUFACTURING"),
+                ("ALL", "AGENTIC"),
+            )
         ]
         semaphore = asyncio.Semaphore(4)
 
         async def retrieve(job):
-            risk, category = job
+            risk, category, domain = job
             async with semaphore:
                 query = {
                     "query": risk["query_en"],
                     "target_type": analysis["target_type"],
-                    "limit": 2 if category == "PROJECT_POLICY" else 1,
+                    "limit": 2 if category == "PROJECT_POLICY" or domain else 1,
                     "source_type": category,
                     "risk_type": risk["risk_key"],
                 }
+                if domain:
+                    query["evidence_domain"] = domain
                 return await search(query) if search else await http_search(client, query)
 
         base = str(settings.mcp_url).removesuffix("/").removesuffix("/mcp")
         async with httpx.AsyncClient(base_url=base, timeout=10) as client:
             results = await asyncio.gather(*(retrieve(job) for job in jobs))
-        for (risk, category), result in zip(jobs, results, strict=True):
+        for (risk, category, domain), result in zip(jobs, results, strict=True):
             versions.add(result["index_version"])
             for source in result["results"]:
                 if (
-                    source["source_type"] != category
+                    (category != "ALL" and source["source_type"] != category)
+                    or (domain and domain not in source.get("evidence_domains", []))
                     or risk["risk_key"] not in source["risk_types"]
                 ):
                     raise ValueError(
@@ -239,12 +254,16 @@ async def design_qa(settings, body, model=None, search=None, reviewer=None):
                         "adopted_adapters",
                     )
                 }
-                found[source["document_id"]]["matched_text"] = source["matched_text"][:700]
+                found[source["document_id"]]["matched_text"] = source["matched_text"][:1200]
+                found[source["document_id"]]["evidence_domains"] = source.get(
+                    "evidence_domains", []
+                )
             requests.append(
                 {
                     "query": risk["query_en"],
                     "risk_key": risk["risk_key"],
                     "source_type": category,
+                    "evidence_domain": domain,
                     "index_version": result["index_version"],
                     "document_ids": [s["document_id"] for s in result["results"]],
                 }
@@ -254,7 +273,17 @@ async def design_qa(settings, body, model=None, search=None, reviewer=None):
         if len(versions) > 1:
             raise ValueError("Knowledge index changed during design; retry")
         trace.append({"stage": "RETRIEVE_EVIDENCE", "searches": requests})
-        return {"sources": list(found.values()), "retrieval": requests, "selected_risks": selected}
+        morphology = build_field(body.target, analysis, selected)
+        mapped = {c["risk_key"] for c in morphology["candidates"]}
+        morphology["unmapped_risks"] = [
+            r["risk_key"] for r in selected if r["risk_key"] not in mapped
+        ]
+        return {
+            "sources": list(found.values()),
+            "retrieval": requests,
+            "selected_risks": [r for r in selected if r["risk_key"] in mapped],
+            "morphology": morphology,
+        }
 
     def proposal_context(state):
         analysis = copy.deepcopy(state["analysis"])
@@ -267,6 +296,7 @@ async def design_qa(settings, body, model=None, search=None, reviewer=None):
                 risk.pop("test_data", None)
         return {
             "target": body.target,
+            "morphology": state["morphology"],
             "analysis": analysis,
             "sources": state["sources"],
             "selected_risks": risks,
@@ -353,29 +383,8 @@ async def design_qa(settings, body, model=None, search=None, reviewer=None):
         trace.append({"stage": "VALIDATE_PROPOSALS"})
         return {}
 
-    async def review_node(state):
-        if not state["proposals"]:
-            trace.append({"stage": "CRITIQUE_TEST_PLAN", "skipped": "NO_PROPOSALS"})
-            return {"reviews": []}
-        context = {**proposal_context(state), "proposals": state["proposals"]}
-        cited = {sid for proposal in state["proposals"] for sid in proposal["evidence_ids"]}
-        context["sources"] = [s for s in state["sources"] if s["document_id"] in cited]
-        context["analysis"] = {
-            k: state["analysis"][k]
-            for k in ("target_type", "write_tools", "capabilities", "declared_policies")
-        }
-        context["evidence_checks"] = {
-            proposal["proposal_id"]: evidence_options(
-                [
-                    risk
-                    for risk in state["selected_risks"]
-                    if risk["risk_key"] == proposal["risk_key"]
-                ],
-                [s for s in context["sources"] if s["document_id"] in proposal["evidence_ids"]],
-                body.target["simulation_adapter"],
-            )[proposal["risk_key"]]
-            for proposal in state["proposals"]
-        }
+    async def manufacturing_node(state):
+        context = proposal_context(state)
         blocked, eligible = [], []
         for proposal in state["proposals"]:
             issue = review_prerequisites(proposal, context)
@@ -383,52 +392,42 @@ async def design_qa(settings, body, model=None, search=None, reviewer=None):
                 blocked.append(issue)
             else:
                 eligible.append(proposal)
-        eligible_ids = {proposal["proposal_id"] for proposal in eligible}
-        eligible_risks = {proposal["risk_key"] for proposal in eligible}
-        eligible_sources = {sid for proposal in eligible for sid in proposal["evidence_ids"]}
-        context["evidence_checks"] = {
-            key: value for key, value in context["evidence_checks"].items() if key in eligible_ids
-        }
-        context["sources"] = [s for s in context["sources"] if s["document_id"] in eligible_sources]
-        context["selected_risks"] = [
-            risk for risk in context["selected_risks"] if risk["risk_key"] in eligible_risks
+        rows = await review_stage("MANUFACTURING", eligible, context, reviewer, generative)
+        trace.append({"stage": "REVIEW_MANUFACTURING", "reviews": rows})
+        return {"reviews": blocked, "manufacturing_reviews": rows}
+
+    async def agentic_node(state):
+        first = {r["proposal_id"]: r for r in state["manufacturing_reviews"]}
+        eligible = [
+            p
+            for p in state["proposals"]
+            if first.get(p["proposal_id"], {}).get("decision") == "ACCEPT_FOR_BINDING"
         ]
-        context["evidence_options"] = {
-            key: value
-            for key, value in context["evidence_options"].items()
-            if key in eligible_risks
-        }
-        context["proposals"] = [
-            {
-                **{
-                    k: v
-                    for k, v in proposal.items()
-                    if k not in {"failure_mode", "expected_behavior", "test_data_json"}
-                },
-                "unsafe_behavior_to_detect": proposal["failure_mode"],
-                "expected_safe_behavior": proposal["expected_behavior"],
-                "proposed_situation": scenario_preview(proposal, body.sample_data),
-            }
-            for proposal in eligible
-        ]
-        rows = []
-        if eligible:
-            reviewed = Reviews.model_validate(await reviewer.generate(REVIEW_PROMPT, context))
-            rows = [
-                {
-                    **r.verdict(),
-                    "method": "SEMANTIC_RUBRIC_V1" if generative else "OFFLINE_METADATA_CHECK",
-                }
-                for r in reviewed.reviews
-            ]
-            if len(rows) != len(eligible) or {r["proposal_id"] for r in rows} != {
-                p["proposal_id"] for p in eligible
-            }:
-                raise ModelError("DESIGN_REVIEW_COVERAGE_MISMATCH")
-        by_id = {row["proposal_id"]: row for row in rows + blocked}
-        rows = [by_id[p["proposal_id"]] for p in state["proposals"]]
-        trace.append({"stage": "CRITIQUE_TEST_PLAN", "reviews": rows})
-        return {"reviews": rows}
+        rows = await review_stage(
+            "AGENTIC", eligible, proposal_context(state), reviewer, generative
+        )
+        second = {r["proposal_id"]: r for r in rows}
+        combined = {r["proposal_id"]: r for r in state["reviews"]}
+        method = "TWO_STAGE_SEMANTIC_V1" if generative else "OFFLINE_METADATA_CHECK"
+        for pid, manufacturing in first.items():
+            stages = [manufacturing]
+            if pid in second:
+                stages.append(second[pid])
+            else:
+                stages.append(
+                    {
+                        "proposal_id": pid,
+                        "stage": "AGENTIC",
+                        "status": "SKIPPED",
+                        "decision": "NEEDS_INFORMATION",
+                        "method": method,
+                        "evidence_ids": [],
+                        "reasons": ["제조업 검토 통과 후 진행합니다."],
+                    }
+                )
+            combined[pid] = combine_stages(pid, stages, method)
+        trace.append({"stage": "REVIEW_AGENTIC", "reviews": rows})
+        return {"reviews": [combined[p["proposal_id"]] for p in state["proposals"]]}
 
     graph = StateGraph(DesignState)
     for name, node in (
@@ -436,16 +435,18 @@ async def design_qa(settings, body, model=None, search=None, reviewer=None):
         ("retrieve", retrieve_node),
         ("propose", propose_node),
         ("validate", validate_node),
-        ("review", review_node),
+        ("manufacturing_review", manufacturing_node),
+        ("agentic_review", agentic_node),
     ):
         graph.add_node(name, node)
     graph.add_edge(START, "analyze")
     for left, right in (("analyze", "retrieve"), ("retrieve", "propose"), ("propose", "validate")):
         graph.add_edge(left, right)
-    graph.add_edge("validate", "review")
-    graph.add_edge("review", END)
+    graph.add_edge("validate", "manufacturing_review")
+    graph.add_edge("manufacturing_review", "agentic_review")
+    graph.add_edge("agentic_review", END)
     compiled = graph.compile()
-    result = await asyncio.wait_for(compiled.ainvoke({}), timeout=45)
+    result = await asyncio.wait_for(compiled.ainvoke({}), timeout=80)
     return {
         "design_id": ctx.run_id,
         "version": "4.0.0" if generative else "3.0.0",
@@ -456,15 +457,19 @@ async def design_qa(settings, body, model=None, search=None, reviewer=None):
             ).encode()
         ).hexdigest(),
         "reviews": result["reviews"],
-        "strategy": "PLAN_THEN_CRITIQUE_THEN_CODE_BINDING",
+        "strategy": "MORPHOLOGY_THEN_TWO_STAGE_REVIEW",
+        "morphology": result["morphology"],
         "risk_library_version": library["version"],
         "risk_library_hash": library_hash,
         "model_kind": "injected_model" if injected and generative else mode,
         "data_generation": "MODEL_AUTHORED_PATCHES" if generative else "REGISTERED_RECIPES",
         "generation_model": getattr(model, "model", None),
         "review_model": getattr(reviewer, "model", None),
-        "review_method": "SEMANTIC_RUBRIC_V1" if generative else "OFFLINE_METADATA_CHECK",
-        "review_prompt_version": hashlib.sha256(REVIEW_PROMPT.encode()).hexdigest(),
+        "review_method": "TWO_STAGE_SEMANTIC_V1" if generative else "OFFLINE_METADATA_CHECK",
+        "review_pipeline": "MANUFACTURING_THEN_AGENTIC_V1",
+        "review_prompt_version": hashlib.sha256(
+            (REVIEW_PROMPT + "".join(STAGE_PROMPTS.values())).encode()
+        ).hexdigest(),
         "generation_schema_version": hashlib.sha256(
             json.dumps(generation_contract["scenario_schema"], sort_keys=True).encode()
         ).hexdigest(),
@@ -481,7 +486,7 @@ async def design_qa(settings, body, model=None, search=None, reviewer=None):
         "trace": trace,
         "llm_usage": usage_record.get("llm_usage", {}),
         "limitations": [
-            "출처 식별자 확인은 의미적 적합성 검증이 아닙니다.",
+            "오프라인은 출처 태그 검사입니다. LLM 검토도 안전 보증이 아닌 검토 의견입니다.",
             "분류·도구 효과·정책은 제공된 메타데이터 기준입니다.",
         ],
     }

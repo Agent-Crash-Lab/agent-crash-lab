@@ -33,7 +33,7 @@ public class KnowledgeSearch {
         this.sessions = sessions;
     }
 
-    public record Query(@NotBlank @Size(max=1000) String query, String targetType, Integer limit, String sourceType, String riskType) {}
+    public record Query(@NotBlank @Size(max=1000) String query, String targetType, Integer limit, String sourceType, String riskType, String evidenceDomain) {}
 
     @SuppressWarnings("unchecked")
     public Map<String,Object> search(String query, String targetType, Integer limit) {
@@ -42,6 +42,13 @@ public class KnowledgeSearch {
 
     @SuppressWarnings("unchecked")
     public Map<String,Object> search(String query, String targetType, Integer limit, String sourceType, String riskType) {
+        return search(query, targetType, limit, sourceType, riskType, null);
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String,Object> search(String query, String targetType, Integer limit, String sourceType, String riskType, String evidenceDomain) {
+        if (evidenceDomain != null && !Set.of("MANUFACTURING", "AGENTIC").contains(evidenceDomain))
+            throw ApiException.badRequest("VALIDATION_ERROR", "Invalid evidence domain");
         String kind = targetType == null ? "COMMON" : targetType;
         String category = sourceType == null ? "ALL" : sourceType;
         if (!Set.of("ALL","RESEARCH","INCIDENT","TECHNICAL","PROJECT_POLICY").contains(category)
@@ -56,6 +63,7 @@ public class KnowledgeSearch {
             body.put("query", query); body.put("target_type", kind); body.put("limit", count);
             body.put("source_type", category);
             if (riskType != null) body.put("risk_type", riskType);
+            if (evidenceDomain != null) body.put("evidence_domain", evidenceDomain);
             return this.rest.post().uri("/internal/knowledge/search")
                     .body(body)
                     .retrieve().body(Map.class);
@@ -69,12 +77,12 @@ public class KnowledgeSearch {
     Map<String,Object> publicSearch(@RequestHeader(value="Authorization",required=false) String authorization,
                                     @Valid @RequestBody Query query) {
         this.sessions.require(authorization);
-        return search(query.query(), query.targetType(), query.limit(), query.sourceType(), query.riskType());
+        return search(query.query(), query.targetType(), query.limit(), query.sourceType(), query.riskType(), query.evidenceDomain());
     }
 
     @PostMapping("/internal/knowledge/search")
     Map<String,Object> internalSearch(@Valid @RequestBody Query query) {
-        return search(query.query(), query.targetType(), query.limit(), query.sourceType(), query.riskType());
+        return search(query.query(), query.targetType(), query.limit(), query.sourceType(), query.riskType(), query.evidenceDomain());
     }
 
     @GetMapping("/api/knowledge/status")

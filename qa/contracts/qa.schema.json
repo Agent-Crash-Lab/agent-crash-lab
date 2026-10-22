@@ -573,7 +573,8 @@
           "enum": [
             "CODE_PREREQUISITES",
             "SEMANTIC_RUBRIC_V1",
-            "OFFLINE_METADATA_CHECK"
+            "OFFLINE_METADATA_CHECK",
+            "TWO_STAGE_SEMANTIC_V1"
           ]
         },
         "assessment": {
@@ -606,6 +607,13 @@
                 "UNCLEAR"
               ]
             }
+          }
+        },
+        "stages": {
+          "type": "array",
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/stage_review"
           }
         }
       }
@@ -661,6 +669,99 @@
               }
             },
             "additionalProperties": false
+          }
+        }
+      }
+    },
+    "stage_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proposal_id",
+        "stage",
+        "status",
+        "decision",
+        "reasons",
+        "method",
+        "evidence_ids"
+      ],
+      "properties": {
+        "proposal_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "decision": {
+          "enum": [
+            "ACCEPT_FOR_BINDING",
+            "NEEDS_INFORMATION",
+            "REJECT"
+          ]
+        },
+        "reasons": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "method": {
+          "enum": [
+            "CODE_PREREQUISITES",
+            "SEMANTIC_RUBRIC_V1",
+            "OFFLINE_METADATA_CHECK",
+            "TWO_STAGE_SEMANTIC_V1"
+          ]
+        },
+        "assessment": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "policy_alignment",
+            "evidence_relevance",
+            "scenario_consistency"
+          ],
+          "properties": {
+            "policy_alignment": {
+              "enum": [
+                "ALIGNED",
+                "CONFLICT",
+                "UNCLEAR"
+              ]
+            },
+            "evidence_relevance": {
+              "enum": [
+                "SUPPORTED",
+                "IRRELEVANT",
+                "UNCLEAR"
+              ]
+            },
+            "scenario_consistency": {
+              "enum": [
+                "COHERENT",
+                "CONTRADICTORY",
+                "UNCLEAR"
+              ]
+            }
+          }
+        },
+        "stage": {
+          "enum": [
+            "MANUFACTURING",
+            "AGENTIC"
+          ]
+        },
+        "status": {
+          "enum": [
+            "COMPLETED",
+            "SKIPPED"
+          ]
+        },
+        "evidence_ids": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "type": "string",
+            "minLength": 1
           }
         }
       }

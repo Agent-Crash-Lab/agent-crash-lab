@@ -397,6 +397,7 @@ def qa_report(run):
             "title": case.get("hypothesis") or run.get("test_id"),
             "business_impact": strategy.get("business_impact"),
             "design_review": strategy.get("review"),
+            "morphology": basis.get("morphology"),
             "design_repair": basis.get("repair"),
             "business_input": case.get("business_input") or run.get("request"),
             "condition_changes": basis.get("changes", []),

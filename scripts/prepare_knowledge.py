@@ -1,7 +1,9 @@
 """Download only the four versioned PDF sources approved in the corpus manifest."""
 
+import argparse
 import hashlib
 import json
+import sys
 import urllib.request
 from pathlib import Path
 
@@ -9,6 +11,36 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def main():
+    parser = argparse.ArgumentParser(
+        description="Download pinned PDFs or add a reviewed source summary"
+    )
+    parser.add_argument(
+        "--record", type=Path, help="Register one reviewed English JSON source record"
+    )
+    parser.add_argument(
+        "--replace",
+        action="store_true",
+        help="Explicitly replace an existing source version",
+    )
+    args = parser.parse_args()
+    if args.record:
+        sys.path.insert(0, str(ROOT))
+        from knowledge.catalog import add_record
+
+        risks = json.loads((ROOT / "qa/knowledge/risk-library.json").read_text())
+        try:
+            result = add_record(
+                ROOT / "qa/knowledge/corpus.json",
+                args.record,
+                {r["risk_key"] for r in risks["risks"]},
+                replace=args.replace,
+            )
+        except (ValueError, TypeError, OSError) as exc:
+            parser.error(str(exc))
+        print(json.dumps(result))
+        return
+    if args.replace:
+        parser.error("--replace requires --record")
     corpus = json.loads((ROOT / "qa/knowledge/corpus.json").read_text())
     notes = json.loads((ROOT / "qa/knowledge/literature.json").read_text())
     sources = {s["source_id"]: s for s in notes["sources"]}

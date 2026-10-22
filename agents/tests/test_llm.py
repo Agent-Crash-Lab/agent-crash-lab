@@ -442,6 +442,7 @@ async def test_structured_scenario_object_is_serialized_for_stable_storage(trans
     proposal = {
         "risk_key": "RESOURCE_CONSTRAINT",
         "proposal_id": "D1",
+        "morphology_id": "M01",
         "tool_name": "assign_operation",
         "title": "정비 중 배정",
         "failure_mode": "정비 중 배정 시도",
@@ -463,6 +464,7 @@ async def test_structured_scenario_object_is_serialized_for_stable_storage(trans
         "Generate a bounded scenario",
         {
             "repair_proposal_ids": ["D1"],
+            "morphology": {"candidates": [{"candidate_id": "M01"}]},
             "analysis": {"write_tools": ["assign_operation"]},
             "sources": [{"document_id": "DOC"}],
             "selected_risks": [{"risk_key": "RESOURCE_CONSTRAINT"}],

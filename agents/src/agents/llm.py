@@ -144,6 +144,11 @@ class StructuredModel:
                         fields["risk_key"]["enum"] = risks
                     if citations:
                         fields["evidence_ids"]["items"]["enum"] = citations
+                    if "morphology_id" in fields:
+                        fields["morphology_id"]["enum"] = [
+                            c["candidate_id"]
+                            for c in context.get("morphology", {}).get("candidates", [])
+                        ]
         if "reviews" in response_schema.get("properties", {}):
             proposal_ids = [proposal["proposal_id"] for proposal in context.get("proposals", [])]
             if proposal_ids:
@@ -154,6 +159,12 @@ class StructuredModel:
                 fields = definition.get("properties", {})
                 if proposal_ids and {"proposal_id", "policy_alignment"} <= fields.keys():
                     fields["proposal_id"]["enum"] = proposal_ids
+                    if "evidence_ids" in fields and context.get("review_stage"):
+                        fields["evidence_ids"]["items"]["enum"] = [
+                            source["document_id"]
+                            for source in context.get("sources", [])
+                            if context["review_stage"] in source.get("evidence_domains", [])
+                        ]
         schema = json.dumps(response_schema, ensure_ascii=False)
         bound = len((prompt + data + schema).encode("utf-8")) + 1024
         if bound > 64000:

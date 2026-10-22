@@ -65,7 +65,8 @@ def status():
 
 
 def search(
-    embedder, query, target_type="COMMON", limit=3, source_type="ALL", risk_type=None
+    embedder, query, target_type="COMMON", limit=3, source_type="ALL", risk_type=None,
+    evidence_domain=None,
 ):
     embedding = vector_literal(embedder.encode([query], query=True)[0])
     with connection() as db:
@@ -82,7 +83,8 @@ def search(
           JOIN knowledge.document d ON d.id=p.document_id
           WHERE (%s='COMMON' OR %s=ANY(d.roles) OR 'COMMON'=ANY(d.roles))
           AND (%s='ALL' OR d.metadata->>'source_type'=%s)
-          AND (%s::text IS NULL OR COALESCE(d.metadata->'risk_types','[]'::jsonb) ? %s::text)"""
+          AND (%s::text IS NULL OR COALESCE(d.metadata->'risk_types','[]'::jsonb) ? %s::text)
+          AND (%s::text IS NULL OR COALESCE(d.metadata->'evidence_domains','[]'::jsonb) ? %s::text)"""
         filters = (
             embedding,
             target_type,
@@ -91,6 +93,8 @@ def search(
             source_type,
             risk_type,
             risk_type,
+            evidence_domain,
+            evidence_domain,
         )
         vector_hits = db.execute(
             select + " ORDER BY c.embedding <=> %s::vector,c.id LIMIT 30",
@@ -128,6 +132,7 @@ def search(
                 "scope": meta["scope"],
                 "source_type": meta.get("source_type", "REFERENCE"),
                 "risk_types": meta.get("risk_types", []),
+                "evidence_domains": meta.get("evidence_domains", []),
                 "claim_role": meta.get("claim_role", "REFERENCE_CONTEXT"),
                 "policy_status": meta.get("policy_status"),
                 "adopted_adapters": meta.get("adopted_adapters", []),
@@ -148,6 +153,7 @@ def search(
         "target_type": target_type,
         "source_type": source_type,
         "risk_type": risk_type,
+        "evidence_domain": evidence_domain,
         "language": "en",
         "results": results,
         "index_version": state["manifest_hash"],

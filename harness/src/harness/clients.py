@@ -82,7 +82,7 @@ class AgentClient(_Http):
         return await self._send("POST", "/internal/qa/analyze", json=body)
 
     async def design(self, body: dict) -> dict:
-        return await self._send("POST", "/internal/qa/design", json=body, timeout=55)
+        return await self._send("POST", "/internal/qa/design", json=body, timeout=85)
 
     async def start(self, body: dict) -> dict:
         return await self._send("POST", "/internal/agent-runs", json=body)

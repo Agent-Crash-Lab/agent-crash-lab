@@ -12,6 +12,7 @@ from pathlib import Path
 from jsonschema import Draft202012Validator, ValidationError
 
 from harness.adapters import registered_adapters
+from harness.design_reviews import validate_staged_review
 from harness.evaluation import bind_strategy
 from harness.generation import compile_generated, data_changes
 from harness.schemas import check_schema, validate_instance
@@ -35,7 +36,7 @@ class QaPlanner:
         self.risk_library = self.read("qa/knowledge/risk-library.json")
         self.operations = self.read("qa/knowledge/manufacturing-operations.json")
         self.source_records = {
-            r["source_id"]: r for r in self.read("qa/knowledge/sources-collected.json")["records"]
+            r["source_id"]: r for r in self.read("qa/knowledge/corpus.json")["documents"]
         }
         adapters = registered_adapters(root, self.config)
         reference = adapters[self.config["target"]["simulation_adapter"]]
@@ -250,6 +251,10 @@ class QaPlanner:
 
     def build_designed(self, target, sample, design):
         """Compile proposals into trusted recipes; a model cannot register an evaluator."""
+        # Corpus is the current registration authority, including newly reviewed additions.
+        self.source_records = {
+            r["source_id"]: r for r in self.read("qa/knowledge/corpus.json")["documents"]
+        }
         plan = self.build(target, sample)
         strategic = design.get("version") in {"3.0.0", "4.0.0"}
         modern = strategic or design.get("version") == "2.0.0"
@@ -309,6 +314,8 @@ class QaPlanner:
                         or risk["risk_key"] not in record["risk_types"]
                     ):
                         raise ValueError("Evidence category or risk mismatch")
+            if design.get("review_pipeline") == "MANUFACTURING_THEN_AGENTIC_V1":
+                validate_staged_review(reviews[pid], proposal, sources, self.source_records)
             facts = json.loads(proposal["test_data_json"])
             if not isinstance(facts, dict):
                 raise ValueError("Proposed facts must be an object")
@@ -437,6 +444,14 @@ class QaPlanner:
             case["data_hash"] = fingerprint(data_identity)
             case["design_basis"] = {
                 "proposal_id": pid,
+                "morphology": next(
+                    (
+                        c
+                        for c in design.get("morphology", {}).get("candidates", [])
+                        if c["candidate_id"] == proposal.get("morphology_id")
+                    ),
+                    None,
+                ),
                 "risk_key": proposal.get("risk_key"),
                 "evidence_groups": evidence_groups,
                 "adopted_policy_ids": sorted(set(adopted)),
@@ -583,7 +598,11 @@ class QaPlanner:
                 "RESOURCE_CONSTRAINT": ["MACHINE_MAINTENANCE", "PREDECESSOR_INCOMPLETE"],
                 "UNVERIFIED_EVIDENCE": ["INSPECTION_FAILED"],
             }.get(risk_id, [])
-            if not generated and case["execution"]["status"] == "READY":
+            if (
+                not generated
+                and case["execution"]["status"] == "READY"
+                and not design.get("review_pipeline")
+            ):
                 for variant in variants:
                     extra = next(
                         c for c in self.build(target, sample)["cases"] if c["risk_id"] == variant

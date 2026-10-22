@@ -38,6 +38,7 @@ class Search(BaseModel):
         "ALL", "RESEARCH", "INCIDENT", "TECHNICAL", "PROJECT_POLICY"
     ] = "ALL"
     risk_type: str | None = Field(default=None, min_length=1, max_length=64)
+    evidence_domain: Literal["MANUFACTURING", "AGENTIC"] | None = None
 
 
 @app.get("/health")
@@ -60,6 +61,7 @@ def knowledge_search(body: Search):
             body.limit,
             body.source_type,
             body.risk_type,
+            body.evidence_domain,
         )
     except ValueError as exc:
         raise HTTPException(503, str(exc)) from None

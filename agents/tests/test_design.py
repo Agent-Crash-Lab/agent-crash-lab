@@ -32,7 +32,11 @@ async def found(query):
     eligible = [
         r
         for r in rows
-        if r["source_type"] == query["source_type"]
+        if (query["source_type"] == "ALL" or r["source_type"] == query["source_type"])
+        and (
+            not query.get("evidence_domain")
+            or query["evidence_domain"] in r.get("evidence_domains", [])
+        )
         and query["risk_type"] in r["risk_types"]
         and (
             query["target_type"] == "COMMON"
@@ -55,6 +59,7 @@ async def found(query):
                 "matched_text": r["text_en"],
                 "source_type": r["source_type"],
                 "risk_types": r["risk_types"],
+                "evidence_domains": r.get("evidence_domains", []),
                 "claim_role": r["claim_role"],
                 "policy_status": r.get("policy_status"),
                 "adopted_adapters": r.get("adopted_adapters", []),
@@ -69,7 +74,7 @@ async def test_design_uses_target_features_and_records_queries_citations_and_sta
     result = await design_qa(settings, reference(), search=found)
     assert result["analysis"]["target_type"] == "PURCHASE"
     assert result["analysis"]["write_tools"] == ["create_purchase_order"]
-    assert len(result["retrieval"]) == 12
+    assert len(result["retrieval"]) == 18
     duplicate = next(p for p in result["proposals"] if p["risk_key"] == "AMBIGUOUS_WRITE")
     assert duplicate["data_strategy"] == "SHORTAGE_BOUNDARY"
     assert "PROJECT-IDEMPOTENCY:p0" in duplicate["evidence_ids"]
@@ -83,7 +88,8 @@ async def test_design_uses_target_features_and_records_queries_citations_and_sta
         "RETRIEVE_EVIDENCE",
         "PROPOSE_TESTS",
         "VALIDATE_PROPOSALS",
-        "CRITIQUE_TEST_PLAN",
+        "REVIEW_MANUFACTURING",
+        "REVIEW_AGENTIC",
     ]
     assert result["model_kind"] == "offline" and not result["llm_usage"]
 
@@ -194,6 +200,12 @@ async def test_independent_critic_can_withhold_a_well_formed_proposal(settings):
                     {
                         "proposal_id": p["proposal_id"],
                         "policy_alignment": "ALIGNED",
+                        "evidence_ids": [
+                            s["document_id"]
+                            for s in context["sources"]
+                            if context["review_stage"] in s.get("evidence_domains", [])
+                            and s["document_id"] in p["evidence_ids"]
+                        ][:1],
                         "evidence_relevance": "IRRELEVANT",
                         "scenario_consistency": "COHERENT",
                         "reasons": ["문헌의 업무 적용 범위를 재검토하세요."],
@@ -204,7 +216,7 @@ async def test_independent_critic_can_withhold_a_well_formed_proposal(settings):
 
     result = await design_qa(settings, reference(), search=found, reviewer=Critic())
     assert all(r["decision"] == "REJECT" for r in result["reviews"])
-    assert result["strategy"] == "PLAN_THEN_CRITIQUE_THEN_CODE_BINDING"
+    assert result["strategy"] == "MORPHOLOGY_THEN_TWO_STAGE_REVIEW"
     assert not result["llm_usage"]
 
 
@@ -279,3 +291,69 @@ def test_review_criteria_determine_decision_without_a_model_supplied_verdict(
     )
     assert item.verdict()["decision"] == decision
     assert item.verdict()["assessment"]["policy_alignment"] == alignment
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("rejected_stage", ["MANUFACTURING", "AGENTIC"])
+async def test_two_gates_are_independent_and_a_failed_gate_blocks_binding(settings, rejected_stage):
+    from agents.qa.review import OfflineReviewer
+
+    seen = []
+
+    class Critic(OfflineReviewer):
+        async def generate(self, prompt, context):
+            stage = context["review_stage"]
+            seen.append(stage)
+            assert "manufacturing_reviews" not in context
+            assert all(
+                stage in s.get("evidence_domains", []) or s["source_type"] == "PROJECT_POLICY"
+                for s in context["sources"]
+            )
+            result = await super().generate(prompt, context)
+            if stage == rejected_stage:
+                for row in result["reviews"]:
+                    row["evidence_relevance"] = "IRRELEVANT"
+                    row["reasons"] = ["제시한 문단이 이 단계의 위험을 뒷받침하지 않습니다."]
+            return result
+
+    result = await design_qa(settings, reference(), search=found, reviewer=Critic())
+    assert seen == (
+        ["MANUFACTURING"] if rejected_stage == "MANUFACTURING" else ["MANUFACTURING", "AGENTIC"]
+    )
+    assert all(r["decision"] == "REJECT" for r in result["reviews"])
+    for row in result["reviews"]:
+        assert [s["stage"] for s in row["stages"]] == ["MANUFACTURING", "AGENTIC"]
+        assert row["stages"][1]["status"] == (
+            "SKIPPED" if rejected_stage == "MANUFACTURING" else "COMPLETED"
+        )
+
+
+@pytest.mark.asyncio
+async def test_missing_manufacturing_evidence_is_withheld_without_model_calls(settings):
+    async def missing(query):
+        result = await found(query)
+        result["results"] = [
+            s for s in result["results"] if "MANUFACTURING" not in s.get("evidence_domains", [])
+        ]
+        return result
+
+    class NeverReview:
+        async def generate(self, *args):
+            raise AssertionError("Missing domain evidence must block paid review")
+
+    result = await design_qa(settings, reference(), search=missing, reviewer=NeverReview())
+    assert all(r["decision"] == "NEEDS_INFORMATION" for r in result["reviews"])
+
+
+@pytest.mark.asyncio
+async def test_reviewer_cannot_cite_the_other_gate_or_invent_evidence(settings):
+    from agents.qa.review import OfflineReviewer
+
+    class Misattributing(OfflineReviewer):
+        async def generate(self, prompt, context):
+            result = await super().generate(prompt, context)
+            result["reviews"][0]["evidence_ids"] = ["RES-AGENT-SAFETY:p0"]
+            return result
+
+    with pytest.raises(ModelError, match="REVIEW_EVIDENCE_MISMATCH"):
+        await design_qa(settings, reference(), search=found, reviewer=Misattributing())

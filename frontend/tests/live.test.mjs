@@ -19,6 +19,16 @@ test('render adapter preserves raw evidence and leaves unknown nodes unmapped',(
   assert.equal(sceneEvents([{event_type:'NEW_EVENT',node_id:'unknown'}])[0].node_id,'unknown');
   assert.equal(escapeHtml('<script>"&'), '&lt;script&gt;&quot;&amp;');
 });
+test('two review gates remain distinct and escape their evidence and reasons',async()=>{
+  const {reviewMarkup}=await import('../dist/live-api.js');
+  const html=reviewMarkup({decision:'NEEDS_INFORMATION',method:'TWO_STAGE_SEMANTIC_V1',stages:[
+    {stage:'MANUFACTURING',status:'COMPLETED',decision:'ACCEPT_FOR_BINDING',assessment:{evidence_relevance:'SUPPORTED'},reasons:['제조업 제약 근거'],evidence_ids:['<script>']},
+    {stage:'AGENTIC',status:'COMPLETED',decision:'NEEDS_INFORMATION',assessment:{scenario_consistency:'UNCLEAR'},reasons:['도구와 실패 경로 연결 필요'],evidence_ids:['agent:p0']}
+  ]});
+  assert.match(html,/1\. 제조업 위험/);assert.match(html,/2\. Agent 행동 위험/);
+  assert.match(html,/도구와 실패 경로 연결 필요/);assert.doesNotMatch(html,/<script>/);
+});
+
 test('public requests send only session auth and do not retry ambiguous writes',async()=>{
   const original=globalThis.fetch;let calls=0;
   try {

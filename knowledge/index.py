@@ -98,6 +98,8 @@ def main():
     print(f"Embedded {len(pending)} changed children; reused {len(children) - len(pending)}", flush=True)
     with connection() as db:
         db.execute("SELECT pg_advisory_xact_lock(7812345)")
+        if manifest_path.read_bytes() != raw:
+            raise ValueError("Corpus changed during indexing; rerun with the current manifest")
         db.execute("DELETE FROM knowledge.document")
         with db.cursor() as cur:
             cur.executemany(

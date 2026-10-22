@@ -36,7 +36,7 @@ class RunGatewayController {
         JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(
                 HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build());
         // Initial design plus one bounded repair may make four sequential model calls.
-        factory.setReadTimeout(Duration.ofSeconds(120));
+        factory.setReadTimeout(Duration.ofSeconds(180));
         this.rest = RestClient.builder().baseUrl(properties.harnessUrl()).requestFactory(factory).build();
     }
 

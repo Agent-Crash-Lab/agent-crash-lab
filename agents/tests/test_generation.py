@@ -33,6 +33,12 @@ class NovelModel:
         item = next(p for p in base["proposals"] if p["risk_key"] == "RESOURCE_CONSTRAINT")
         item.update(
             proposal_id="NOVEL_AFTER_APPROVAL",
+            morphology_id=next(
+                c["candidate_id"]
+                for c in context["morphology"]["candidates"]
+                if c["business_condition"] == "MAINTENANCE"
+                and c["phase"] == "AFTER_APPROVAL_BEFORE_WRITE"
+            ),
             data_strategy="MODEL_GENERATED",
             title="승인 직후 정비·선행 공정 지연이 동시에 발생",
             test_data_json=json.dumps(
@@ -158,6 +164,24 @@ async def test_no_applicable_risks_skips_generation_review_and_search(settings):
 
 
 @pytest.mark.asyncio
+async def test_unmapped_morphological_dimensions_do_not_send_an_empty_enum_to_the_model(
+    settings, monkeypatch
+):
+    import agents.qa.design as module
+
+    class NeverCalled:
+        async def generate(self, *args):
+            raise AssertionError("No supported combination should call a model")
+
+    monkeypatch.setattr(module, "build_field", lambda *args: {"candidates": []})
+    result = await design_qa(
+        settings, production(), model=NeverCalled(), reviewer=NeverCalled(), search=found
+    )
+    assert result["proposals"] == result["reviews"] == []
+    assert result["morphology"]["unmapped_risks"]
+
+
+@pytest.mark.asyncio
 async def test_generated_test_without_any_citation_is_rejected_before_review(settings):
     from pydantic import ValidationError
 
@@ -200,7 +224,7 @@ async def test_configured_live_design_constructs_both_models_with_valid_budgets(
 
     monkeypatch.setattr(module, "StructuredModel", model_factory)
     result = await design_qa(settings, production(), search=found)
-    assert calls == [(module.GeneratedProposals, 4096), (module.Reviews, 1024)]
+    assert calls == [(module.GeneratedProposals, 4096), (module.StageReviews, 1024)]
     assert result["generation_model"] == "gpt-4o-mini-2024-07-18"
     assert result["review_model"] == (review_model or "gpt-4o-mini-2024-07-18")
     assert len(result["generation_prompt_version"]) == 64
@@ -265,7 +289,8 @@ async def test_review_sees_only_eligible_materialized_proposals(settings):
 
     class InspectReview(OfflineReviewer):
         async def generate(self, prompt, context):
-            assert set(context["evidence_checks"]) == {"NOVEL_AFTER_APPROVAL"}
+            assert "evidence_options" not in context
+            assert context["review_stage"] in {"MANUFACTURING", "AGENTIC"}
             assert len(context["proposals"]) == 1
             proposal = context["proposals"][0]
             assert "test_data_json" not in proposal
@@ -359,6 +384,7 @@ def test_generation_schema_pins_business_identity_and_excludes_transaction_recor
     example = json.loads((ROOT / "qa/examples/manufacturing-targets.json").read_text())[kind]
     if kind == "PURCHASE":
         from test_design import reference
+
         body = reference()
         target, sample = body.target, body.sample_data
     else:
@@ -376,3 +402,32 @@ def test_generation_schema_pins_business_identity_and_excludes_transaction_recor
         validator.validate(changed)
     assert "initial_approvals" not in schema["properties"]["initial_state_patch"]["properties"]
     assert schema["additionalProperties"] is False
+
+
+@pytest.mark.asyncio
+async def test_morphological_label_must_match_authored_condition_and_phase(settings):
+    class Contradictory(NovelModel):
+        async def generate(self, prompt, context):
+            result = await super().generate(prompt, context)
+            p = result["proposals"][0]
+            data = json.loads(p["test_data_json"])
+            data["interventions"] = []  # Label says post-approval maintenance; facts do not.
+            p["test_data_json"] = json.dumps(data)
+            return result
+
+    class NeverReview:
+        async def generate(self, *args):
+            raise AssertionError("Contradictory morphology must be caught before review")
+
+    result = await design_qa(
+        settings, production(), model=Contradictory(), search=found, reviewer=NeverReview()
+    )
+    assert result["reviews"][0]["decision"] == "REJECT"
+    assert "시점" in result["reviews"][0]["reasons"][0]
+    candidates = result["morphology"]["candidates"]
+    assert candidates and result["morphology"]["excluded_combinations"] > len(candidates)
+    assert all(
+        c["business_condition"] == "NORMAL" and c["phase"] == "INITIAL"
+        for c in candidates
+        if c["event"] in {"RESPONSE_LOSS", "APPROVAL_DENIED"}
+    )

@@ -61,3 +61,7 @@ dev-rag-up: dev-check ## PostgreSQL 유지 → pgvector 준비 → 실제 BGE �
 
 knowledge-index: ## 자료 변경 후 재색인. 동일 데이터·모델은 건너뜀
 	$(COMPOSE_DEV) run --rm --no-deps knowledge python -m knowledge.index
+
+.PHONY: knowledge-add
+knowledge-add: ## 예: make knowledge-add record=/tmp/reviewed-source.json
+	python3 scripts/prepare_knowledge.py --record "$(record)"

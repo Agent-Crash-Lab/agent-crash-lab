@@ -253,6 +253,11 @@ def validate_evidence_collection():
     assert len({r["source_id"] for r in corpus}) == len(corpus)
     assert by_id.keys() <= {r["source_id"] for r in corpus}
     for doc in corpus:
+        domains = doc.get("evidence_domains", [])
+        assert set(domains) <= {"MANUFACTURING", "AGENTIC"}
+        assert len(domains) <= 1
+        if domains:
+            assert doc["risk_types"] and doc["source_type"] != "PROJECT_POLICY"
         if doc["content_kind"] == "CURATED_SUMMARY":
             assert hashlib.sha256(doc["text_en"].encode()).hexdigest() == doc["sha256"]
     review_cases = load("qa/examples/design-review-cases.json")

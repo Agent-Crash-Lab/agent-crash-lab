@@ -4,6 +4,7 @@ import hashlib
 import os
 import threading
 import urllib.request
+from collections import OrderedDict
 from pathlib import Path
 
 import numpy as np
@@ -49,9 +50,14 @@ class Embedder:
             providers=["CPUExecutionProvider"],
         )
         self.lock = threading.Lock()
+        self.query_cache = OrderedDict()
 
     def encode(self, texts, query=False):
         with self.lock:
+            key = texts[0] if query and len(texts) == 1 else None
+            if key in self.query_cache:
+                self.query_cache.move_to_end(key)
+                return self.query_cache[key]
             encoded = self.tokenizer.encode_batch(
                 [INSTRUCTION + t if query else t for t in texts]
             )
@@ -68,9 +74,15 @@ class Embedder:
             vectors = output[:, 0, :] if output.ndim == 3 else output
             if vectors.shape[1] != DIMENSION:
                 raise ValueError("Unexpected embedding dimension")
-            return vectors / np.maximum(
+            normalized = vectors / np.maximum(
                 np.linalg.norm(vectors, axis=1, keepdims=True), 1e-12
             )
+            if key is not None:
+                normalized.setflags(write=False)
+                self.query_cache[key] = normalized
+                if len(self.query_cache) > 128:
+                    self.query_cache.popitem(last=False)
+            return normalized
 
 
 def windows(text, tokenizer, size, overlap=0):

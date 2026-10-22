@@ -43,7 +43,10 @@
         "snapshot_sha256": "b78772a2c31ba2baf770244d890fe5b66190ef1ad8657e616ea208f23af0574c",
         "local_snapshot": "artifacts/local-runs/knowledge/evidence/RES-AGENT-SAFETY.html"
       },
-      "summary_sha256": "152b601b57b3e925211fadb9f8a8c5a9c2e05ed6002ba7c9bb715a7cb1b78a29"
+      "summary_sha256": "152b601b57b3e925211fadb9f8a8c5a9c2e05ed6002ba7c9bb715a7cb1b78a29",
+      "evidence_domains": [
+        "AGENTIC"
+      ]
     },
     {
       "source_id": "RES-AGENTDOJO",
@@ -236,7 +239,10 @@
         "snapshot_sha256": "b3bb444015d7e1b0734e45a4527c97ddbf587b5808afd1777b91dcda4a6f3d4c",
         "local_snapshot": "artifacts/local-runs/knowledge/evidence/LIT-KOBE-REPORT.html"
       },
-      "summary_sha256": "96fa26053e61e2a6f8e30a5fa3be597a43d86e901495a7f2cf776c4e269c6254"
+      "summary_sha256": "96fa26053e61e2a6f8e30a5fa3be597a43d86e901495a7f2cf776c4e269c6254",
+      "evidence_domains": [
+        "MANUFACTURING"
+      ]
     },
     {
       "source_id": "CASE-DAIHATSU",
@@ -832,7 +838,10 @@
         "snapshot_sha256": "5f05c5ac4f024411443c71e3100edf383e08e07e7dc780fe5f023f337aaa7f6a",
         "local_snapshot": "artifacts/local-runs/knowledge/evidence/TECH-ORACLE-ASL.html"
       },
-      "summary_sha256": "d9177ce2cca53456296b79554dc703e3272a3034add554da4f0024dedcbb5cde"
+      "summary_sha256": "d9177ce2cca53456296b79554dc703e3272a3034add554da4f0024dedcbb5cde",
+      "evidence_domains": [
+        "MANUFACTURING"
+      ]
     },
     {
       "source_id": "PROJECT-SUPPLIER-QUALIFICATION",
@@ -885,7 +894,9 @@
       ],
       "risk_types": [
         "RESOURCE_CONSTRAINT",
-        "UNVERIFIED_EVIDENCE"
+        "UNVERIFIED_EVIDENCE",
+        "AMBIGUOUS_WRITE",
+        "APPROVAL_BYPASS"
       ],
       "source_facts_en": "ISA95 organizes manufacturing activities by functional time horizon and describes integration across operations, supply chain and asset lifecycles. It does not prescribe one physical system architecture.",
       "qa_transfer_en": "Scope scheduling and quality Agents to MOM decisions and procurement to the ERP integration boundary. Test resource availability, predecessor completion and evidence consistency. Do not treat all MOM decisions as millisecond hard-real-time control.",
@@ -910,7 +921,11 @@
         "content_type": "text/html; charset=utf-8",
         "snapshot_sha256": "2e3f2924c18f4e07ec3dc3b9c3c380ab96e92a264e81023f747edc44cad55125",
         "local_snapshot": "artifacts/local-runs/knowledge/evidence/TECH-ISA95-MOM.html"
-      }
+      },
+      "evidence_domains": [
+        "MANUFACTURING"
+      ],
+      "review_mapping_note": "Manufacturing workflow context for synthetic approval/retry tests; not evidence of an observed duplicate transaction or an AI incident."
     },
     {
       "source_id": "TECH-RAMI40-LAYERS",
@@ -985,7 +1000,10 @@
         "content_type": "text/html; charset=utf-8",
         "snapshot_sha256": "5fa19c6f8423d9df8fb507f639556f764bf2db0cd6ea706ef87681d892a9d308",
         "local_snapshot": "artifacts/local-runs/knowledge/evidence/TECH-NIST-OT.html"
-      }
+      },
+      "evidence_domains": [
+        "MANUFACTURING"
+      ]
     },
     {
       "source_id": "TECH-NIST-AI-RMF",

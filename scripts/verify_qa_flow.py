@@ -47,7 +47,7 @@ def main():
             },
         )
         try:
-            with urllib.request.urlopen(request, timeout=130) as response:
+            with urllib.request.urlopen(request, timeout=190) as response:
                 return json.load(response)
         except urllib.error.HTTPError as exc:
             try:
