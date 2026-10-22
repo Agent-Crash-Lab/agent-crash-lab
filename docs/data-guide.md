@@ -75,7 +75,7 @@
 
 - 입력: Agent의 업무·READ/WRITE 도구·입력 Schema·승인/재시도 정책·샘플 상태. 실제 소스 코드나 실행 경로를 자동 분석한 결과는 아닙니다.
 - 분류: 선언한 `agent_type`으로 유형을 정합니다. 유형이 없으면 입력 필드 조합을 참고하고, 혼합되거나 알려지지 않은 형식은 COMMON으로 남깁니다. 시험 적용 여부는 실제 도구·기능을 별도로 확인합니다.
-- 설계 Agent: `agents/src/agents/qa/design.py`의 LangGraph가 기능 확인 → 위험 적용 여부 확인 → 유형별 근거 검색 → 최대 3개 제안 → 출처 확인 → 제조업 검토 → Agent 행동 검토를 수행합니다. 적용 위험 최대 3종 × (출처 유형 4종 + 검토 영역 2종)으로 최대 18회 검색하며 동시에 최대 4회 처리합니다. 같은 검색 질문의 BGE 임베딩은 최대 128개 메모리 캐시에 재사용하고, 자료 종류·영역 필터는 매번 DB에 적용합니다. `analysis.py`는 모델 호출 없이 기능을 분석합니다. offline은 규칙 기반 시연입니다.
+- Scenario Agent: `agents/src/agents/scenario/design.py`의 LangGraph가 기능 확인 → 정상 사용 시나리오 구성 → 예외 후보·위험별 근거 검색 → 최대 3개 시험안 → 출처 확인 → 제조업 검토 → Agentic 검토를 수행합니다. 적용 위험 최대 3종 × (출처 유형 4종 + 검토 영역 2종)으로 최대 18회 검색하며 동시에 최대 4회 처리합니다. 같은 검색 질문의 BGE 임베딩은 최대 128개 메모리 캐시에 재사용하고, 자료 종류·영역 필터는 매번 DB에 적용합니다. `analysis.py`는 모델 호출 없이 기능을 분석합니다. offline은 규칙 기반 시연입니다.
 - Harness: 제안과 실제 시험을 구분하고, 등록된 어댑터·입력 검사·판정 규칙으로 실행 여부를 결정합니다. LLM이 새 정책·도구·판정기를 등록할 수 없습니다.
 - 구매 예시: 초기 재고 20개라면 수량 21개의 새 입력을 만들고, 발주 저장 후 응답 유실을 주입합니다. 실제 수량·변경 이유·사례 데이터 해시를 저장합니다.
 - 성적서 불일치·설비 중복 배정은 해당 기능이 있는 대상에만 제안합니다. 생산·품질은 참조 환경에 채택한 정책과 코드 판정기로 실행합니다. 다른 업무 도구나 미채택 정책은 UNSUPPORTED로 유지합니다.
@@ -149,8 +149,8 @@ MCP `tools/list`의 배열·`tools`·`result.tools` JSON을 화면에서 가져�
 | 실행 가능한 대상 | `qa/contracts/qa.schema.json#/$defs/target` | `target_id`, `target_version`, `tools`, `policies`, `simulation_adapter`, `business_input_schema` |
 | 기본 샘플 | 같은 파일의 `sample` | `business_input` + `initial_state`; 대상 입력 Schema로 업무 입력을 검사 |
 | 생성 변경분 | 같은 파일의 `generated_scenario` | `business_input_patch`, `initial_state_patch`, `approval_decision`, `fault`, `interventions` |
-| 생성 모델 출력 | `agents/qa/proposals.py`의 Pydantic 모델 | 제안 ID·위험·근거·기대 행동·`test_data_json`; 구조화 출력용 |
-| 검토 모델 출력 | `agents/qa/review.py:ReviewItem` | 정책/근거/일관성의 세 판단. 전체 결정은 서버가 계산 |
+| 생성 모델 출력 | `agents/scenario/proposals.py`의 Pydantic 모델 | 제안 ID·위험·근거·기대 행동·`test_data_json`; 구조화 출력용 |
+| 검토 모델 출력 | `agents/scenario/review.py:ReviewItem` | 정책/근거/일관성의 세 판단. 전체 결정은 서버가 계산 |
 | 저장 검토 기록 | `qa/contracts/qa.schema.json#/$defs/review` | `proposal_id`, `decision`, `reasons`, 선택 `assessment`·`method` |
 | 저장 계획 | 같은 파일의 `plan`·`case` | 대상/데이터 해시·근거 버전·사례·실행 가능 여부·규칙 |
 | 실행 요청 | `harness/api.py:CreateRun` | `plan_id + case_id + system_id` 또는 등록 `test_id` |
@@ -238,7 +238,7 @@ erDiagram
 
 ### 모델 출력에서 막는 범위
 
-`agents/qa/scenario_schema.py`가 세 참조 유형의 SDK 출력 양식을 만듭니다. 실제 존재하는 요청 식별자는 enum으로 고정하고, 초기 승인·기존 거래 같은 지원하지 않는 필드는 모델 출력에 포함시키지 않습니다. 수량·시간·재고·검사/설비 상태는 허용 범위에서 생성합니다. 구매 배열은 기존 행 후보와 길이를 제한하지만 행 중복·가격 관계·위험 활성화는 여전히 Harness가 검사합니다.
+`agents/scenario/scenario_schema.py`가 세 참조 유형의 SDK 출력 양식을 만듭니다. 실제 존재하는 요청 식별자는 enum으로 고정하고, 초기 승인·기존 거래 같은 지원하지 않는 필드는 모델 출력에 포함시키지 않습니다. 수량·시간·재고·검사/설비 상태는 허용 범위에서 생성합니다. 구매 배열은 기존 행 후보와 길이를 제한하지만 행 중복·가격 관계·위험 활성화는 여전히 Harness가 검사합니다.
 
 모델의 SDK 출력에서는 `test_data_json`을 구조화 객체로 받고 저장할 때만 JSON 문자열로 직렬화합니다. 기존 계획·도구·프론트의 저장 계약은 유지합니다. 보완 응답은 요청한 제안 개수와 ID를 제한하고, 개수·중복·위험·도구 일치는 코드로 다시 확인합니다. 최초/보완 프롬프트와 생성 스키마 해시는 설계에 남깁니다. 관련 규칙은 [OpenAI Structured Outputs 공식 안내](https://developers.openai.com/api/docs/guides/structured-outputs)를 참고했으며 형식 제한을 업무 정답으로 취급하지 않습니다.
 
@@ -249,7 +249,13 @@ erDiagram
 - `source_type`: 연구/사례/기술 등 **자료의 종류**.
 - `evidence_domains`: `MANUFACTURING` 또는 `AGENTIC` 중 하나인 **검토 용도**. 프로젝트 정책은 어느 쪽의 외부 근거도 대체하지 않습니다.
 - 검색 요청의 `evidence_domain`은 DB metadata로 제한하며 반환 문단에도 같은 태그를 제공합니다.
-- `design.morphology`에 축·제외 조합 수·후보를, `proposal.morphology_id`에 선택한 조합을 저장합니다. `review.stages`에는 각 단계의 기준·결정·문단 ID·건너뜀 여부를 저장합니다.
+- `design.morphology` v2의 `kind=NORMAL_USE_SCENARIOS`는 정상 업무의 축·후보를 저장합니다. `proposal.morphology_id`는 정상 사용 후보 ID이고, `proposal.exception_ids`는 별도 `exception_catalog`의 적용 예외 목록(최대 3개)입니다. v1의 통합 위험 조합과 구별하며 기존 저장 기록은 유지합니다.
+- 정상 사용 후보는 업무·조회 정보·변경 도구·승인 권한을 담습니다. 예외는 위험 계열·활성 조건·발생 시점·대상 도구·실행 지원 여부를 담습니다. 현재 복합 예외는 같은 위험 계열과 같은 시점으로 제한하며, 실제 변경 상태에 활성화된 조건과 예외 목록을 Scenario Agent와 Harness가 각각 검사합니다.
+- 예외 목록의 SUPPORTED는 참조 시험 계약에서 지원하는 주입 방식이라는 뜻(`support_scope=REFERENCE_SANDBOX_RECIPE_ONLY`)입니다. 해당 등록 대상에 실제 실행 가능한지는 Harness가 어댑터·데이터·판정 연결로 다시 확인합니다. 미지원 예외를 현실에서 불가능한 조합으로 분류하지 않습니다.
+- 실행 사례의 `design_basis.normal_use_scenario`·`exceptions`와 보고서 `test`의 같은 필드에 이 구분을 보존합니다. 화면·HTML 보고서는 정상 업무와 적용 예외를 따로 보여 줍니다. 옛 `morphology` 필드는 이전 기록 읽기를 위해 유지합니다.
+- `design.agent_roles`는 Scenario Agent(설계·검토), QA Agent(실험·판정·조사·보고), Manufacturing Operation Agent(대상)의 책임을 표시합니다. HTTP의 `/qa/design` 경로와 `QA_DESIGN_*` 설정 이름은 기존 연결 계약을 유지합니다.
+- 생성/보완 문맥의 `evidence_options[risk_key]`는 자료 종류 외에 `MANUFACTURING`·`AGENTIC` 문단 ID 목록도 제공합니다. 프로젝트 정책은 영역 문헌을 대체하지 않습니다. 누락 시 검색된 후보를 보완 이유에 알리며 모델 대신 인용을 추가하지 않습니다.
+- LLM 검토의 SUPPORTED 이유에는 해당 단계에서 인용한 문헌 ID 또는 출처 ID가 필요합니다. 빠지면 근거 관련성은 UNCLEAR로 기록합니다. 이 검사는 설명의 추적성만 확인하며 내용의 정확성은 별도 의미 검토 대상입니다.
 
 추가할 논문·보고서는 사람이 원문과 위험 연결을 확인하고, 다음 형식의 영문 자체 요약 JSON으로 준비합니다. 원문 사실과 시험으로 옮긴 해석을 구분합니다.
 

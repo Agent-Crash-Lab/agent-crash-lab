@@ -398,6 +398,13 @@ def qa_report(run):
             "business_impact": strategy.get("business_impact"),
             "design_review": strategy.get("review"),
             "morphology": basis.get("morphology"),
+            "normal_use_scenario": basis.get("normal_use_scenario"),
+            "exceptions": basis.get("exceptions", []),
+            "agent_roles": {
+                "scenario": "SCENARIO_AGENT",
+                "qa": "QA_AGENT",
+                "target": "MANUFACTURING_OPERATION_AGENT",
+            },
             "design_repair": basis.get("repair"),
             "business_input": case.get("business_input") or run.get("request"),
             "condition_changes": basis.get("changes", []),

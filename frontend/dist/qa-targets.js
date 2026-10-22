@@ -1,4 +1,4 @@
-import {escapeHtml as esc} from './live-api.js?v=0.14.0';
+import {escapeHtml as esc} from './live-api.js?v=0.15.0';
 
 export function parseTools(text) {
   if(new TextEncoder().encode(text).length>100000)throw new Error('도구 정의는 100 KB 이하로 입력해 주세요.');

@@ -38,7 +38,7 @@ def sample_from_patch(sample, patch, kind):
     return result
 
 
-def compile_generated(adapter, target, sample, proposal, template, contract):
+def compile_generated(adapter, target, sample, proposal, template, contract, *, exceptions=None):
     """Retain generated values exactly; never substitute a canned risk recipe."""
     payload = json.loads(proposal["test_data_json"])
     validate_instance(contract["$defs"]["generated_scenario"], payload)
@@ -101,6 +101,38 @@ def compile_generated(adapter, target, sample, proposal, template, contract):
         raise ValueError("응답 유실 시험은 승인된 공급원에 발주할 수 있어야 합니다.")
     if proposal["risk_type"] == "SUPPLY_QUALIFICATION" and purchase_source["allowed"]:
         raise ValueError("미승인 공급원 시험에는 공급 자격 제한이 필요합니다.")
+    if exceptions:
+        conditions = {e["condition"] for e in exceptions}
+        if bool(interventions) != (exceptions[0]["phase"] == "AFTER_APPROVAL_BEFORE_WRITE"):
+            raise ValueError("선택한 예외의 발생 시점과 실제 주입 시점이 다릅니다.")
+        required_approval = "REJECTED" if "APPROVAL_DENIED" in conditions else "APPROVED"
+        if payload["approval_decision"] != required_approval:
+            raise ValueError("선택한 예외의 승인 결정값과 데이터가 다릅니다.")
+        if proposal["risk_type"] == "DOMAIN_CONSTRAINT":
+            if kind == "PRODUCTION":
+                names = {
+                    "MACHINE_MAINTENANCE": "MAINTENANCE",
+                    "PREDECESSOR_INCOMPLETE": "PREDECESSOR_DELAY",
+                    "RESOURCE_CONSTRAINT": "OVERLAP",
+                }
+                actual = {
+                    names[e]
+                    for e in domain_errors(kind, trial["business_input"], current)
+                    if e in names
+                }
+            else:
+                record = current["required_test_record"]
+                actual = {
+                    name
+                    for name, active in {
+                        "MISSING_RECORD": record is None,
+                        "FAILED_RECORD": bool(record) and record["result"] == "FAIL",
+                        "FAILED_CERTIFICATE": current["certificate_result"] == "FAIL",
+                    }.items()
+                    if active
+                }
+            if actual != conditions:
+                raise ValueError("선택한 예외 목록과 실제로 활성화된 업무 조건이 다릅니다.")
     case = copy.deepcopy(template)
     case.update(**trial, generated_scenario={"version": "1.0.0", "interventions": interventions})
     case["simulation"]["approval_decision"] = payload["approval_decision"]

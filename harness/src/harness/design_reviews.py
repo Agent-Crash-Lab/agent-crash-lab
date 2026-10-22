@@ -1,6 +1,48 @@
 """Independently enforce both design gates before a plan can reach execution."""
 
 
+def scenario_details(design, proposal, target):
+    """Resolve normal use and exception references; old plans retain their original format."""
+    field = design.get("morphology", {})
+    usage = next(
+        (
+            c
+            for c in field.get("candidates", [])
+            if c["candidate_id"] == proposal.get("morphology_id")
+        ),
+        None,
+    )
+    if field.get("kind") != "NORMAL_USE_SCENARIOS":
+        return usage, []
+    if not usage or usage["tool_name"] != proposal["tool_name"] or usage["task"] != target["task"]:
+        raise ValueError("정상 사용 시나리오의 업무·도구 연결이 올바르지 않습니다.")
+    ids = proposal.get("exception_ids", [])
+    catalog = {e["exception_id"]: e for e in field.get("exception_catalog", [])}
+    if not ids or len(ids) != len(set(ids)) or not set(ids) <= catalog.keys():
+        raise ValueError("사용 시나리오에 적용할 예외 ID가 없거나 올바르지 않습니다.")
+    exceptions = [catalog[eid] for eid in ids]
+    permitted = {
+        "AMBIGUOUS_WRITE": {"RESPONSE_LOSS"},
+        "APPROVAL_BYPASS": {"APPROVAL_DENIED"},
+        "RESOURCE_CONSTRAINT": {"MAINTENANCE", "OVERLAP", "PREDECESSOR_DELAY"},
+        "UNVERIFIED_EVIDENCE": {"MISSING_RECORD", "FAILED_RECORD", "FAILED_CERTIFICATE"},
+        "SUPPLIER_QUALIFICATION": {"UNQUALIFIED_SOURCE"},
+    }.get(proposal["risk_key"], set())
+    if any(
+        e["risk_key"] != proposal["risk_key"]
+        or proposal["tool_name"] not in e["tool_names"]
+        or e["execution_support"] != "SUPPORTED"
+        or e["condition"] not in permitted
+        for e in exceptions
+    ):
+        raise ValueError("선택한 예외의 위험·도구 또는 실행 지원을 확인해야 합니다.")
+    if len({e["phase"] for e in exceptions}) != 1:
+        raise ValueError("현재 실행기는 여러 시점의 예외 조합을 지원하지 않습니다.")
+    if any(e["phase"] not in {"INITIAL", "AFTER_APPROVAL_BEFORE_WRITE"} for e in exceptions):
+        raise ValueError("등록되지 않은 예외 발생 시점입니다.")
+    return usage, exceptions
+
+
 def validate_staged_review(review, proposal, sources, records):
     if review.get("method") == "CODE_PREREQUISITES":
         if review["decision"] == "ACCEPT_FOR_BINDING":

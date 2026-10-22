@@ -139,6 +139,18 @@ export function reviewMarkup(review) {
   return `<details><summary>시험안 검토: ${esc(decision[review.decision] || review.decision)}</summary><p class="live-hint">${method} · 대상 Agent의 합격 판정이 아닙니다.</p>${stages?`<ol>${stages}</ol>`:`${scores?`<ul>${scores}</ul>`:''}<ul>${(review.reasons || []).map(reason=>`<li>${esc(reason)}</li>`).join('')}</ul>`}</details>`;
 }
 
+export function scenarioMarkup(basis={}) {
+  const esc=escapeHtml;
+  const normal=basis.normal_use_scenario;
+  const labels={MAINTENANCE:'설비 정비 전환',OVERLAP:'작업 시간 중복',PREDECESSOR_DELAY:'선행 공정 지연',MISSING_RECORD:'필수 검사 원자료 누락',FAILED_RECORD:'검사 원자료 불합격',FAILED_CERTIFICATE:'성적서 불합격',UNQUALIFIED_SOURCE:'공급 자격 없음',RESPONSE_LOSS:'저장 후 응답 유실',APPROVAL_DENIED:'승인 거절',INITIAL:'실행 초기',AFTER_APPROVAL_BEFORE_WRITE:'승인 직후·변경 전',NONE:'없음',NORMAL:'정상'};
+  if(!normal) {
+    const old=basis.morphology;
+    return old?.business_condition?`<details><summary>상황을 만든 조합</summary><p>${[old.tool_name,old.business_condition,old.event,old.phase].map(v=>esc(labels[v] || v)).join(' → ')}</p></details>`:'';
+  }
+  const exceptions=basis.exceptions || [];
+  return `<details><summary>정상 업무와 적용 예외</summary><p><strong>정상 사용 시나리오:</strong> ${esc(normal.normal_goal)}</p><p>${esc(normal.task)}</p><p><strong>정상 기대 행동:</strong> ${esc(normal.normal_expected_behavior)}</p><p>조회 정보: ${esc((normal.information_basis || []).join(', '))} · 변경 도구: ${esc(normal.tool_name)}</p><p><strong>적용할 예외:</strong></p><ul>${exceptions.map(e=>`<li>${esc(labels[e.condition] || e.condition)} · ${esc(labels[e.phase] || e.phase)}${e.execution_support==='UNSUPPORTED'?' · 실행 연결 필요':''}</li>`).join('')}</ul></details>`;
+}
+
 // One summary is shared by the screen and the downloadable QA report.
 export function qaReportMarkup(report) {
   if(!report)return '<p class="live-hint">결과 수집 중</p>';
@@ -150,7 +162,6 @@ export function qaReportMarkup(report) {
     return `<li>${/^https:\/\//.test(url)?`<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(s.title || s.source_id)}</a>`:esc(s.title || s.source_id || '출처 미기록')}${s.location?` · ${esc(s.location)}`:''}</li>`;
   }).join('')}</ul>`:'<p>별도 출처 미기록</p>';
   const n=report.narrative;
-  const conditionNames={NORMAL:'정상 업무 상태',UNQUALIFIED_SOURCE:'공급 자격 없음',MAINTENANCE:'설비 정비 중',OVERLAP:'일정 겹침',PREDECESSOR_DELAY:'선행 공정 지연',MISSING_RECORD:'검사 원자료 누락',FAILED_RECORD:'검사 원자료 불합격',FAILED_CERTIFICATE:'성적서 불합격',NONE:'응답 오류 없음',RESPONSE_LOSS:'처리 후 응답 유실',APPROVAL_DENIED:'승인 거절',INITIAL:'시작 시점',AFTER_APPROVAL_BEFORE_WRITE:'승인 직후·실행 전'};
 
   return `<div class="live-qa-report"><h3>${esc(report.summary)}</h3>${report.source_run_id?`<p class="live-hint">추가 조사 실험 · 원본 ${esc(report.source_run_id)}</p>`:''}
     ${n?`<h4>1. 어떤 Agent를 시험했나요?</h4><p><strong>${esc(n.agent_type_name)}</strong> · ${esc(n.agent_role)}</p>
@@ -159,7 +170,7 @@ export function qaReportMarkup(report) {
       <h4>4. 이 결과는 무엇을 뜻하나요?</h4><p>${esc(n.meaning)}</p><p class="live-hint">${esc(n.provenance)}</p>`:`<p>${esc(report.test.title)}</p>`}
     <p class="live-hint">미충족 기준 ${esc(report.results.failed_checks)}개 · 실제 업무 변경 ${esc(report.results.changes ?? '미확인')}건. 기준 개수는 사고 건수가 아닙니다.</p>
     <p class="live-hint">이번 시험 조건에 한정한 결과입니다.</p>
-    ${report.test.morphology?`<details><summary>상황을 만든 조합</summary><p>${[report.test.morphology.tool_name,report.test.morphology.business_condition,report.test.morphology.event,report.test.morphology.phase].map(value=>esc(conditionNames[value] || value)).join(' → ')}</p></details>`:''}
+    ${scenarioMarkup(report.test)}
     ${report.findings.length?`<details><summary>미충족·보류 기준과 근거</summary><ul>${report.findings.map(f=>`<li><strong>${esc(scope[f.scope] || f.scope)} · ${esc(f.verdict)}</strong> ${esc(f.readable_reason || f.reason || f.rule_id)}<details><summary>근거</summary><small>${esc((f.evidence_ids || []).join(', '))}</small></details></li>`).join('')}</ul></details>`:''}
     ${report.domain.coverage.length?`<details><summary>제조 운영 검증 범위</summary><div class="live-table-wrap"><table class="live-table"><thead><tr><th>관점</th><th>확인 수준</th><th>시험 범위</th></tr></thead><tbody>${report.domain.coverage.map(c=>`<tr><td>${esc(c.name)}</td><td>${esc(coverage[c.status])}</td><td>${esc(c.execution_scope)}<br><small>미검증: ${esc(c.not_tested)}</small></td></tr>`).join('')}</tbody></table></div></details>`:''}
     ${reviewMarkup(report.test.design_review)}${repairMarkup(report.test.design_repair)}

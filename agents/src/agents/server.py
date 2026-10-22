@@ -15,8 +15,8 @@ from referencing.exceptions import Unresolvable
 from agents.config import Settings
 from agents.llm import TOTAL_BUDGET, ModelError
 from agents.models import ResumeRequest, StartRequest
-from agents.qa.design import AnalyzeRequest, DesignRequest, analyze_description, design_qa
 from agents.runtime import RunError, Runtime
+from agents.scenario.design import AnalyzeRequest, DesignRequest, analyze_description, design_qa
 from agents.targets.manufacturing import SimulationTask, run_reference
 
 

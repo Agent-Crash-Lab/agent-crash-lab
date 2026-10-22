@@ -385,7 +385,7 @@ async def test_configured_4o_mini_uses_supported_options_and_snapshot_pricing(tr
 
 @pytest.mark.asyncio
 async def test_design_decoding_is_bound_to_declared_tools_risks_and_retrieved_sources(transport):
-    from agents.qa.proposals import GeneratedProposals
+    from agents.scenario.proposals import GeneratedProposals
 
     model, response, create, _ = transport
     model.schema = GeneratedProposals
@@ -408,7 +408,7 @@ async def test_design_decoding_is_bound_to_declared_tools_risks_and_retrieved_so
 
 @pytest.mark.asyncio
 async def test_review_decoding_cannot_reference_a_proposal_excluded_by_code_checks(transport):
-    from agents.qa.review import Reviews
+    from agents.scenario.review import Reviews
 
     model, response, create, _ = transport
     model.schema = Reviews
@@ -422,8 +422,8 @@ async def test_review_decoding_cannot_reference_a_proposal_excluded_by_code_chec
 async def test_structured_scenario_object_is_serialized_for_stable_storage(transport):
     from conftest import ROOT
 
-    from agents.qa.proposals import GeneratedProposals
-    from agents.qa.scenario_schema import output_schema
+    from agents.scenario.proposals import GeneratedProposals
+    from agents.scenario.scenario_schema import output_schema
 
     model, response, create, _ = transport
     ref = json.loads((ROOT / "qa/examples/manufacturing-targets.json").read_text())["PRODUCTION"]
@@ -443,6 +443,7 @@ async def test_structured_scenario_object_is_serialized_for_stable_storage(trans
         "risk_key": "RESOURCE_CONSTRAINT",
         "proposal_id": "D1",
         "morphology_id": "M01",
+        "exception_ids": ["E_MAINTENANCE_INITIAL"],
         "tool_name": "assign_operation",
         "title": "정비 중 배정",
         "failure_mode": "정비 중 배정 시도",

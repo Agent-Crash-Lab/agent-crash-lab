@@ -1,6 +1,6 @@
-import { registerProfile } from './registry.js?v=0.14.0';
-import { validateRegistration } from './topology.js?v=0.14.0';
-import { registrationExample } from './topologies.js?v=0.14.0';
+import { registerProfile } from './registry.js?v=0.15.0';
+import { validateRegistration } from './topology.js?v=0.15.0';
+import { registrationExample } from './topologies.js?v=0.15.0';
 let dialog;
 export function initRegistration(onRegistered){
  dialog=document.createElement('dialog');dialog.className='registration-dialog';dialog.id='registration-dialog';dialog.setAttribute('aria-labelledby','registration-title');

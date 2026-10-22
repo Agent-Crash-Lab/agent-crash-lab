@@ -27,13 +27,14 @@
 
 ## 어떤 순서로 동작하는가?
 
-**대상 등록·선택 → 기능·정책 확인 → 자료 검색 → 조건 조합·시험안 → 제조업 검토 → Agent 행동 검토 → 실행 연결 확인 → 실행·판정 → 조사 보고서**
+**대상 등록·선택 → 정상 사용 시나리오 구성 → 예외 후보·근거 검색 → 시험안 → 제조업 검토 → Agentic 검토 → 실행 연결 확인 → 실행·판정 → 조사 보고서**
 
-1. **QA 설계 Agent:** 대상에 맞는 근거를 검색해 시험·업무 데이터·중요도·반복 기준을 제안합니다. LLM은 새 수치·상태 조합을 만들고, 제조업 검토와 Agent 행동 검토를 분리해 근거·일관성·정책을 점검합니다.
-2. **Harness:** 생성한 입력·초기 상태·상황 변화가 실행 가능한지 검사하고 채택 정책·등록 판정기에 연결합니다. 같은 입력의 정상 대조와 위험 시험을 순차 실행합니다. 위반과 자원 한도에 따라 중단하고 결과를 저장합니다.
-3. **MCP:** 대상 Agent가 사용하는 재고 조회·발주 같은 시험용 도구를 제공합니다.
-4. **판정 코드:** DB와 승인·도구 기록을 확인해 실제 위반 여부를 판단합니다.
-5. **보고서:** 모든 실행에 QA 요약을 제공하고, 필요한 실행은 조사 기록을 함께 보여 줍니다.
+1. **Scenario Agent:** 대상의 정상 업무·정보원·변경 도구·승인 권한으로 사용 시나리오를 구성합니다. 예외를 별도 선택·조합하고 RAG 근거로 최대 3개 시험안을 생성하며 제조업·Agentic 관점에서 검토합니다. 코드는 `agents/src/agents/scenario/`에 있습니다.
+2. **Manufacturing Operation Agent:** 시험 대상입니다. 구매·생산·품질 참조 구현은 `agents/src/agents/targets/`에 있으며 제공된 도구로 실제 시험 업무를 수행합니다.
+3. **QA Agent:** 실험·증거 판정·조사·보고서의 역할입니다. 실행 관리 엔진인 Harness가 초기 상태·예외 주입·승인·반복·중단·저장을 관리하고 등록된 코드로 도구·승인·DB 증거를 판정합니다. 필요시 `agents/src/agents/qa/investigation.py`의 조사 기능을 사용합니다.
+4. **MCP·Knowledge:** 인증·업무 도구·자료 검색을 제공합니다. 구매 업무 도구는 Spring MCP, 생산·품질 시험 도구는 Harness가 제공합니다.
+
+세 Agent는 논리적 책임이며 각각 별도 프로세스·별도 LLM을 뜻하지 않습니다. Frontend는 사용자 인터페이스, Spring은 인증된 API 창구, Harness는 QA 실행 관리, Agent Service는 시나리오·대상·조사 로직, Knowledge는 RAG 검색을 담당합니다. [전체 그림과 폴더 구조](../README.md#전체-시스템-아키텍처)를 먼저 읽을 수 있습니다.
 
 QA는 기능이 없으면 시험 범위에서 제외하고, 기능 설명이 부족하면 정보 부족으로 둡니다. 만든 시험은 실행 가능한지 먼저 검사합니다. 사고 보고서는 상황을 만드는 근거로, 해당 참조 환경이 채택한 프로젝트 정책은 판정 기준으로 사용합니다. 생산·품질 정책은 가상 참조 환경에만 채택했습니다. 실제 회사 규정이나 안전 인증을 뜻하지 않습니다.
 
@@ -41,19 +42,22 @@ QA는 기능이 없으면 시험 범위에서 제외하고, 기능 설명이 부
 
 | 단계 | 판단 기준 | 기록 / 담당 코드 |
 |---|---|---|
-| 형태학적 분석 | 업무·변경 도구·업무 조건·오류·변경 시점의 조합. 서로 충돌하는 조합은 제외 | `design.morphology`, `morphology.py` |
-| 생성 | 후보 조합을 선택하고 검색한 근거로 실제 시험 수치·상태·기대 행동 작성 | `proposal.morphology_id`, `proposals.py` |
+| 형태학적 분석 | 정상 업무 맥락·변경 도구·조회 정보·의사결정 권한. 오류와 주입 시점은 이 축에 포함하지 않음 | `design.morphology.candidates`, `scenario/morphology.py` |
+| 예외 적용 | 정상 사용 시나리오에 별도 예외 후보를 적용. 같은 위험 계열·같은 시점의 복합 예외는 지원 범위에서 선택 가능 | `design.morphology.exception_catalog`, `scenario/exceptions.py` |
+| 생성 | 정상 사용 ID와 예외 ID 목록을 선택하고 구체적인 변경 데이터·기대 행동 작성 | `proposal.morphology_id`, `proposal.exception_ids`, `scenario/proposals.py` |
 | 1. 제조업 검토 | 이 업무에서 해당 조건과 피해가 의미 있는가? 제조업 보고서·운영 자료와 일치하는가? | `reviews[].stages[0]`, `review.py` |
 | 2. Agent 행동 검토 | 관찰 → 판단 오류 → 선언된 도구 → 업무 영향의 경로가 가능한가? | `reviews[].stages[1]`, `review.py` |
 | 실행 연결 | 두 검토의 근거·결정 확인 후 등록 정책·시뮬레이터·판정기에 연결 | `harness/design_reviews.py`, `planning.py` |
 
-예: 생산 일정 확정 도구 × 승인 직후 × 설비 정비 전환 → 제조업 자료로 설비 가용성의 중요성을 검토 → Agent 연구로 낡은 관찰을 신뢰한 도구 실행 가능성을 검토 → 실제 시험으로 저장·차단을 확인합니다.
+예: 가용 설비에 작업을 배정하는 정상 업무 → 승인 직후 정비 전환·선행 공정 지연을 예외로 적용 → 제조업 자료로 업무 제약과 영향을 검토 → Agent 연구로 재확인 누락과 잘못된 도구 실행의 가능성을 검토 → 실제 시험으로 저장·차단을 확인합니다. 예외 자체가 Agent 실패라는 뜻은 아닙니다.
 
 검토한 시험안에서 검토되지 않은 파생 상황을 자동 확장하지 않습니다. 정상 대조는 Harness의 별도 기준으로 연결합니다.
 
 각 검토는 **근거 관련성·상황 일관성·안전한 기대 행동과 채택 정책의 일치**를 따로 기록합니다. 1단계가 보완/거절이면 2단계는 건너뛰고, 두 단계 모두 수용해야 실행 연결 검사로 갑니다. 검토 모델에게 이전 단계 판정을 주지 않습니다. 실제 합격은 이후 DB·도구·승인 기록으로 판단합니다.
 
-초기 축과 조합 제외 규칙은 지원 가능한 참조 환경에 맞춘 프로젝트 설계입니다. [General Morphological Analysis](https://www.swemorph.com/ma.html)의 다차원 조합·교차 일관성 접근을 참고했으며 전 조합을 실험하거나 자동으로 모든 제조 위험을 발견한다는 뜻은 아닙니다. offline은 동일한 흐름의 태그 검사 시연이며 문단 의미를 검증하지 않습니다.
+생성·보완에는 위험별 자료 종류와 MANUFACTURING/AGENTIC 인용 선택지를 제공합니다. 승인 결정값은 요청 시의 가정이며 정적인 업무 위반으로 요청 전 보류되는 상황도 APPROVAL_DENIED 조합이 아니면 APPROVED를 사용합니다. 의미 검토의 SUPPORTED 이유는 해당 영역 문헌 ID와 제조 제약/Agent 도구 호출 경로를 설명해야 합니다. 문헌 ID 누락은 코드가 UNCLEAR로 보류하며, ID 존재만으로 의미적 적합성을 보장하지 않습니다.
+
+현재 정상 업무 맥락은 참조 유형별 한 종류와 선언된 변경 도구에 한정합니다. 긴급 주문·교대·여러 공장 같은 운영 맥락을 자동 추론하지 않습니다. [General Morphological Analysis](https://www.swemorph.com/ma.html)의 차원별 구성을 참고한 제한된 모델이며 전 조합의 인과 타당성을 보장하지 않습니다. 실행 미지원 예외(부분 저장·승인 만료·임의의 오래된 도구 응답)는 별도로 기록하고 현실적 불가능과 구별합니다. offline은 태그 검사 시연이며 문단 의미를 검증하지 않습니다.
 
 ## 새 Agent를 등록하면
 
@@ -65,7 +69,7 @@ QA는 기능이 없으면 시험 범위에서 제외하고, 기능 설명이 부
 
 등록 분석은 결정적인 코드로 처리하며, RAG나 LLM·대상 업무 도구를 호출하지 않습니다. 시험안 설계에서 RAG를 사용하고, 선택 설정일 때 LLM을 사용합니다. 등록 정보와 계획은 사용자별로 저장하고, 수정하면 기존 기록을 보존한 새 등록 기록을 만듭니다. 위험 분류 기준이 바뀌면 다시 등록·분석해야 합니다.
 
-코드는 `harness/registrations.py`(등록 양식·출처 수준), `agents/qa/analysis.py`(기능 분석)·`design.py`(검색·생성·검토), `frontend/dist/qa-targets.js`(등록 화면)에서 시작합니다. 유형별로 별도 QA 엔진을 만들지 않습니다.
+코드는 `harness/registrations.py`(등록 양식·출처 수준), `agents/scenario/analysis.py`(기능 분석)·`design.py`(검색·생성·검토), `frontend/dist/qa-targets.js`(등록 화면)에서 시작합니다. 유형별로 별도 QA 엔진을 만들지 않습니다.
 
 ## 구매 시험으로 보면
 
@@ -98,9 +102,9 @@ LLM 생성 데이터는 `harness/generation.py`가 기존 샘플에 변경분을
 flowchart LR
   UI[화면] --> MCP[Spring MCP 서버]
   MCP --> H[FastAPI Harness]
-  H --> D[QA 설계 Agent]
+  H --> D[Scenario Agent]
   D --> MCP
-  H --> A[대상·조사 Agent]
+  H --> A[Manufacturing Operation Agent · QA 조사]
   A --> MCP
   H --> S[생산·품질 시험 MCP]
   A --> S
@@ -143,10 +147,10 @@ flowchart LR
 
 | 단계 | 입력 → 출력 | 구현 위치 |
 |---|---|---|
-| 1. 대상 등록 | 업무·도구·기능·정책·샘플 → 사용자별 등록/분석 | `harness/registrations.py`, `agents/qa/analysis.py` |
-| 2. 근거 검색 | 적용 가능한 위험·업무 유형 → 출처·문단·색인 버전 | `agents/qa/design.py`, `knowledge/retrieval.py` |
-| 3. 시험 생성 | 대상·샘플·검색 근거 → 최대 3개 시험안·변경분·기대 행동 | `agents/qa/proposals.py`, `design.py` |
-| 4. 시험안 검토 | 제안·실제 적용 전 상태 미리보기 → 수용/보완/거절·이유 | `agents/qa/review.py` |
+| 1. 대상 등록 | 업무·도구·기능·정책·샘플 → 사용자별 등록/분석 | `harness/registrations.py`, `agents/scenario/analysis.py` |
+| 2. 근거 검색 | 적용 가능한 위험·업무 유형 → 출처·문단·색인 버전 | `agents/scenario/design.py`, `knowledge/retrieval.py` |
+| 3. 시험 생성 | 대상·샘플·검색 근거 → 최대 3개 시험안·변경분·기대 행동 | `agents/scenario/proposals.py`, `design.py` |
+| 4. 시험안 검토 | 제안·실제 적용 전 상태 미리보기 → 수용/보완/거절·이유 | `agents/scenario/review.py` |
 | 5. 실행 연결 | 검토 결과·변경 데이터 → READY/UNSUPPORTED·등록 시험·규칙 | `harness/planning.py`, `generation.py` |
 | 6. 실험 | 저장 계획·시험·서버 설정 → 실행 ID·승인·도구·DB 관측 | `harness/runner.py`, `simulation.py` |
 | 7. 판정·보고 | 실제 관측·채택 정책 → 검사 결과·QA 보고서·필요 시 조사 | `harness/adapters/`, `reporting.py`, `agents/qa/investigation.py` |
@@ -199,7 +203,7 @@ flowchart LR
 
 ### Agent
 
-- 시작 파일: `src/agents/qa/analysis.py`, `design.py`, `morphology.py`, `proposals.py`, `scenario_schema.py`, `review.py`, `investigation.py`.
+- 시작 파일: `src/agents/scenario/`의 `analysis.py`, `design.py`, `morphology.py`, `exceptions.py`, `proposals.py`, `scenario_schema.py`, `review.py`; QA 조사는 `src/agents/qa/investigation.py`.
 - 내부 `DesignRequest.repair`는 `{previous_proposals, feedback:[{proposal_id,reasons}], index_version}`입니다. 브라우저에서 임의의 보완 상태를 받는 계약이 아닙니다.
 - 생성/보완 결과는 같은 Proposal 형식이며 Harness가 다시 검사합니다. 이전 READY 제안은 복사하고 지정한 ID만 수정합니다. 근거는 다시 검색하고 같은 색인 버전인지 확인합니다.
 - 검토는 안전한 기대 행동을 평가합니다. 위험한 시험 자극 자체를 위험 행동 지시와 혼동하지 않습니다. 생성·검토·대상 실행 모델은 각각 구분합니다.

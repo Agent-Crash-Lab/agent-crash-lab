@@ -1,6 +1,6 @@
 {
   "name": "agent-crash-lab-console",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "private": true,
   "type": "module",
   "description": "README 기반 Agent Crash Lab 검사 콘솔 프로토타입",

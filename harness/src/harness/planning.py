@@ -12,7 +12,7 @@ from pathlib import Path
 from jsonschema import Draft202012Validator, ValidationError
 
 from harness.adapters import registered_adapters
-from harness.design_reviews import validate_staged_review
+from harness.design_reviews import scenario_details, validate_staged_review
 from harness.evaluation import bind_strategy
 from harness.generation import compile_generated, data_changes
 from harness.schemas import check_schema, validate_instance
@@ -292,6 +292,11 @@ class QaPlanner:
             raise ValueError("Too many design proposals")
         for proposal in design["proposals"]:
             pid = proposal["proposal_id"]
+            usage, exceptions, scenario_issue = None, [], None
+            try:
+                usage, exceptions = scenario_details(design, proposal, target)
+            except (KeyError, TypeError, ValueError) as exc:
+                scenario_issue = str(exc)
             if pid in proposal_ids or proposal["tool_name"] not in plan["analysis"]["write_tools"]:
                 raise ValueError("Invalid proposal identity or tool")
             proposal_ids.add(pid)
@@ -380,7 +385,13 @@ class QaPlanner:
                     if not matching or not pattern_case:
                         raise ValueError("생성 데이터를 실행·판정할 어댑터가 없습니다.")
                     case = compile_generated(
-                        adapter, target, sample, proposal, pattern_case, self.contract
+                        adapter,
+                        target,
+                        sample,
+                        proposal,
+                        pattern_case,
+                        self.contract,
+                        exceptions=exceptions,
                     )
                 except (ValueError, KeyError, TypeError, StopIteration, ValidationError) as exc:
                     case["execution"].update(
@@ -390,6 +401,14 @@ class QaPlanner:
                         missing_capabilities=["generated_data_validation"],
                         reason=str(exc)[:250],
                     )
+            if scenario_issue:
+                case["execution"].update(
+                    status="UNSUPPORTED",
+                    registered_test_id=None,
+                    rule_ids=[],
+                    missing_capabilities=["design_prerequisites"],
+                    reason=scenario_issue,
+                )
             if not proposal["evidence_ids"]:
                 case["execution"] = {
                     "status": "UNSUPPORTED",
@@ -444,14 +463,11 @@ class QaPlanner:
             case["data_hash"] = fingerprint(data_identity)
             case["design_basis"] = {
                 "proposal_id": pid,
-                "morphology": next(
-                    (
-                        c
-                        for c in design.get("morphology", {}).get("candidates", [])
-                        if c["candidate_id"] == proposal.get("morphology_id")
-                    ),
-                    None,
-                ),
+                "morphology": usage,
+                "normal_use_scenario": usage
+                if design.get("morphology", {}).get("kind") == "NORMAL_USE_SCENARIOS"
+                else None,
+                "exceptions": copy.deepcopy(exceptions),
                 "risk_key": proposal.get("risk_key"),
                 "evidence_groups": evidence_groups,
                 "adopted_policy_ids": sorted(set(adopted)),

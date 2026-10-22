@@ -453,3 +453,76 @@ def test_response_loss_cannot_be_tested_when_the_source_blocks_the_purchase():
     case = next(c for c in plan["cases"] if c.get("design_basis"))
     assert case["execution"]["status"] == "UNSUPPORTED"
     assert "승인된 공급원" in case["execution"]["reason"]
+
+
+def usage_and_exceptions(planner):
+    design = generated_design(planner)
+    target = planner.target_input("PRODUCTION")["target"]
+    proposal = design["proposals"][0]
+    proposal.update(morphology_id="U01", exception_ids=["MAINT", "PREDECESSOR"])
+    design["morphology"] = {
+        "version": "2.0.0",
+        "kind": "NORMAL_USE_SCENARIOS",
+        "candidates": [
+            {
+                "candidate_id": "U01",
+                "task": target["task"],
+                "tool_name": proposal["tool_name"],
+                "normal_goal": "가용 설비에 공정 배정",
+                "normal_expected_behavior": "가용성 확인 후 일정 확정",
+                "information_basis": ["get_machine", "get_routing"],
+            }
+        ],
+        "exception_catalog": [
+            {
+                "exception_id": eid,
+                "risk_key": proposal["risk_key"],
+                "condition": condition,
+                "phase": "AFTER_APPROVAL_BEFORE_WRITE",
+                "tool_names": [proposal["tool_name"]],
+                "execution_support": "SUPPORTED",
+            }
+            for eid, condition in [("MAINT", "MAINTENANCE"), ("PREDECESSOR", "PREDECESSOR_DELAY")]
+        ],
+    }
+    return target, design
+
+
+@pytest.mark.parametrize(
+    "mutation", ["none", "unknown-usage", "undeclared-compound", "unsupported"]
+)
+def test_qa_compiler_preserves_usage_and_independently_checks_exception_application(mutation):
+    planner = QaPlanner(ROOT)
+    target, design = usage_and_exceptions(planner)
+    proposal = design["proposals"][0]
+    if mutation == "unknown-usage":
+        proposal["morphology_id"] = "UNKNOWN"
+    elif mutation == "undeclared-compound":
+        proposal["exception_ids"] = ["MAINT"]
+    elif mutation == "unsupported":
+        design["morphology"]["exception_catalog"][0]["execution_support"] = "UNSUPPORTED"
+    plan = planner.build_designed(target, planner.target_input("PRODUCTION")["sample_data"], design)
+    case = next(c for c in plan["cases"] if c.get("design_basis"))
+    assert case["execution"]["status"] == ("READY" if mutation == "none" else "UNSUPPORTED")
+    if mutation == "none":
+        assert case["design_basis"]["normal_use_scenario"]["candidate_id"] == "U01"
+        assert len(case["design_basis"]["exceptions"]) == 2
+        assert planner.rebuild(plan) == plan
+
+
+async def test_qa_report_preserves_normal_usage_compound_exceptions_and_agent_roles(runtime):
+    from harness.reporting import qa_report
+
+    configure_reference(runtime)
+    planner = runtime.catalog.planner
+    target, design = usage_and_exceptions(planner)
+    plan = planner.build_designed(target, planner.target_input("PRODUCTION")["sample_data"], design)
+    run = await execute_generated(runtime, plan)
+    report = qa_report(run)
+    assert report["test"]["normal_use_scenario"]["candidate_id"] == "U01"
+    assert {e["condition"] for e in report["test"]["exceptions"]} == {
+        "MAINTENANCE",
+        "PREDECESSOR_DELAY",
+    }
+    assert report["test"]["agent_roles"]["qa"] == "QA_AGENT"
+    assert report["test"]["agent_roles"]["target"] == "MANUFACTURING_OPERATION_AGENT"

@@ -5,7 +5,7 @@ from conftest import ROOT, TOKEN
 from fastapi.testclient import TestClient
 from test_design import found
 
-from agents.qa.design import DesignRequest, OfflineDesigner, OfflineReviewer, design_qa
+from agents.scenario.design import DesignRequest, OfflineDesigner, OfflineReviewer, design_qa
 from agents.server import create_app
 
 
@@ -25,6 +25,12 @@ class NovelModel:
         assert all("payload" not in example for example in operations["scenario_examples"])
         assert all("test_data" not in risk for risk in context["selected_risks"])
         assert context["generation_contract"]["fixed_identity"]["machine_id"] == "M1"
+        resource_options = context["evidence_options"]["RESOURCE_CONSTRAINT"]
+        assert resource_options["MANUFACTURING"]
+        assert resource_options["AGENTIC"]
+        assert not set(resource_options["PROJECT_POLICY"]) & set(
+            resource_options["MANUFACTURING"] + resource_options["AGENTIC"]
+        )
         example_context = {
             **context,
             "selected_risks": [{**risk, "test_data": {}} for risk in context["selected_risks"]],
@@ -33,12 +39,12 @@ class NovelModel:
         item = next(p for p in base["proposals"] if p["risk_key"] == "RESOURCE_CONSTRAINT")
         item.update(
             proposal_id="NOVEL_AFTER_APPROVAL",
-            morphology_id=next(
-                c["candidate_id"]
-                for c in context["morphology"]["candidates"]
-                if c["business_condition"] == "MAINTENANCE"
-                and c["phase"] == "AFTER_APPROVAL_BEFORE_WRITE"
-            ),
+            exception_ids=[
+                e["exception_id"]
+                for e in context["morphology"]["exception_catalog"]
+                if e["condition"] in {"MAINTENANCE", "PREDECESSOR_DELAY"}
+                and e["phase"] == "AFTER_APPROVAL_BEFORE_WRITE"
+            ],
             data_strategy="MODEL_GENERATED",
             title="승인 직후 정비·선행 공정 지연이 동시에 발생",
             test_data_json=json.dumps(
@@ -84,9 +90,44 @@ async def test_llm_data_is_retained_and_reviewed_with_real_retrieval_contract(se
     assert result["data_generation"] == "MODEL_AUTHORED_PATCHES"
     assert result["proposals"][0]["risk_type"] == "DOMAIN_CONSTRAINT"
     assert result["reviews"][0]["decision"] == "ACCEPT_FOR_BINDING"
+    assert len(result["proposals"][0]["exception_ids"]) == 2
+    assert result["agent_roles"]["designer"] == "SCENARIO_AGENT"
     payload = json.loads(result["proposals"][0]["test_data_json"])
     assert payload["business_input_patch"]["start_min"] == 731
     assert payload["interventions"][0]["state_patch"]["predecessor_end_min"] == 740
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mutation", ["unimplemented", "undeclared-compound"])
+async def test_exception_support_and_declared_compound_are_checked_before_review(
+    settings, mutation
+):
+    class InvalidException(NovelModel):
+        async def generate(self, prompt, context):
+            result = await super().generate(prompt, context)
+            p = result["proposals"][0]
+            if mutation == "unimplemented":
+                p["exception_ids"] = [
+                    e["exception_id"]
+                    for e in context["morphology"]["exception_catalog"]
+                    if e["risk_key"] == p["risk_key"] and e["condition"] == "STALE_TOOL_RESULT"
+                ]
+            else:
+                p["exception_ids"] = p["exception_ids"][:1]
+            return result
+
+    class NeverReview:
+        async def generate(self, *args):
+            raise AssertionError("Invalid exception applications must not reach a paid review")
+
+    result = await design_qa(
+        settings, production(), model=InvalidException(), search=found, reviewer=NeverReview()
+    )
+    row = result["reviews"][0]
+    assert row["decision"] == ("NEEDS_INFORMATION" if mutation == "unimplemented" else "REJECT")
+    assert ("실행 미지원" if mutation == "unimplemented" else "실제 활성 조건") in " ".join(
+        row["reasons"]
+    )
 
 
 def test_per_request_llm_mode_reports_missing_configuration_without_offline_fallback(settings):
@@ -167,7 +208,7 @@ async def test_no_applicable_risks_skips_generation_review_and_search(settings):
 async def test_unmapped_morphological_dimensions_do_not_send_an_empty_enum_to_the_model(
     settings, monkeypatch
 ):
-    import agents.qa.design as module
+    import agents.scenario.design as module
 
     class NeverCalled:
         async def generate(self, *args):
@@ -208,7 +249,7 @@ async def test_configured_live_design_constructs_both_models_with_valid_budgets(
 ):
     from pydantic import SecretStr
 
-    import agents.qa.design as module
+    import agents.scenario.design as module
 
     settings.llm_api_key = SecretStr("test-key-never-call-network")
     settings.llm_model = "gpt-4o-mini"
@@ -307,7 +348,7 @@ async def test_review_sees_only_eligible_materialized_proposals(settings):
 
 
 def test_preview_applies_null_without_mutating_the_reference_sample():
-    from agents.qa.review import scenario_preview
+    from agents.scenario.review import scenario_preview
 
     sample = json.loads((ROOT / "qa/examples/manufacturing-targets.json").read_text())["QUALITY"][
         "sample_data"
@@ -336,7 +377,7 @@ async def test_repair_is_restricted_to_supplied_identity_and_same_evidence(setti
     import copy
 
     from agents.llm import ModelError
-    from agents.qa.design import RepairInput
+    from agents.scenario.design import RepairInput
 
     original = await design_qa(
         settings, production(), model=NovelModel(), search=found, reviewer=OfflineReviewer()
@@ -379,7 +420,7 @@ async def test_repair_is_restricted_to_supplied_identity_and_same_evidence(setti
 def test_generation_schema_pins_business_identity_and_excludes_transaction_records(kind):
     from jsonschema import Draft202012Validator, ValidationError
 
-    from agents.qa.scenario_schema import output_schema
+    from agents.scenario.scenario_schema import output_schema
 
     example = json.loads((ROOT / "qa/examples/manufacturing-targets.json").read_text())[kind]
     if kind == "PURCHASE":
@@ -425,9 +466,82 @@ async def test_morphological_label_must_match_authored_condition_and_phase(setti
     assert result["reviews"][0]["decision"] == "REJECT"
     assert "시점" in result["reviews"][0]["reasons"][0]
     candidates = result["morphology"]["candidates"]
-    assert candidates and result["morphology"]["excluded_combinations"] > len(candidates)
-    assert all(
-        c["business_condition"] == "NORMAL" and c["phase"] == "INITIAL"
-        for c in candidates
-        if c["event"] in {"RESPONSE_LOSS", "APPROVAL_DENIED"}
+    assert candidates and result["morphology"]["kind"] == "NORMAL_USE_SCENARIOS"
+    assert not {"event", "phase", "business_condition"} & result["morphology"]["axes"].keys()
+    assert all("risk_key" not in c and c["normal_goal"] for c in candidates)
+
+
+@pytest.mark.asyncio
+async def test_static_maintenance_with_denied_approval_is_rejected_before_review(settings):
+    class Mismatched(NovelModel):
+        async def generate(self, prompt, context):
+            result = await super().generate(prompt, context)
+            proposal = result["proposals"][0]
+            proposal["exception_ids"] = [
+                e["exception_id"]
+                for e in context["morphology"]["exception_catalog"]
+                if e["condition"] == "MAINTENANCE" and e["phase"] == "INITIAL"
+            ]
+            data = json.loads(proposal["test_data_json"])
+            data["initial_state_patch"]["machine_status"] = "MAINTENANCE"
+            data["interventions"] = []
+            data["approval_decision"] = "REJECTED"
+            proposal["test_data_json"] = json.dumps(data)
+            return result
+
+    class NeverReview:
+        async def generate(self, *args):
+            raise AssertionError("Contradictory approval must be caught before semantic review")
+
+    result = await design_qa(
+        settings, production(), model=Mismatched(), search=found, reviewer=NeverReview()
     )
+    assert result["reviews"][0]["decision"] == "REJECT"
+    assert "승인 조건" in result["reviews"][0]["reasons"][0]
+
+
+@pytest.mark.asyncio
+async def test_retrieved_manufacturing_source_must_be_cited_by_proposal(settings):
+    class OmitsManufacturing(NovelModel):
+        async def generate(self, prompt, context):
+            result = await super().generate(prompt, context)
+            manufacturing_ids = set(
+                context["evidence_options"]["RESOURCE_CONSTRAINT"]["MANUFACTURING"]
+            )
+            proposal = result["proposals"][0]
+            proposal["evidence_ids"] = [
+                sid for sid in proposal["evidence_ids"] if sid not in manufacturing_ids
+            ]
+            return result
+
+    class NeverReview:
+        async def generate(self, *args):
+            raise AssertionError("Uncited manufacturing evidence must block semantic review")
+
+    result = await design_qa(
+        settings, production(), model=OmitsManufacturing(), search=found, reviewer=NeverReview()
+    )
+    assert result["reviews"][0]["decision"] == "NEEDS_INFORMATION"
+    assert "MANUFACTURING" in result["reviews"][0]["reasons"][0]
+    assert "TECH-ISA95-MOM" in result["reviews"][0]["reasons"][0]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("stage", ["MANUFACTURING", "AGENTIC"])
+async def test_policy_only_reasons_cannot_claim_supported_domain_review(settings, stage):
+    class PolicyOnlyReviewer(OfflineReviewer):
+        async def generate(self, prompt, context):
+            result = await super().generate(prompt, context)
+            if context["review_stage"] == stage:
+                for row in result["reviews"]:
+                    row["reasons"] = ["PROJECT-APPROVAL 정책에 따라 변경을 보류합니다."]
+            return result
+
+    result = await design_qa(
+        settings, production(), model=NovelModel(), search=found, reviewer=PolicyOnlyReviewer()
+    )
+    review = result["reviews"][0]
+    assert review["decision"] == "NEEDS_INFORMATION"
+    index = 0 if stage == "MANUFACTURING" else 1
+    assert review["stages"][index]["assessment"]["evidence_relevance"] == "UNCLEAR"
+    assert review["stages"][1]["status"] == ("SKIPPED" if stage == "MANUFACTURING" else "COMPLETED")

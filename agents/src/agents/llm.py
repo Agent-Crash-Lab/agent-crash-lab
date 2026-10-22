@@ -149,6 +149,12 @@ class StructuredModel:
                             c["candidate_id"]
                             for c in context.get("morphology", {}).get("candidates", [])
                         ]
+                    if "exception_ids" in fields:
+                        fields["exception_ids"]["items"]["enum"] = [
+                            e["exception_id"]
+                            for e in context.get("morphology", {}).get("exception_catalog", [])
+                            if e["risk_key"] in risks
+                        ]
         if "reviews" in response_schema.get("properties", {}):
             proposal_ids = [proposal["proposal_id"] for proposal in context.get("proposals", [])]
             if proposal_ids:

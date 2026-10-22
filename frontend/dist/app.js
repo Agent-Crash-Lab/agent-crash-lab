@@ -1,9 +1,9 @@
-import {workspaceRoute} from './live-api.js?v=0.14.0';
-import {mountLive,leaveLive} from './live.js?v=0.14.0';
-import { mountScene, pauseScene } from './scene.js?v=0.14.0';
-import { agents, investigationScenarios, investigationEvents, investigationChecks, validateDemoProfile, restoreProfiles } from './registry.js?v=0.14.0';
-import { frameFor, mapEvents } from './topology.js?v=0.14.0';
-import { initRegistration, openRegistration } from './registration.js?v=0.14.0';
+import {workspaceRoute} from './live-api.js?v=0.15.0';
+import {mountLive,leaveLive} from './live.js?v=0.15.0';
+import { mountScene, pauseScene } from './scene.js?v=0.15.0';
+import { agents, investigationScenarios, investigationEvents, investigationChecks, validateDemoProfile, restoreProfiles } from './registry.js?v=0.15.0';
+import { frameFor, mapEvents } from './topology.js?v=0.15.0';
+import { initRegistration, openRegistration } from './registration.js?v=0.15.0';
 restoreProfiles();
 const $ = (s) => document.querySelector(s);
 const purchaseScenarios = {

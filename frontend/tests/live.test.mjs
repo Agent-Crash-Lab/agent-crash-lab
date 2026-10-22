@@ -197,3 +197,13 @@ test('repair and investigation experiment summaries escape input and distinguish
   assert.match(next,/&lt;unsafe&gt;/);assert.match(next,/data-live-follow-up/);
   assert.match(next,/정상 대조 1회/);assert.match(next,/담당자 승인/);
 });
+
+test('normal usage and multiple exceptions remain separate and escaped in reports', async()=>{
+  const {scenarioMarkup}=await import('../dist/live-api.js');
+  const html=scenarioMarkup({normal_use_scenario:{normal_goal:'정상 일정 <script>',task:'설비 가용성 확인',normal_expected_behavior:'유효한 조건에서 배정',information_basis:['get_machine'],tool_name:'assign_operation'},exceptions:[{condition:'MAINTENANCE',phase:'AFTER_APPROVAL_BEFORE_WRITE'},{condition:'PREDECESSOR_DELAY',phase:'AFTER_APPROVAL_BEFORE_WRITE'}]});
+  assert.match(html,/정상 사용 시나리오/);
+  assert.match(html,/설비 정비 전환/);
+  assert.match(html,/선행 공정 지연/);
+  assert.ok(!html.includes('<script>'));
+  assert.match(scenarioMarkup({morphology:{tool_name:'assign',business_condition:'MAINTENANCE',event:'NONE',phase:'INITIAL'}}),/상황을 만든 조합/);
+});

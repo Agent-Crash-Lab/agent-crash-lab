@@ -6,7 +6,7 @@ from conftest import ROOT, TOKEN
 from fastapi.testclient import TestClient
 
 from agents.llm import ModelError
-from agents.qa.design import DesignRequest, analyze, design_qa, screen_risks
+from agents.scenario.design import DesignRequest, analyze, design_qa, screen_risks
 from agents.server import create_app
 
 
@@ -85,7 +85,9 @@ async def test_design_uses_target_features_and_records_queries_citations_and_sta
     }
     assert [x["stage"] for x in result["trace"]] == [
         "ANALYZE_TARGET",
+        "BUILD_NORMAL_USE_SCENARIOS",
         "RETRIEVE_EVIDENCE",
+        "DERIVE_EXCEPTION_OPTIONS",
         "PROPOSE_TESTS",
         "VALIDATE_PROPOSALS",
         "REVIEW_MANUFACTURING",
@@ -111,7 +113,7 @@ async def test_domain_examples_produce_domain_data_not_purchase_data(settings, k
 async def test_unretrieved_citations_cannot_leave_the_designer(settings):
     class InventingModel:
         async def generate(self, prompt, context):
-            from agents.qa.design import OfflineDesigner
+            from agents.scenario.design import OfflineDesigner
 
             result = await OfflineDesigner().generate(prompt, context)
             result["proposals"][0]["evidence_ids"] = ["UNSEEN-DOCUMENT"]
@@ -216,7 +218,7 @@ async def test_independent_critic_can_withhold_a_well_formed_proposal(settings):
 
     result = await design_qa(settings, reference(), search=found, reviewer=Critic())
     assert all(r["decision"] == "REJECT" for r in result["reviews"])
-    assert result["strategy"] == "MORPHOLOGY_THEN_TWO_STAGE_REVIEW"
+    assert result["strategy"] == "USE_SCENARIOS_THEN_EXCEPTIONS_THEN_TWO_STAGE_REVIEW"
     assert not result["llm_usage"]
 
 
@@ -231,7 +233,7 @@ async def test_critic_cannot_omit_or_duplicate_proposals(settings):
 
 
 def test_description_preflight_uses_same_scope_engine_and_marks_unknown_policies(settings):
-    from agents.qa.design import AnalyzeRequest, analyze_description
+    from agents.scenario.design import AnalyzeRequest, analyze_description
 
     declared = reference().model_dump()
     body = AnalyzeRequest(**declared, unknown_policies=["approval_required", "max_write_retries"])
@@ -280,7 +282,7 @@ def test_analyze_endpoint_never_calls_model_or_search_and_requires_auth(settings
 def test_review_criteria_determine_decision_without_a_model_supplied_verdict(
     alignment, evidence, consistency, decision
 ):
-    from agents.qa.review import ReviewItem
+    from agents.scenario.review import ReviewItem
 
     item = ReviewItem(
         proposal_id="TEST",
@@ -296,7 +298,7 @@ def test_review_criteria_determine_decision_without_a_model_supplied_verdict(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("rejected_stage", ["MANUFACTURING", "AGENTIC"])
 async def test_two_gates_are_independent_and_a_failed_gate_blocks_binding(settings, rejected_stage):
-    from agents.qa.review import OfflineReviewer
+    from agents.scenario.review import OfflineReviewer
 
     seen = []
 
@@ -347,7 +349,7 @@ async def test_missing_manufacturing_evidence_is_withheld_without_model_calls(se
 
 @pytest.mark.asyncio
 async def test_reviewer_cannot_cite_the_other_gate_or_invent_evidence(settings):
-    from agents.qa.review import OfflineReviewer
+    from agents.scenario.review import OfflineReviewer
 
     class Misattributing(OfflineReviewer):
         async def generate(self, prompt, context):

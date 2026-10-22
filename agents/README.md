@@ -1,23 +1,25 @@
 # Agent 서비스
 
-**QA 시험을 설계하고, 대상 Agent를 실행하며, 실패 근거를 조사합니다.**
+**Scenario Agent, Manufacturing Operation Agent와 QA Agent의 조사 기능을 실행하는 서비스입니다.** QA Agent의 실험 관리·증거 판정·보고서 엔진은 Harness에 있습니다.
 
 ## 역할과 연결
 
 | 코드 | 역할 | 연결 |
 |---|---|---|
-| `src/agents/qa/analysis.py`, `design.py`, `proposals.py` | 기능 분석 → 근거 검색 → 시험 데이터 생성 | Harness 설계 API·MCP 문서 검색 |
-| `src/agents/qa/review.py` | 코드 사전 검사 → 제안 상태 계산 → 항목별 의미 검토 | 생성된 시험안·검색 문헌 |
+| `src/agents/scenario/analysis.py`, `design.py`, `proposals.py` | 기능 분석 → 근거 검색 → 시험 데이터 생성 | Harness 설계 API·MCP 문서 검색 |
+| `src/agents/scenario/review.py` | 코드 사전 검사 → 제안 상태 계산 → 항목별 의미 검토 | 생성된 시험안·검색 문헌 |
 | `src/agents/qa/investigation.py` | 실행 기록·DB 관측·문서를 읽고 조사 보고서 작성 | Harness 조사 요청·MCP 증거 도구 |
 | `src/agents/targets/` | 검증 대상인 구매·생산·품질 Agent 참조 구현 | 시험용 MCP 재고·승인·발주 도구 |
 | `src/agents/runtime.py`, `execution.py`, `store.py` | 실행·승인 대기·재개·저장 | 내부 HTTP API·SQLite checkpoint |
 | `src/agents/tools/` | 실제 MCP 연결과 테스트용 가상 도구 | MCP 서버 또는 mock |
 | `src/agents/llm.py` | 모델 호출·구조화 출력·비용 제한 | 선택형 OpenAI 연결 |
 
-구매·생산 일정·품질·출하는 **검증 대상 유형**입니다. 설계·검토·조사는 공통 QA 역할입니다.
+구매·생산 일정·품질·출하는 **Manufacturing Operation Agent의 참조 유형**입니다. Scenario Agent는 정상 사용 시나리오를 구성하고 예외를 별도 적용·검토합니다. QA Agent는 Harness와 조사 기능을 통해 실험·판정·보고서를 담당합니다. 이 세 역할이 각각 독립적인 서버나 LLM이어야 한다는 뜻은 아닙니다.
 구매·생산·품질 참조 Agent 모두 실행됩니다. 생산·품질은 `targets/manufacturing.py`의 규칙 기반 실행기로, Harness가 제공한 실행별 HTTP MCP 도구를 사용합니다. 실제 공장 업무는 수행하지 않습니다.
 실행 지원 여부와 최종 판정은 Harness의 등록 어댑터·코드가 결정합니다.
 `design.py`는 단계 흐름, `proposals.py`는 생성 형식·프롬프트·offline 예시, `review.py`는 검토 기준과 제안 상태 계산을 담당합니다. 검색 연결은 한 설계에서 재사용하며 최대 4개 요청을 동시에 처리합니다.
+
+`scenario/morphology.py`는 정상 업무·도구·정보원·권한의 형태학적 구성을, `scenario/exceptions.py`는 별도의 예외 목록·복합 적용·실행 지원 검사를 담당합니다. `morphology_id`와 `exception_ids`를 별도 기록합니다. 기존 `/internal/qa/design` API와 `QA_DESIGN_*` 설정 이름은 유지합니다.
 
 모델의 `offline/openai`와 도구의 `mock/mcp`는 별도 설정입니다. 기본 offline은 규칙 기반이며 유료 모델을 호출하지 않습니다.
 
@@ -63,4 +65,4 @@ QA 생성 모델은 `QA_DESIGN_LLM_MODEL`, 검토 모델은 `QA_REVIEW_LLM_MODEL
 
 ## 후속 개발 연결 (2026-10-22)
 
-공동 입력·출력·담당 경계는 [팀별 개발 계약](../docs/architecture.md#팀별-개발-계약), 저장 양식은 [데이터·스키마](../docs/data-guide.md#보완과-추가-실험-데이터)를 기준으로 맞춥니다. 시험안은 보류된 안만 1회 보완하며, 추가 실험은 원래 계획의 정상 대조·위험 조건을 기존 배치·승인 경로로 실행합니다.
+공동 입력·출력·담당 경계는 [팀별 개발 계약](../docs/architecture.md#단계별-개발-계약), 저장 양식은 [데이터·스키마](../docs/data-guide.md#보완과-추가-실험-데이터)를 기준으로 맞춥니다. 시험안은 보류된 안만 1회 보완하며, 추가 실험은 원래 계획의 정상 대조·위험 조건을 기존 배치·승인 경로로 실행합니다.

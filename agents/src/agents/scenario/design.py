@@ -18,11 +18,11 @@ from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, ConfigDict, Field
 
 from agents.llm import ModelError, StructuredModel, resolve_model
-from agents.qa.analysis import analyze as analyze
-from agents.qa.analysis import analyze_description as analyze_description
-from agents.qa.analysis import screen_risks as screen_risks
-from agents.qa.morphology import build_field
-from agents.qa.proposals import (
+from agents.scenario.analysis import analyze as analyze
+from agents.scenario.analysis import analyze_description as analyze_description
+from agents.scenario.analysis import screen_risks as screen_risks
+from agents.scenario.morphology import build_field
+from agents.scenario.proposals import (
     GENERATIVE_PROMPT,
     PROMPT,
     REPAIR_PROMPT,
@@ -31,7 +31,7 @@ from agents.qa.proposals import (
     Proposal,
     Proposals,
 )
-from agents.qa.review import (
+from agents.scenario.review import (
     REVIEW_PROMPT,
     STAGE_PROMPTS,
     OfflineReviewer,
@@ -41,7 +41,7 @@ from agents.qa.review import (
     review_prerequisites,
     review_stage,
 )
-from agents.qa.scenario_schema import output_schema
+from agents.scenario.scenario_schema import output_schema
 
 
 class DesignState(TypedDict, total=False):
@@ -181,7 +181,14 @@ async def design_qa(settings, body, model=None, search=None, reviewer=None):
 
     async def analysis_node(state):
         trace.append({"stage": "ANALYZE_TARGET"})
-        return {"analysis": analysis}
+        applicable = {
+            r["risk_key"] for r in analysis["risk_screening"] if r["status"] == "APPLICABLE"
+        }
+        morphology = build_field(
+            body.target, analysis, [r for r in library["risks"] if r["risk_key"] in applicable]
+        )
+        trace.append({"stage": "BUILD_NORMAL_USE_SCENARIOS"})
+        return {"analysis": analysis, "morphology": morphology}
 
     async def retrieve_node(state):
         analysis = state["analysis"]
@@ -273,11 +280,20 @@ async def design_qa(settings, body, model=None, search=None, reviewer=None):
         if len(versions) > 1:
             raise ValueError("Knowledge index changed during design; retry")
         trace.append({"stage": "RETRIEVE_EVIDENCE", "searches": requests})
-        morphology = build_field(body.target, analysis, selected)
-        mapped = {c["risk_key"] for c in morphology["candidates"]}
+        morphology = state["morphology"]
+        mapped = (
+            {
+                e["risk_key"]
+                for e in morphology.get("exception_catalog", [])
+                if e["execution_support"] == "SUPPORTED"
+            }
+            if morphology["candidates"]
+            else set()
+        )
         morphology["unmapped_risks"] = [
             r["risk_key"] for r in selected if r["risk_key"] not in mapped
         ]
+        trace.append({"stage": "DERIVE_EXCEPTION_OPTIONS"})
         return {
             "sources": list(found.values()),
             "retrieval": requests,
@@ -457,7 +473,12 @@ async def design_qa(settings, body, model=None, search=None, reviewer=None):
             ).encode()
         ).hexdigest(),
         "reviews": result["reviews"],
-        "strategy": "MORPHOLOGY_THEN_TWO_STAGE_REVIEW",
+        "strategy": "USE_SCENARIOS_THEN_EXCEPTIONS_THEN_TWO_STAGE_REVIEW",
+        "agent_roles": {
+            "designer": "SCENARIO_AGENT",
+            "executor_and_reporter": "QA_AGENT",
+            "target": "MANUFACTURING_OPERATION_AGENT",
+        },
         "morphology": result["morphology"],
         "risk_library_version": library["version"],
         "risk_library_hash": library_hash,
@@ -471,7 +492,14 @@ async def design_qa(settings, body, model=None, search=None, reviewer=None):
             (REVIEW_PROMPT + "".join(STAGE_PROMPTS.values())).encode()
         ).hexdigest(),
         "generation_schema_version": hashlib.sha256(
-            json.dumps(generation_contract["scenario_schema"], sort_keys=True).encode()
+            json.dumps(
+                {
+                    "scenario": generation_contract["scenario_schema"],
+                    "proposal": response_type.model_json_schema(),
+                    "morphology_version": result["morphology"].get("version"),
+                },
+                sort_keys=True,
+            ).encode()
         ).hexdigest(),
         "generation_prompt_version": hashlib.sha256(
             (
