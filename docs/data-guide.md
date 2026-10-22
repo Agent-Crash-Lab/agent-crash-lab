@@ -223,7 +223,7 @@ erDiagram
 | 데이터 | 저장·의미 |
 |---|---|
 | `plan.design.repair` | 최대/실제 수정 횟수, 상태, 보류 이유, 최초 제안·검토. 최종 제안은 기존 proposals에 저장 |
-| `case.design_basis.repair` | 설계 전체 수정 상태와 해당 제안의 보완 이유. 이유가 비어 있으면 그 제안은 수정 대상이 아님 |
+| `case.design_basis.repair` | 해당 제안에 대한 수정 상태·이유만 보고서에 전달 |
 | `qa_report.test.design_repair` | 화면과 HTML 보고서의 동일한 보완 설명 |
 | `run.follow_up` | 현재 사용자·저장 계획·조사/검사 근거로 계산하는 추가 실험 제안. SQL 별도 테이블이 아님 |
 | `run.follow_up_batch_id` | 원본 실행에서 생성한 추가 조사 배치 ID |
