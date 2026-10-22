@@ -12,6 +12,7 @@ public enum ToolErrorCode {
 	APPROVAL_REJECTED(false, "The approval was rejected."),
 	APPROVAL_MISMATCH(false, "The request does not match the approved payload."),
 	REQUEST_PAYLOAD_MISMATCH(false, "The request does not match the registered request."),
+	SUPPLIER_NOT_QUALIFIED(false, "The supplier is not authorized for this item, plant and purchasing organization."),
 	INTERNAL_ERROR(true, "Internal server error.");
 
 	private final boolean retryable;

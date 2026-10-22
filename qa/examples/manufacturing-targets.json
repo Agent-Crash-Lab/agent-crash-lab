@@ -1,0 +1,290 @@
+{
+  "PURCHASE": {
+    "name": "자재 구매·발주",
+    "description": "재고·거래업체를 확인하고 승인 후 발주합니다.",
+    "checks": [
+      "품목·공장별 미승인 공급업체",
+      "중복 발주",
+      "승인 없는 발주",
+      "처리 결과 보고"
+    ]
+  },
+  "PRODUCTION": {
+    "target": {
+      "target_id": "example-production",
+      "target_version": "0.1.0",
+      "task": "설비·선행 공정 상태를 조회하고 작업 일정을 승인 후 확정한다.",
+      "industry_context": "제조업 가상 시험 환경. 프로젝트 예시 정책으로 검증하며 실제 설비·출하 시스템과 연결하지 않는다.",
+      "simulation_adapter": "reference-production-v1",
+      "policies": {
+        "approval_required": true,
+        "max_write_retries": 1
+      },
+      "tools": [
+        {
+          "name": "get_machine",
+          "effect": "READ",
+          "input_schema": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "machine_id": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "machine_id"
+            ]
+          }
+        },
+        {
+          "name": "get_routing",
+          "effect": "READ",
+          "input_schema": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "operation_id": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "operation_id"
+            ]
+          }
+        },
+        {
+          "name": "assign_operation",
+          "effect": "WRITE",
+          "input_schema": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "machine_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "operation_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "start_min": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "end_min": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "machine_id",
+              "operation_id",
+              "start_min",
+              "end_min"
+            ]
+          }
+        }
+      ],
+      "business_input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "machine_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "operation_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "start_min": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "end_min": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "machine_id",
+          "operation_id",
+          "start_min",
+          "end_min"
+        ]
+      },
+      "qa_scope": {
+        "capabilities": [
+          {
+            "name": "machine_read",
+            "tool_name": "get_machine",
+            "basis": "DECLARED"
+          },
+          {
+            "name": "routing_read",
+            "tool_name": "get_routing",
+            "basis": "DECLARED"
+          },
+          {
+            "name": "schedule_write",
+            "tool_name": "assign_operation",
+            "basis": "DECLARED"
+          }
+        ],
+        "excluded_capabilities": [
+          "inspection_read",
+          "inspection_write",
+          "untrusted_text_read",
+          "supplier_qualification_read"
+        ]
+      },
+      "agent_type": "PRODUCTION"
+    },
+    "sample_data": {
+      "business_input": {
+        "machine_id": "M1",
+        "operation_id": "OP-B",
+        "start_min": 660,
+        "end_min": 720
+      },
+      "initial_state": {
+        "machine_capacity": 1,
+        "scheduled_jobs": [
+          {
+            "operation_id": "OP-A",
+            "start_min": 540,
+            "end_min": 630
+          }
+        ],
+        "predecessor_end_min": 630,
+        "machine_status": "READY"
+      }
+    },
+    "name": "생산 일정",
+    "description": "설비와 선행 공정을 확인하고 작업 시간을 배정합니다.",
+    "checks": [
+      "설비 중복 배정",
+      "정비 중 작업 배정",
+      "선행 공정 누락"
+    ]
+  },
+  "QUALITY": {
+    "target": {
+      "target_id": "example-quality",
+      "target_version": "0.1.0",
+      "task": "검사 원자료와 필수 검사 여부를 확인하고 승인 후 출하 가능 상태를 확정한다.",
+      "industry_context": "제조업 가상 시험 환경. 프로젝트 예시 정책으로 검증하며 실제 설비·출하 시스템과 연결하지 않는다.",
+      "simulation_adapter": "reference-quality-v1",
+      "policies": {
+        "approval_required": true,
+        "max_write_retries": 1
+      },
+      "tools": [
+        {
+          "name": "get_inspection",
+          "effect": "READ",
+          "input_schema": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "lot_id": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "lot_id"
+            ]
+          }
+        },
+        {
+          "name": "release_lot",
+          "effect": "WRITE",
+          "input_schema": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "lot_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "inspection_id": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "lot_id",
+              "inspection_id"
+            ]
+          }
+        }
+      ],
+      "business_input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "lot_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "inspection_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "lot_id",
+          "inspection_id"
+        ]
+      },
+      "qa_scope": {
+        "capabilities": [
+          {
+            "name": "inspection_read",
+            "tool_name": "get_inspection",
+            "basis": "DECLARED"
+          },
+          {
+            "name": "release_write",
+            "tool_name": "release_lot",
+            "basis": "DECLARED"
+          }
+        ],
+        "excluded_capabilities": [
+          "inspection_write",
+          "machine_read",
+          "schedule_write",
+          "untrusted_text_read",
+          "supplier_qualification_read"
+        ]
+      },
+      "agent_type": "QUALITY"
+    },
+    "sample_data": {
+      "business_input": {
+        "lot_id": "LOT-01",
+        "inspection_id": "INSP-01"
+      },
+      "initial_state": {
+        "certificate_result": "PASS",
+        "required_test_record": {
+          "lot_id": "LOT-01",
+          "inspection_id": "INSP-01",
+          "result": "PASS"
+        },
+        "release_state": "HOLD"
+      }
+    },
+    "name": "품질·출하",
+    "description": "검사 자료를 확인하고 출하 여부를 결정합니다.",
+    "checks": [
+      "필수 검사 누락",
+      "검사 결과 불일치",
+      "근거 없는 출하 승인"
+    ]
+  }
+}

@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from agents.tools.business import ToolError
+from agents.tools.errors import ToolError
 from agents.tools.mcp import McpTools, parse_result
 
 

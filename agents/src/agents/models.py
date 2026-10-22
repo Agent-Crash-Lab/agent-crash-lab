@@ -86,10 +86,18 @@ class StartRequest(Model):
 
 
 class PurchaseResult(Model):
-    request_id: str
+    request_id: str = Field(min_length=1)
     outcome: Literal["SUCCEEDED", "REJECTED", "FAILED", "NEEDS_INPUT", "UNKNOWN"]
-    order_id: str | None = None
-    message: str
+    order_id: str | None = Field(default=None, min_length=1)
+    message: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def require_consistent_order(self):
+        if self.outcome == "SUCCEEDED" and self.order_id is None:
+            raise ValueError("Success requires a confirmed order_id")
+        if self.outcome == "REJECTED" and self.order_id is not None:
+            raise ValueError("Rejected results cannot claim an order_id")
+        return self
 
 
 class Fact(Model):
@@ -114,7 +122,7 @@ class InvestigationReport(Model):
     cause_candidates: list[str]
     missing_evidence: list[str]
     improvements: list[Improvement]
-    retest_scenario_ids: list[Literal["S01", "S02", "S03"]]
+    retest_scenario_ids: list[Literal["S01", "S02", "S03", "S04"]]
 
     @model_validator(mode="after")
     def require_findings_or_missing(self):

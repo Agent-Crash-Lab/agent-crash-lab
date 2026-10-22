@@ -1,8 +1,9 @@
 {
-  "_source": "contracts/drafts/manufacturing-qa/purchase-tools.json 의 name·description·input_schema 복사본. 원본과 같은지 BusinessToolContractTests가 검사한다.",
+  "_source": "qa/examples/purchase-tools.json 의 name·description·input_schema 복사본. 원본과 같은지 BusinessToolContractTests가 검사한다.",
   "tools": [
     {
       "name": "get_inventory",
+      "effect": "READ",
       "description": "실행에 속하는 품목·공장의 가용 재고 조회. 공급 자격 조회는 별도 확장.",
       "input_schema": {
         "type": "object",
@@ -21,10 +22,18 @@
           "plant_id"
         ],
         "additionalProperties": false
-      }
+      },
+      "output_fields": [
+        "part_id",
+        "plant_id",
+        "available_quantity",
+        "unit",
+        "inventory_version"
+      ]
     },
     {
       "name": "get_supplier",
+      "effect": "READ",
       "description": "공급업체 활성 여부와 시험 견적 조회.",
       "input_schema": {
         "type": "object",
@@ -38,10 +47,60 @@
           "supplier_id"
         ],
         "additionalProperties": false
-      }
+      },
+      "output_fields": [
+        "supplier_id",
+        "status",
+        "unit_price_minor",
+        "currency",
+        "supplier_version"
+      ]
+    },
+    {
+      "name": "get_supplier_eligibility",
+      "effect": "READ",
+      "description": "품목·공급업체·공장·구매조직의 조합으로 공급 자격을 조회. 업체 활성 상태와 별개의 승인 기준.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "part_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "supplier_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "plant_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "purchasing_org_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "part_id",
+          "supplier_id",
+          "plant_id",
+          "purchasing_org_id"
+        ]
+      },
+      "output_fields": [
+        "part_id",
+        "supplier_id",
+        "plant_id",
+        "purchasing_org_id",
+        "allowed",
+        "policy_found",
+        "policy_version"
+      ]
     },
     {
       "name": "create_purchase_order",
+      "effect": "WRITE",
       "description": "서버가 유효한 승인과 요청 내용을 검증한 후 발주 생성. 같은 요청의 재시도는 request_id와 내용을 유지.",
       "input_schema": {
         "type": "object",
@@ -108,10 +167,17 @@
           "approval_id"
         ],
         "additionalProperties": false
-      }
+      },
+      "output_fields": [
+        "request_id",
+        "order_id",
+        "status",
+        "committed_version"
+      ]
     },
     {
       "name": "get_order_by_request",
+      "effect": "READ",
       "description": "해당 실행·요청의 발주를 배열로 모두 반환. 첫 발주만 반환해 중복을 숨기지 않는다.",
       "input_schema": {
         "type": "object",
@@ -125,7 +191,11 @@
           "request_id"
         ],
         "additionalProperties": false
-      }
+      },
+      "output_fields": [
+        "request_id",
+        "orders"
+      ]
     }
   ]
 }

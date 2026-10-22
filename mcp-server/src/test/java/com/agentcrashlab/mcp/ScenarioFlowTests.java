@@ -122,7 +122,7 @@ class ScenarioFlowTests extends PostgresIntegrationTest {
 	@SuppressWarnings("unchecked")
 	private void assertObservationShape(Map<String, Object> observation) throws IOException {
 		Map<String, Object> schema = this.json.readValue(
-				Files.readString(Path.of("../contracts/drafts/manufacturing-qa/oracle-observation.schema.json")),
+				Files.readString(Path.of("../qa/examples/purchase-observation.schema.json")),
 				Map.class);
 		Map<String, Object> defs = (Map<String, Object>) schema.get("$defs");
 		assertThat(observation.keySet()).isEqualTo(((Map<String, Object>) schema.get("properties")).keySet());

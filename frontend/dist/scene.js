@@ -1,5 +1,5 @@
 import * as THREE from './vendor/three.module.js';
-import { layoutTopology } from './topology.js?v=0.6.2';
+import { layoutTopology } from './topology.js?v=0.14.0';
 let engine,engineKey;
 const roleNames={agent:'Agent',runner:'실행 준비',approval:'승인',tool:'도구',database:'업무 상태',store:'읽기 전용 자료',report:'결과 문서',reviewer:'검사·검토'};
 function createEngine(graph){

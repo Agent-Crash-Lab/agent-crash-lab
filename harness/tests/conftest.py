@@ -28,15 +28,17 @@ class FakeMcp:
 
     def __init__(self):
         self.calls = []
-        self.request = json.loads(
-            (ROOT / "fixtures/drafts/manufacturing-qa/purchase-seed.json").read_text()
-        )["seed"]["request"]
+        self.request = json.loads((ROOT / "qa/examples/purchase-initial-state.json").read_text())[
+            "seed"
+        ]["request"]
         self.orders = 1
         self.fault_status = "APPLIED"
         self.approval_wait = 300  # seconds until the approval request expires
 
     async def initialize(self, body):
         self.calls.append(("initialize", body))
+        if body.get("initial_state"):
+            self.request = body["initial_state"]["request"]
         return {
             "run_id": body["run_id"],
             "server_policy_version": body["server_policy_version"],

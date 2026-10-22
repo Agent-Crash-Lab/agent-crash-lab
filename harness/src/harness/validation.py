@@ -6,6 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 ALLOWED_INVESTIGATION_TOOLS = {
+    "search_manufacturing_knowledge",
     "get_failed_checks",
     "get_run_trace",
     "get_business_state",
@@ -41,7 +42,7 @@ class InvestigationReport(_Model):
     cause_candidates: list[str]
     missing_evidence: list[str]
     improvements: list[_Improvement]
-    retest_scenario_ids: list[Literal["S01", "S02", "S03"]]
+    retest_scenario_ids: list[Literal["S01", "S02", "S03", "S04"]]
 
 
 def collect_evidence_ids(value) -> set[str]:

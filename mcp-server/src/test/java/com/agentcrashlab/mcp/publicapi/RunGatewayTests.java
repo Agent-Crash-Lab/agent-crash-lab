@@ -54,4 +54,28 @@ class RunGatewayTests {
         assertThatThrownBy(()->gateway.start(new MockHttpServletRequest("POST","/api/runs"),"Bearer approver","{}"))
                 .isInstanceOf(ApiException.class).hasMessage("REQUESTER role required");
     }
+
+    @Test
+    void manufacturingApprovalUsesApproverRoleWithoutAllowingRunCreation() throws Exception {
+        HttpServer upstream = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        AtomicReference<String> role = new AtomicReference<>();
+        upstream.createContext("/api/qa/runs/RUN-1/approval", exchange -> {
+            role.set(exchange.getRequestHeaders().getFirst("X-User-Roles"));
+            byte[] body = "{\"accepted\":true}".getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body); exchange.close();
+        });
+        upstream.start();
+        try {
+            UserSessions sessions = mock(UserSessions.class);
+            when(sessions.require("Bearer approver")).thenReturn(new CurrentUser("approver-01", List.of("APPROVER"), "ORG"));
+            when(sessions.require("Bearer requester")).thenReturn(new CurrentUser("requester-01", List.of("REQUESTER"), "ORG"));
+            var properties = new CrashLabProperties("secret", "http://127.0.0.1:" + upstream.getAddress().getPort(), null,null,null,null,null,null,null);
+            var gateway = new RunGatewayController(sessions, properties);
+            var request = new MockHttpServletRequest("POST", "/api/qa/runs/RUN-1/approval");
+            assertThatThrownBy(() -> gateway.start(request, "Bearer requester", "{}")) .isInstanceOf(ApiException.class);
+            assertThat(gateway.start(request, "Bearer approver", "{}").getStatusCode().value()).isEqualTo(200);
+            assertThat(role.get()).isEqualTo("APPROVER");
+        } finally { upstream.stop(0); }
+    }
 }

@@ -104,6 +104,18 @@ public class PurchaseOrders {
 			throw new ToolException(ToolErrorCode.APPROVAL_MISMATCH);
 		}
 
+		// Qualification is a server gate as well as an Agent responsibility.
+		boolean qualified = this.jdbc.sql("""
+				SELECT (s.status = 'ACTIVE' AND a.allowed) FROM approved_supply_source a
+				JOIN supplier s ON s.run_id=a.run_id AND s.supplier_id=a.supplier_id
+				WHERE a.run_id=? AND a.part_id=? AND a.supplier_id=? AND a.plant_id=? AND a.purchasing_org_id=?
+				FOR SHARE OF a, s""")
+			.params(runId, request.partId(), request.supplierId(), request.plantId(), request.purchasingOrgId())
+			.query(Boolean.class).optional().orElse(false);
+		if (!qualified) {
+			throw new ToolException(ToolErrorCode.SUPPLIER_NOT_QUALIFIED);
+		}
+
 		// 7. 서버 정책: idempotent-v1이면 같은 요청의 첫 응답을 재사용한다
 		boolean idempotent = IDEMPOTENT_POLICY.equals(this.jdbc
 			.sql("SELECT server_policy_version FROM run_context WHERE run_id = ?")

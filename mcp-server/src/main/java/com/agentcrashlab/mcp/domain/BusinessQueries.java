@@ -62,6 +62,24 @@ public class BusinessQueries {
 			.orElseThrow(() -> new ToolException(ToolErrorCode.VALIDATION_ERROR));
 	}
 
+	/** An active supplier still needs approval for this exact business scope. */
+	public Map<String, Object> eligibility(String runId, String partId, String supplierId,
+			String plantId, String purchasingOrgId) {
+		var rows = this.jdbc.sql("""
+				SELECT allowed, policy_version FROM approved_supply_source
+				WHERE run_id=? AND part_id=? AND supplier_id=? AND plant_id=? AND purchasing_org_id=?""")
+			.params(runId, partId, supplierId, plantId, purchasingOrgId)
+			.query((rs, row) -> Map.<String, Object>of("allowed", rs.getBoolean("allowed"),
+				"policy_version", rs.getInt("policy_version"))).list();
+		Map<String, Object> result = new LinkedHashMap<>();
+		result.put("part_id", partId); result.put("supplier_id", supplierId);
+		result.put("plant_id", plantId); result.put("purchasing_org_id", purchasingOrgId);
+		result.put("policy_found", !rows.isEmpty());
+		result.put("allowed", !rows.isEmpty() && Boolean.TRUE.equals(rows.getFirst().get("allowed")));
+		result.put("policy_version", rows.isEmpty() ? 0 : rows.getFirst().get("policy_version"));
+		return result;
+	}
+
 	/** 해당 요청의 발주를 모두 반환한다. 중복을 숨기지 않는다 */
 	public Map<String, Object> ordersByRequest(String runId, String requestId) {
 		List<Map<String, Object>> orders = this.jdbc.sql("""

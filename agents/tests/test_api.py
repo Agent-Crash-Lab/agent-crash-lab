@@ -23,7 +23,9 @@ def poll(client, run_id):
 
 def test_api_start_resume_events_and_auth(settings):
     with TestClient(create_app(settings)) as client:
-        assert client.get("/health").json() == {"status": "ok"}
+        health = client.get("/health")
+        assert health.status_code == 200
+        assert health.json() == {"status": "ok"}
         assert client.get(f"{PREFIX}/missing").status_code == 401
         assert client.get(f"{PREFIX}/missing", headers=HEADERS).status_code == 404
         body = purchase()
@@ -59,9 +61,7 @@ def test_api_start_resume_events_and_auth(settings):
         from conftest import ROOT
         from jsonschema import validate
 
-        schema = json.loads(
-            (ROOT / "contracts/drafts/manufacturing-qa/event.schema.json").read_text()
-        )
+        schema = json.loads((ROOT / "qa/contracts/event.schema.json").read_text())
         for event in events:
             validate(event, schema)
         assert (
@@ -137,3 +137,43 @@ def test_investigation_api(settings):
         assert report["result"]["target_run_id"] == "TARGET-1"
         assert report["result"]["facts"]
         assert TOKEN not in json.dumps(report)
+
+
+def test_execution_profile_reuses_actual_agent_metadata(settings):
+    with TestClient(create_app(settings)) as client:
+        assert client.get("/internal/qa/execution-profile").status_code == 401
+        profile = client.get("/internal/qa/execution-profile", headers=HEADERS).json()
+        assert profile["runtime_id"] == "reference-purchase-v1"
+        response = client.post(PREFIX, headers=HEADERS, json=purchase().model_dump(mode="json"))
+        assert response.status_code == 202
+        for key in ("agent_version", "prompt_version", "model_kind", "model"):
+            assert profile[key] == response.json()[key]
+
+
+def test_manufacturing_execution_requires_auth_and_approved_callback(settings, monkeypatch):
+    called = []
+
+    async def run(body):
+        called.append(body.agent_type)
+        return {"status": "HELD", "commit_count": 0}
+
+    monkeypatch.setattr("agents.server.run_reference", run)
+    body = {
+        "agent_type": "QUALITY",
+        "request": {"lot_id": "LOT-01"},
+        "mcp_url": "http://harness:8000/simulations/RUN-TEST/mcp",
+        "sandbox_token": "test-only",
+    }
+    with TestClient(create_app(settings)) as client:
+        assert client.post("/internal/qa/simulation-execute", json=body).status_code == 401
+        assert (
+            client.post(
+                "/internal/qa/simulation-execute",
+                headers=HEADERS,
+                json={**body, "mcp_url": "http://other/simulations/RUN/mcp"},
+            ).status_code
+            == 422
+        )
+        response = client.post("/internal/qa/simulation-execute", headers=HEADERS, json=body)
+        assert response.json() == {"status": "HELD", "commit_count": 0}
+        assert called == ["QUALITY"]

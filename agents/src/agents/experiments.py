@@ -43,9 +43,7 @@ async def run_case(settings, case):
     started = time.monotonic()
     try:
         if case.startswith("PA"):
-            seed = json.loads(
-                (root / "fixtures/drafts/manufacturing-qa/purchase-seed.json").read_text()
-            )
+            seed = json.loads((root / "qa/examples/purchase-initial-state.json").read_text())
             body = StartRequest(
                 run_id=run_id,
                 request=PurchaseRequest.model_validate(seed["seed"]["request"]),
@@ -198,8 +196,8 @@ async def execute(args):
         if results_path.exists()
         else []
     )
-    from agents.graph.investigation import PROMPT as investigation_prompt
-    from agents.graph.purchase_model import PROMPT as purchase_prompt
+    from agents.qa.investigation import PROMPT as investigation_prompt
+    from agents.targets.reference_purchase_model import PROMPT as purchase_prompt
 
     inference = "reasoning=none;temperature=0;max_output_tokens=2048"
     if any(resolve_model(m) == "gpt-5-nano-2025-08-07" for m in args.models):

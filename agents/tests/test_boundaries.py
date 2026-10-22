@@ -1,16 +1,18 @@
 import asyncio
+import json
 from contextlib import asynccontextmanager
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
-from conftest import TOKEN, approval, purchase, settled
+from conftest import ROOT, TOKEN, approval, purchase, settled
 from pydantic import SecretStr
 
 import agents.runtime as runtime_module
 import agents.tools.mcp as mcp_module
 from agents.models import StartRequest
 from agents.runtime import RunError, Runtime
+from agents.tools.errors import ToolError
 from agents.tools.mcp import McpTools
 from agents.tools.mock import MockTools
 
@@ -207,3 +209,25 @@ async def test_live_resume_requires_fresh_token(runtime, monkeypatch):
     assert error.value.code == "AGENT_TOKEN_REQUIRED"
     await runtime.resume(body.run_id, approval(body, agent_token="fresh-token"))
     assert (await settled(runtime, body.run_id))["result"]["outcome"] == "SUCCEEDED"
+
+
+@pytest.mark.asyncio
+async def test_mock_uses_configured_business_state_and_rejects_unknown_entities(tmp_path):
+    data = json.loads((ROOT / "qa/examples/purchase-initial-state.json").read_text())
+    data["seed"]["parts"][0]["inventory"] = 150
+    data["seed"]["suppliers"][0]["unit_price_minor"] = 15000
+    file = tmp_path / "qa/examples/purchase-initial-state.json"
+    file.parent.mkdir(parents=True)
+    file.write_text(json.dumps(data))
+    tools = MockTools(tmp_path, "purchase-normal")
+    inventory = await tools.call("get_inventory", {"part_id": "PART-A", "plant_id": "PLANT-A"})
+    supplier = await tools.call("get_supplier", {"supplier_id": "SUP-01"})
+    assert inventory["available_quantity"] == 150
+    assert supplier["unit_price_minor"] == 15000
+    for tool, args in [
+        ("get_inventory", {"part_id": "UNKNOWN", "plant_id": "PLANT-A"}),
+        ("get_supplier", {"supplier_id": "UNKNOWN"}),
+    ]:
+        with pytest.raises(ToolError) as error:
+            await tools.call(tool, args)
+        assert error.value.code == "VALIDATION_ERROR"

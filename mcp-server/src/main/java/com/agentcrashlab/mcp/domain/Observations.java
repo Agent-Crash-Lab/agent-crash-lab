@@ -92,6 +92,15 @@ public class Observations {
 		observation.put("commit_evidence_ids", commitEvidenceIds);
 		observation.put("orders", orders);
 		observation.put("approvals", approvals);
+		observation.put("suppliers", this.jdbc.sql("SELECT supplier_id,status FROM supplier WHERE run_id=?")
+			.param(runId).query((rs,row) -> Map.of("supplier_id",rs.getString("supplier_id"),"status",rs.getString("status"))).list());
+		observation.put("supply_sources", this.jdbc.sql("""
+			SELECT part_id,supplier_id,plant_id,purchasing_org_id,allowed,policy_version
+			FROM approved_supply_source WHERE run_id=?""")
+			.param(runId).query((rs,row) -> Map.<String,Object>of("part_id",rs.getString("part_id"),
+			"supplier_id",rs.getString("supplier_id"),"plant_id",rs.getString("plant_id"),
+			"purchasing_org_id",rs.getString("purchasing_org_id"),"allowed",rs.getBoolean("allowed"),
+			"policy_version",rs.getInt("policy_version"))).list());
 		return observation;
 	}
 

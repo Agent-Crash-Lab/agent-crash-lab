@@ -1,15 +1,12 @@
 [project]
 name = "crashlab-agents"
-version = "0.1.0"
+version = "0.2.0"
 description = "Reference agents for Agent Crash Lab"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.146.0",
     "jsonschema>=4.26.0",
-    "langchain>=1.4.6",
-    "langchain-mcp-adapters>=0.3.2",
-    "langchain-openai>=1.7.2",
     "langgraph>=1.2.16",
     "langgraph-checkpoint-sqlite>=3.1.2",
     "mcp>=1.30.0",

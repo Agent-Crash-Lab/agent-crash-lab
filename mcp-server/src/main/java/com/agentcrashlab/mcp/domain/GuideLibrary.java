@@ -21,13 +21,13 @@ import com.agentcrashlab.mcp.common.CrashLabProperties;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * 조사 지침 문서 (fixtures/drafts/manufacturing-qa/guides). 서버 시작 시 guide_document에 적재한다.
+ * 조사 지침 문서 (qa/knowledge/guides). 서버 시작 시 guide_document에 적재한다.
  * 검색은 키워드 일치 점수로 한다. 모델을 쓰지 않으므로 같은 질문에는 항상 같은 결과가 나온다.
  */
 @Component
 public class GuideLibrary implements ApplicationRunner {
 
-	static final String GUIDE_DIR = "drafts/manufacturing-qa/guides";
+	static final String GUIDE_DIR = "knowledge/guides";
 
 	private static final int SNIPPET_LENGTH = 200;
 
@@ -40,7 +40,7 @@ public class GuideLibrary implements ApplicationRunner {
 	GuideLibrary(JdbcClient jdbc, JsonMapper json, CrashLabProperties properties) {
 		this.jdbc = jdbc;
 		this.json = json;
-		this.guideDir = Path.of(properties.fixturesDir()).resolve(GUIDE_DIR);
+		this.guideDir = Path.of(properties.qaDir()).resolve(GUIDE_DIR);
 	}
 
 	@JsonIgnoreProperties(ignoreUnknown = true)

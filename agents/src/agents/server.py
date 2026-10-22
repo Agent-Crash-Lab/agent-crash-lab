@@ -1,24 +1,35 @@
 """Agent-only internal API draft. Harness ownership/auth checks remain external."""
 
+import asyncio
+import logging
 import secrets
 from contextlib import asynccontextmanager
 
+import httpx
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from jsonschema.exceptions import SchemaError, ValidationError
+from referencing.exceptions import Unresolvable
 
 from agents.config import Settings
+from agents.llm import TOTAL_BUDGET, ModelError
 from agents.models import ResumeRequest, StartRequest
+from agents.qa.design import AnalyzeRequest, DesignRequest, analyze_description, design_qa
 from agents.runtime import RunError, Runtime
+from agents.targets.manufacturing import SimulationTask, run_reference
 
 
-def create_app(settings=None, model=None):
+def create_app(
+    settings=None, model=None, design_model=None, design_search=None, design_reviewer=None
+):
     settings = settings or Settings()
 
     @asynccontextmanager
     async def lifespan(app):
         runtime = await Runtime(settings, model=model).open()
         app.state.runtime = runtime
+        app.state.design_lock = asyncio.Lock()
         try:
             yield
         finally:
@@ -55,6 +66,63 @@ def create_app(settings=None, model=None):
     @app.get("/health")
     async def health():
         return {"status": "ok"}
+
+    @app.get("/internal/qa/execution-profile", dependencies=[Depends(authorize)])
+    async def execution_profile(request: Request):
+        metadata = request.app.state.runtime.model_metadata("PURCHASE_AGENT")
+        live = metadata["model_kind"] == "openai"
+        return {
+            "runtime_id": "reference-purchase-v1",
+            **metadata,
+            "run_cost_upper_bound_usd": TOTAL_BUDGET if live else 0,
+            "cost_bound_basis": "EXISTING_SHARED_DURABLE_LLM_BUDGET",
+        }
+
+    @app.post("/internal/qa/analyze", dependencies=[Depends(authorize)])
+    async def analyze_target(body: AnalyzeRequest):
+        try:
+            return analyze_description(settings, body)
+        except (ValueError, ValidationError, SchemaError, RecursionError, Unresolvable):
+            raise HTTPException(422, "INVALID_TARGET_DESCRIPTION") from None
+
+    @app.post("/internal/qa/design", dependencies=[Depends(authorize)])
+    async def design(body: DesignRequest, request: Request):
+        lock = request.app.state.design_lock
+        if lock.locked():
+            raise HTTPException(409, "QA_DESIGN_IN_PROGRESS")
+        async with lock:
+            try:
+                return await design_qa(
+                    settings,
+                    body,
+                    model=design_model,
+                    search=design_search,
+                    reviewer=design_reviewer,
+                )
+            except (ValueError, ValidationError, SchemaError, RecursionError, Unresolvable):
+                raise HTTPException(422, "INVALID_DESIGN_INPUT_OR_OUTPUT") from None
+            except ModelError as exc:
+                code = str(exc)
+                logging.getLogger(__name__).warning("QA design failed: %s", code)
+                raise HTTPException(
+                    503,
+                    code
+                    if code in {"LLM_KEY_NOT_CONFIGURED", "UNPRICED_MODEL", "LLM_BUDGET_EXHAUSTED"}
+                    else "QA_DESIGN_UNAVAILABLE",
+                ) from None
+            except (httpx.HTTPError, TimeoutError):
+                raise HTTPException(503, "QA_DESIGN_UNAVAILABLE") from None
+
+    @app.post("/internal/qa/simulation-execute", dependencies=[Depends(authorize)])
+    async def simulation_execute(body: SimulationTask):
+        if not body.mcp_url.startswith(
+            settings.simulation_callback_base.rstrip("/") + "/simulations/"
+        ):
+            raise HTTPException(422, "INVALID_SANDBOX_CALLBACK")
+        try:
+            return await run_reference(body)
+        except (httpx.HTTPError, ValueError, KeyError):
+            raise HTTPException(502, "SIMULATION_EXECUTION_FAILED") from None
 
     prefix = "/internal/agent-runs"
 

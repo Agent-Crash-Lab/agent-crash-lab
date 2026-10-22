@@ -23,6 +23,7 @@ import com.agentcrashlab.mcp.auth.AgentTokens;
 import com.agentcrashlab.mcp.common.ToolErrorCode;
 import com.agentcrashlab.mcp.common.ToolException;
 import com.agentcrashlab.mcp.domain.GuideLibrary;
+import com.agentcrashlab.mcp.domain.KnowledgeSearch;
 import com.agentcrashlab.mcp.domain.RunFinalizer;
 import com.agentcrashlab.mcp.event.EventPublisher;
 import com.agentcrashlab.mcp.event.EventPublisher.Event;
@@ -59,8 +60,16 @@ class RagTools {
 
 	@Bean
 	List<SyncToolSpecification> ragToolSpecifications(HarnessClient harness, RunFinalizer finalizer,
-			GuideLibrary guides, JdbcClient jdbc, JsonMapper json) {
-		return List.of(tool("get_failed_checks", call -> {
+			GuideLibrary guides, JdbcClient jdbc, JsonMapper json, KnowledgeSearch knowledge) {
+		return List.of(tool("search_manufacturing_knowledge", call -> {
+            ToolArgs.requireKeys(call.arguments(), Set.of("query"));
+            String query = ToolArgs.text(call.arguments(), "query");
+            Map<String,Object> result = knowledge.search(query, "PURCHASE", 3);
+            this.events.publish(call.principal().runId(), new Event("GUIDE_RETRIEVED", "investigation_agent",
+                    Node.GUIDE, call.calledEventId(), call.toolCallId(), List.of(),
+                    Map.of("via", "search_manufacturing_knowledge", "index_version", result.get("index_version"))));
+            return result;
+        }), tool("get_failed_checks", call -> {
 			String runId = targetRun(call);
 			List<Map<String, Object>> checks = fromHarness(() -> harness.failedChecks(runId));
 			Map<String, Object> result = new LinkedHashMap<>();

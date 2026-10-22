@@ -34,8 +34,7 @@ async def demo(scenario):
             else:
                 seed = json.loads(
                     (
-                        settings.agent_project_root
-                        / "fixtures/drafts/manufacturing-qa/purchase-seed.json"
+                        settings.agent_project_root / "qa/examples/purchase-initial-state.json"
                     ).read_text()
                 )
                 request = PurchaseRequest.model_validate(seed["seed"]["request"])

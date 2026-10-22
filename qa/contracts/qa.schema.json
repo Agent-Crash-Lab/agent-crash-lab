@@ -1,0 +1,669 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "대상 Agent에서 QA 시험안을 만드는 공통 계약",
+  "description": "구매 필드를 공통 필수값으로 요구하지 않는다. 업무 입력의 형식은 대상이 제공한 business_input_schema로 확인한다.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/target"
+    },
+    {
+      "$ref": "#/$defs/plan"
+    }
+  ],
+  "$defs": {
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_id",
+        "target_version",
+        "task",
+        "industry_context",
+        "tools",
+        "policies",
+        "simulation_adapter",
+        "business_input_schema"
+      ],
+      "properties": {
+        "target_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "task": {
+          "type": "string",
+          "minLength": 1
+        },
+        "industry_context": {
+          "type": "string",
+          "minLength": 1
+        },
+        "simulation_adapter": {
+          "type": "string",
+          "minLength": 1
+        },
+        "business_input_schema": {
+          "type": "object"
+        },
+        "policies": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "approval_required",
+            "max_write_retries"
+          ],
+          "properties": {
+            "approval_required": {
+              "type": "boolean"
+            },
+            "max_write_retries": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "tools": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "effect",
+              "input_schema"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "effect": {
+                "enum": [
+                  "READ",
+                  "WRITE"
+                ]
+              },
+              "input_schema": {
+                "type": "object"
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 2000
+              }
+            }
+          }
+        },
+        "qa_scope": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "capabilities",
+            "excluded_capabilities"
+          ],
+          "properties": {
+            "capabilities": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "tool_name",
+                  "basis"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "tool_name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "basis": {
+                    "enum": [
+                      "DECLARED",
+                      "CODE_REVIEWED",
+                      "EXECUTION_VERIFIED"
+                    ]
+                  }
+                }
+              }
+            },
+            "excluded_capabilities": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "uniqueItems": true
+            }
+          }
+        },
+        "agent_type": {
+          "enum": [
+            "PURCHASE",
+            "PRODUCTION",
+            "QUALITY",
+            "COMMON"
+          ]
+        }
+      }
+    },
+    "sample": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "business_input",
+        "initial_state"
+      ],
+      "properties": {
+        "business_input": {
+          "type": "object"
+        },
+        "initial_state": {
+          "type": "object"
+        }
+      }
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id",
+        "risk_id",
+        "hypothesis",
+        "business_input",
+        "initial_state",
+        "simulation",
+        "assertions",
+        "execution",
+        "actual_result"
+      ],
+      "properties": {
+        "case_id": {
+          "type": "string"
+        },
+        "risk_id": {
+          "type": "string"
+        },
+        "hypothesis": {
+          "type": "string"
+        },
+        "business_input": {
+          "type": "object"
+        },
+        "initial_state": {
+          "type": "object"
+        },
+        "simulation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "adapter_id",
+            "approval_decision",
+            "fault",
+            "required_capabilities",
+            "max_write_retries"
+          ],
+          "properties": {
+            "adapter_id": {
+              "type": "string"
+            },
+            "max_write_retries": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "approval_decision": {
+              "enum": [
+                "APPROVED",
+                "REJECTED",
+                null
+              ]
+            },
+            "fault": {
+              "type": [
+                "object",
+                "null"
+              ]
+            },
+            "required_capabilities": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "assertions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "execution": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "registered_test_id",
+            "rule_ids",
+            "missing_capabilities",
+            "reason"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "READY",
+                "UNSUPPORTED"
+              ]
+            },
+            "registered_test_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "rule_ids": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "missing_capabilities": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "reason": {
+              "type": "string"
+            }
+          }
+        },
+        "actual_result": {
+          "type": "null"
+        },
+        "data_hash": {
+          "type": "string"
+        },
+        "design_basis": {
+          "type": "object"
+        },
+        "applicability": {
+          "enum": [
+            "APPLICABLE",
+            "NEEDS_INFORMATION",
+            "OUT_OF_SCOPE"
+          ]
+        },
+        "evaluation_strategy": {
+          "type": "object"
+        },
+        "generated_scenario": {
+          "type": "object"
+        },
+        "manufacturing_context": {
+          "type": "object"
+        }
+      }
+    },
+    "plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "plan_id",
+        "target_id",
+        "target_version",
+        "target_hash",
+        "data_hash",
+        "knowledge_version",
+        "analysis",
+        "cases"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "plan_id": {
+          "type": "string"
+        },
+        "target_id": {
+          "type": "string"
+        },
+        "target_version": {
+          "type": "string"
+        },
+        "target_hash": {
+          "type": "string"
+        },
+        "data_hash": {
+          "type": "string"
+        },
+        "knowledge_version": {
+          "type": "string"
+        },
+        "analysis": {
+          "type": "object"
+        },
+        "cases": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/case"
+          }
+        },
+        "knowledge_evidence": {
+          "type": "object"
+        },
+        "design": {
+          "type": "object",
+          "properties": {
+            "reviews": {
+              "type": "array",
+              "maxItems": 3,
+              "items": {
+                "$ref": "#/$defs/review"
+              }
+            },
+            "repair": {
+              "$ref": "#/$defs/repair"
+            }
+          }
+        },
+        "base_sample": {
+          "$ref": "#/$defs/sample"
+        }
+      }
+    },
+    "production_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "machine_capacity": {
+          "const": 1
+        },
+        "machine_status": {
+          "enum": [
+            "READY",
+            "MAINTENANCE"
+          ]
+        },
+        "predecessor_end_min": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000000
+        },
+        "scheduled_jobs": {
+          "type": "array",
+          "maxItems": 30,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "operation_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "start_min": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "end_min": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              }
+            },
+            "required": [
+              "operation_id",
+              "start_min",
+              "end_min"
+            ]
+          }
+        }
+      },
+      "required": [
+        "machine_capacity",
+        "machine_status",
+        "predecessor_end_min",
+        "scheduled_jobs"
+      ]
+    },
+    "quality_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "certificate_result": {
+          "enum": [
+            "PASS",
+            "FAIL"
+          ]
+        },
+        "release_state": {
+          "const": "HOLD"
+        },
+        "required_test_record": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "lot_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "inspection_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "result": {
+                  "enum": [
+                    "PASS",
+                    "FAIL"
+                  ]
+                }
+              },
+              "required": [
+                "lot_id",
+                "inspection_id",
+                "result"
+              ]
+            }
+          ]
+        }
+      },
+      "required": [
+        "certificate_result",
+        "release_state",
+        "required_test_record"
+      ]
+    },
+    "generated_scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "business_input_patch": {
+          "type": "object"
+        },
+        "initial_state_patch": {
+          "type": "object"
+        },
+        "approval_decision": {
+          "enum": [
+            "APPROVED",
+            "REJECTED"
+          ]
+        },
+        "fault": {
+          "enum": [
+            "NONE",
+            "RESPONSE_LOSS"
+          ]
+        },
+        "interventions": {
+          "type": "array",
+          "maxItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "phase": {
+                "const": "AFTER_APPROVAL_BEFORE_WRITE"
+              },
+              "state_patch": {
+                "type": "object",
+                "minProperties": 1
+              }
+            },
+            "required": [
+              "phase",
+              "state_patch"
+            ]
+          }
+        }
+      },
+      "required": [
+        "business_input_patch",
+        "initial_state_patch",
+        "approval_decision",
+        "fault",
+        "interventions"
+      ]
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proposal_id",
+        "decision",
+        "reasons"
+      ],
+      "properties": {
+        "proposal_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "decision": {
+          "enum": [
+            "ACCEPT_FOR_BINDING",
+            "NEEDS_INFORMATION",
+            "REJECT"
+          ]
+        },
+        "reasons": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "method": {
+          "enum": [
+            "CODE_PREREQUISITES",
+            "SEMANTIC_RUBRIC_V1",
+            "OFFLINE_METADATA_CHECK"
+          ]
+        },
+        "assessment": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "policy_alignment",
+            "evidence_relevance",
+            "scenario_consistency"
+          ],
+          "properties": {
+            "policy_alignment": {
+              "enum": [
+                "ALIGNED",
+                "CONFLICT",
+                "UNCLEAR"
+              ]
+            },
+            "evidence_relevance": {
+              "enum": [
+                "SUPPORTED",
+                "IRRELEVANT",
+                "UNCLEAR"
+              ]
+            },
+            "scenario_consistency": {
+              "enum": [
+                "COHERENT",
+                "CONTRADICTORY",
+                "UNCLEAR"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "repair": {
+      "type": "object",
+      "required": [
+        "max_attempts",
+        "attempts",
+        "status",
+        "feedback"
+      ],
+      "properties": {
+        "max_attempts": {
+          "const": 1
+        },
+        "attempts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "status": {
+          "enum": [
+            "NOT_NEEDED",
+            "NOT_REPAIRED",
+            "REPAIRED",
+            "PARTIALLY_REPAIRED",
+            "BUDGET_EXHAUSTED",
+            "REPAIR_UNAVAILABLE",
+            "INVALID_REPAIR"
+          ]
+        },
+        "feedback": {
+          "type": "array",
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "required": [
+              "proposal_id",
+              "reasons"
+            ],
+            "properties": {
+              "proposal_id": {
+                "type": "string"
+              },
+              "reasons": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 6,
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    }
+  }
+}
