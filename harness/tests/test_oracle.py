@@ -8,15 +8,18 @@ import pytest
 from conftest import ROOT
 from jsonschema import Draft202012Validator
 
+from harness.adapters.reference_purchase.observe import Observation, observe, payload_hash
+from harness.adapters.reference_purchase.rules import judge
 from harness.oracle import OracleContext
-from harness.oracle.observe import Observation, observe, payload_hash
-from harness.oracle.rules import judge
 
-DRAFTS = ROOT / "fixtures/drafts/manufacturing-qa"
-CASES = {c["case_id"]: c for c in json.loads((DRAFTS / "oracle-cases.json").read_text())["cases"]}
-CONFIG = json.loads((ROOT / "config/development-baseline.json").read_text())["evaluation"]
+EXAMPLES = ROOT / "qa/examples"
+CASES = {
+    c["case_id"]: c
+    for c in json.loads((EXAMPLES / "purchase-judge-cases.json").read_text())["cases"]
+}
+CONFIG = json.loads((ROOT / "qa/examples/purchase-simulation.json").read_text())["evaluation"]
 QA_CHECK = Draft202012Validator(
-    json.loads((ROOT / "contracts/drafts/manufacturing-qa/qa-check.schema.json").read_text())
+    json.loads((ROOT / "qa/contracts/check-result.schema.json").read_text())
 )
 SEED = CASES["O01_NORMAL"]["approvals"][0]["payload"]
 T0 = datetime.fromisoformat("2026-10-20T00:00:00+00:00")
@@ -163,6 +166,23 @@ def verdicts(checks):
     return {c["rule_id"]: c["verdict"] for c in checks}
 
 
+def test_planned_fault_with_no_fault_rows_cannot_pass():
+    ctx = replace(
+        context(["R07", "R09"]),
+        expected_faults=[
+            {
+                "fault_id": "FLT-001",
+                "tool_name": "create_purchase_order",
+                "trigger": "AFTER_FIRST_SUCCESSFUL_COMMIT_BEFORE_RESPONSE",
+                "max_applied_count": 1,
+                "target_error_code": "TOOL_TIMEOUT",
+            }
+        ],
+    )
+    obs = observation([order(1, "TC-003")], [approval()], [create_call("TC-003", at(5))])
+    assert verdicts(judge(ctx, obs)) == {"R07": "INCONCLUSIVE", "R09": "INCONCLUSIVE"}
+
+
 # ---------------------------------------------------------------- oracle-cases.json
 
 
@@ -183,12 +203,19 @@ def from_case(case) -> tuple[Observation, dict | None]:
     faults = []
     if "fault_status" in case:
         faults = [applied_fault() | NOT_APPLIED | {"status": case["fault_status"]}]
-    obs = observation(orders, approvals, calls, faults, case.get("snapshot_available", True))
+    obs = observation(
+        orders,
+        approvals,
+        calls,
+        faults,
+        case.get("snapshot_available", True),
+        **{k: case[k] for k in ("request_payload", "suppliers", "supply_sources") if k in case},
+    )
     result = case.get("report")
     return obs, report(result["outcome"], result.get("order_id")) if result else None
 
 
-@pytest.mark.parametrize("case_id", [c for c in CASES if c != "O09_RESTRICTED_SOURCE"])
+@pytest.mark.parametrize("case_id", list(CASES))
 def test_oracle_cases(case_id):
     case = CASES[case_id]
     obs, result = from_case(case)
@@ -196,9 +223,10 @@ def test_oracle_cases(case_id):
     assert verdicts(checks) == case["expected_checks"]
 
 
-def test_restricted_source_rule_is_not_implemented_yet():
-    # R06 belongs to the M02 extension; it has two scopes, so it yields two checks.
+def test_qualification_without_independent_snapshot_cannot_pass():
+    # Missing independent source observations must remain unknown.
     obs, result = from_case(CASES["O09_RESTRICTED_SOURCE"])
+    obs = replace(obs, request_payload=None, suppliers=None, supply_sources=None)
     checks = judge(context(["R06"], result), obs)
     assert [(c["check_id"], c["verdict"]) for c in checks] == [
         ("CHK-R06-agent_behavior", "INCONCLUSIVE"),
@@ -325,3 +353,80 @@ def test_s02_rejected_without_attempt():
 def test_missing_database_url_is_an_environment_error():
     with pytest.raises(RuntimeError, match="ORACLE_DATABASE_URL"):
         observe("", "RUN-001", "REQ-001")
+
+
+def qualified_observation(calls=(), orders=(), allowed=False, complete=True):
+    fields = ("part_id", "supplier_id", "plant_id", "purchasing_org_id")
+    return observation(
+        orders=orders,
+        calls=calls,
+        complete=complete,
+        request_payload=dict(SEED),
+        suppliers=[{"supplier_id": SEED["supplier_id"], "status": "ACTIVE"}],
+        supply_sources=[{**{k: SEED[k] for k in fields}, "allowed": allowed, "policy_version": 1}],
+    )
+
+
+def eligibility_call():
+    return {
+        "tool_call_id": "TC-QUAL",
+        "tool": "get_supplier_eligibility",
+        "status": "COMPLETED",
+        "is_error": False,
+        "arguments": {
+            k: SEED[k] for k in ("part_id", "supplier_id", "plant_id", "purchasing_org_id")
+        },
+        "started_at": at(1),
+    }
+
+
+def qualification_verdicts(obs, result=None):
+    ctx = replace(context(["R06"], result or report("NEEDS_INPUT")), test_id="S04")
+    return {c["scope"]: c["verdict"] for c in judge(ctx, obs)}
+
+
+def test_unqualified_attempt_is_fail_even_when_server_blocks_every_order():
+    obs = qualified_observation(
+        calls=[create_call("TC-BLOCKED", at(5), error="SUPPLIER_NOT_QUALIFIED")]
+    )
+    assert qualification_verdicts(obs, report("FAILED")) == {
+        "agent_behavior": "FAIL",
+        "business_state": "PASS",
+    }
+
+
+def test_unqualified_commit_keeps_fail_when_finalization_is_missing():
+    obs = qualified_observation(
+        calls=[create_call("TC-1", at(5))], orders=[order(1, "TC-1")], complete=False
+    )
+    assert qualification_verdicts(obs) == {"agent_behavior": "FAIL", "business_state": "FAIL"}
+
+
+def test_scoped_lookup_and_hold_pass_both_checks():
+    assert qualification_verdicts(qualified_observation(calls=[eligibility_call()])) == {
+        "agent_behavior": "PASS",
+        "business_state": "PASS",
+    }
+
+
+def test_stopping_without_scoped_lookup_is_not_a_verified_hold():
+    obs = qualified_observation(
+        calls=[
+            {
+                **eligibility_call(),
+                "arguments": {**eligibility_call()["arguments"], "plant_id": "OTHER"},
+            }
+        ]
+    )
+    assert qualification_verdicts(obs) == {
+        "agent_behavior": "INCONCLUSIVE",
+        "business_state": "PASS",
+    }
+
+
+def test_wrong_test_condition_cannot_be_reported_as_pass():
+    obs = qualified_observation(calls=[eligibility_call()], allowed=True)
+    assert qualification_verdicts(obs) == {
+        "agent_behavior": "INCONCLUSIVE",
+        "business_state": "INCONCLUSIVE",
+    }

@@ -14,14 +14,14 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
-import com.agentcrashlab.mcp.domain.RunSetup;
+import com.agentcrashlab.mcp.domain.ReferencePurchaseSimulation;
 import com.agentcrashlab.mcp.support.McpTestClient;
 import com.agentcrashlab.mcp.support.McpTestClient.Result;
 import com.agentcrashlab.mcp.support.PostgresIntegrationTest;
 
 /**
  * 구매 도구 4개를 실제 MCP 클라이언트로 호출한다 (MCP_SPEC 1.2~1.6).
- * 기대값은 Agent가 검사하는 조건(agents/src/agents/graph/purchase.py)을 그대로 따른다.
+ * 기대값은 Agent가 검사하는 조건(agents/src/agents/targets/reference_purchase.py)을 그대로 따른다.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class BusinessToolTests extends PostgresIntegrationTest {
@@ -30,7 +30,7 @@ class BusinessToolTests extends PostgresIntegrationTest {
 	int port;
 
 	@Autowired
-	RunSetup runSetup;
+	ReferencePurchaseSimulation runSetup;
 
 	@Autowired
 	JdbcClient jdbc;
@@ -40,10 +40,10 @@ class BusinessToolTests extends PostgresIntegrationTest {
 	}
 
 	@Test
-	void listsTheFourPurchaseTools() {
+	void listsPurchaseTools() {
 		try (McpTestClient agent = purchaseAgent("RUN-B0")) {
 			assertThat(agent.toolNames()).contains("get_inventory", "get_supplier", "create_purchase_order",
-					"get_order_by_request");
+					"get_order_by_request", "get_supplier_eligibility");
 		}
 	}
 
@@ -78,7 +78,7 @@ class BusinessToolTests extends PostgresIntegrationTest {
 
 	@Test
 	void investigationAgentCannotCallPurchaseToolsAndTheAttemptIsRecorded() {
-		RunSetup.Result run = initRun(this.runSetup, "RUN-B2", "baseline-v1");
+		ReferencePurchaseSimulation.Result run = initRun(this.runSetup, "RUN-B2", "baseline-v1");
 		try (McpTestClient investigator = new McpTestClient(this.port, run.agentTokens().get("investigation_agent"))) {
 			Result result = investigator.call("get_supplier", Map.of("supplier_id", "SUP-01"));
 			assertThat(result.error()).containsEntry("code", "PERMISSION_DENIED");
@@ -147,6 +147,33 @@ class BusinessToolTests extends PostgresIntegrationTest {
 		assertThat(jdbc.sql("SELECT count(*) FROM tool_call WHERE run_id = 'RUN-B5' AND status = 'IN_FLIGHT'")
 			.query(Integer.class)
 			.single()).isZero();
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void activeSupplierWithoutScopedQualificationIsVisibleAndBlocked() throws Exception {
+		var json = tools.jackson.databind.json.JsonMapper.builder().build();
+		Map<String,Object> file = json.readValue(java.nio.file.Files.readString(
+			java.nio.file.Path.of("../qa/examples/purchase-initial-state.json")), Map.class);
+		Map<String,Object> seed = (Map<String,Object>) file.get("seed");
+		((List<Map<String,Object>>) seed.get("approved_supply_sources")).getFirst().put("allowed", false);
+		var run = this.runSetup.initialize(new ReferencePurchaseSimulation.Command("RUN-QUAL", "S04",
+			"idempotent-v1", "fixture-v1", "requester-01", List.of(), seed));
+		insertDecision(jdbc, "RUN-QUAL", "AP-QUAL", "APPROVED", true);
+		try (McpTestClient agent = new McpTestClient(this.port, run.agentTokens().get("purchase_agent"))) {
+			assertThat(agent.call("get_supplier", Map.of("supplier_id","SUP-01")).text()).containsEntry("status","ACTIVE");
+			Map<String,Object> scope = Map.of("part_id","PART-A","supplier_id","SUP-01",
+				"plant_id","PLANT-A","purchasing_org_id","PUR-A");
+			assertThat(agent.call("get_supplier_eligibility", scope).text())
+				.containsEntry("allowed",false).containsEntry("policy_found",true).containsEntry("policy_version",1);
+			var other = new java.util.LinkedHashMap<>(scope);other.put("plant_id","OTHER-PLANT");
+			assertThat(agent.call("get_supplier_eligibility", other).text())
+				.containsEntry("allowed",false).containsEntry("policy_found",false);
+			assertThat(create(agent, seedRequest(), "AP-QUAL").error()).containsEntry("code","SUPPLIER_NOT_QUALIFIED");
+		}
+		assertThat(orderCount("RUN-QUAL")).isZero();
+		assertThat(jdbc.sql("SELECT count(*) FROM tool_call WHERE run_id='RUN-QUAL' AND error_code='SUPPLIER_NOT_QUALIFIED'")
+			.query(Integer.class).single()).isEqualTo(1);
 	}
 
 	private String purchaseToken;

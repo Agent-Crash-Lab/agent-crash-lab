@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     agent_url: str = "http://localhost:8090"
     internal_api_token: SecretStr = SecretStr("")
     harness_dev_auth: bool = False
+    simulation_callback_base: str = "http://harness:8000"
+    external_agent_endpoints: SecretStr = SecretStr("{}")
     harness_project_root: Path = Path(__file__).resolve().parents[3]
     poll_interval_seconds: float = 0.5
     # Agent enforces 600s itself; the Runner stops polling a little later.

@@ -22,12 +22,12 @@ class ToolContractTests {
 
 	@Test
 	void businessToolsMatchDraftContract() throws IOException {
-		assertSameTools("mcp/business-tools.json", "../contracts/drafts/manufacturing-qa/purchase-tools.json");
+		assertSameTools("mcp/business-tools.json", "../qa/examples/purchase-tools.json");
 	}
 
 	@Test
 	void ragToolsMatchDraftContract() throws IOException {
-		assertSameTools("mcp/rag-tools.json", "../contracts/drafts/manufacturing-qa/investigation-tools.json");
+		assertSameTools("mcp/rag-tools.json", "../qa/contracts/investigation-tools.json");
 	}
 
 	@SuppressWarnings("unchecked")

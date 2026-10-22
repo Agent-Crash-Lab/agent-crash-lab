@@ -3,8 +3,8 @@ from copy import deepcopy
 import pytest
 from conftest import settled
 
-from agents.graph.investigation import FixtureReportModel
 from agents.models import StartRequest
+from agents.qa.investigation import FixtureReportModel
 from agents.tools.mock import MockTools
 
 
@@ -113,3 +113,30 @@ async def test_missing_guides_does_not_fabricate_source(runtime, monkeypatch):
     assert run["status"] == "COMPLETED"
     assert not run["result"]["improvements"]
     assert run["result"]["missing_evidence"]
+
+
+@pytest.mark.asyncio
+async def test_qualification_report_uses_failed_check_and_requests_s04_retest():
+    from agents.models import InvestigationReport
+    from agents.qa.investigation import FixtureReportModel
+
+    reason = "공급 자격 없는 발주 1회 시도. 서버가 차단하여 저장 0건"
+    report = await FixtureReportModel().generate(
+        "",
+        {
+            "target_run_id": "RUN-QUAL",
+            "missing": [],
+            "sources": [],
+            "snapshot": {
+                "orders": [],
+                "snapshot_complete": True,
+                "snapshot_evidence_ids": ["EV-SNAPSHOT"],
+            },
+            "checks": {
+                "checks": [{"rule_id": "R06", "reason": reason, "evidence_ids": ["TC-BLOCKED"]}]
+            },
+        },
+    )
+    validated = InvestigationReport.model_validate(report)
+    assert validated.retest_scenario_ids == ["S04"]
+    assert any(f.text == reason and f.evidence_ids == ["TC-BLOCKED"] for f in validated.facts)

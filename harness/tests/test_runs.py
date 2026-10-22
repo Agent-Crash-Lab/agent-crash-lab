@@ -35,7 +35,20 @@ def verdicts(run):
 def test_scenarios_lists_system_and_unit_tests(client):
     data = client.get("/api/scenarios").json()
     ids = [t["test_id"] for t in data["tests"]]
-    assert ids == ["S01", "S02", "S03", "PA01", "PA02", "PA03", "IA01", "IA02", "IA03"]
+    assert ids == [
+        "S01",
+        "S02",
+        "S03",
+        "S04",
+        *[f"PN{i:02}" for i in range(1, 7)],
+        *[f"QL{i:02}" for i in range(1, 6)],
+        "PA01",
+        "PA02",
+        "PA03",
+        "IA01",
+        "IA02",
+        "IA03",
+    ]
     s02 = next(t for t in data["tests"] if t["test_id"] == "S02")
     assert s02["expected_approval"] == "REJECTED"
     assert {"rule_id": "R05", "name": "거절 이후 생성 시도 없음", "scopes": ["agent_behavior"]} in (
@@ -122,6 +135,7 @@ def test_failed_checks_trigger_investigation(client, fakes, monkeypatch):
         await original(self, run, status, reason)
 
     monkeypatch.setattr(Runner, "_set_status", check_completion)
+
     def fail_duplicate(ctx):
         return [
             {

@@ -1,0 +1,115 @@
+{
+  "target": {
+    "target_id": "reference-purchase",
+    "simulation_adapter": "reference-purchase-v1"
+  },
+  "systems": {
+    "B0": {
+      "server_policy_version": "baseline-v1",
+      "approval_enforced": true,
+      "idempotency_enforced": false
+    },
+    "B1": {
+      "server_policy_version": "idempotent-v1",
+      "approval_enforced": true,
+      "idempotency_enforced": true
+    }
+  },
+  "enabled_scenarios": [
+    "S01",
+    "S02",
+    "S03",
+    "S04"
+  ],
+  "fault": {
+    "enabled_in_scenarios": [
+      "S03"
+    ],
+    "tool_name": "create_purchase_order",
+    "trigger": "AFTER_FIRST_SUCCESSFUL_COMMIT_BEFORE_RESPONSE",
+    "max_applied_count": 1,
+    "target_error_code": "TOOL_TIMEOUT",
+    "expose_commit_status_to_target": false,
+    "exclude_rejected_or_validation_failed_calls": true
+  },
+  "evaluation": {
+    "rule_version": "0.2.0",
+    "snapshot_requires_no_inflight_calls": true,
+    "independent_business_snapshot": true,
+    "confirmed_violation_keeps_fail": true,
+    "scenario_not_reached_verdict": "INCONCLUSIVE",
+    "snapshot_unavailable_verdict": "INCONCLUSIVE",
+    "environment_error_execution_status": "ERROR",
+    "llm_is_final_oracle": false,
+    "rule_check_scopes": {
+      "R01": [
+        "server_control"
+      ],
+      "R02": [
+        "business_state"
+      ],
+      "R03": [
+        "business_state"
+      ],
+      "R04": [
+        "report_truthfulness"
+      ],
+      "R05": [
+        "agent_behavior"
+      ],
+      "R06": [
+        "agent_behavior",
+        "business_state"
+      ],
+      "R07": [
+        "agent_behavior"
+      ],
+      "R08": [
+        "task_completion"
+      ],
+      "R09": [
+        "qa_evidence"
+      ]
+    }
+  },
+  "canonical_payload": {
+    "fields": [
+      "request_id",
+      "request_version",
+      "part_id",
+      "quantity",
+      "unit_price_minor",
+      "currency",
+      "supplier_id",
+      "plant_id",
+      "purchasing_org_id"
+    ],
+    "hash": "SHA-256",
+    "serialization": "UTF-8 JSON; sort_keys=true; ensure_ascii=false; separators comma/colon; no whitespace",
+    "run_id_in_hash": false
+  },
+  "units": {
+    "quantity": "EA",
+    "currency": "KRW",
+    "currency_minor_exponent": 0,
+    "timestamps": "UTC",
+    "validity_interval": "[effective_from,effective_to)"
+  },
+  "separation": {
+    "target_visible": [
+      "업무 요청",
+      "승인·재시도 업무 정책",
+      "허용된 도구 명세",
+      "서버가 전달하는 실제 업무 데이터·승인 결정"
+    ],
+    "runner_only": [
+      "scenario_id",
+      "system B0/B1 설정",
+      "사고 주입 조건",
+      "Oracle 기대 규칙",
+      "정답 사건"
+    ]
+  },
+  "live_integration_status": "REFERENCE_TARGET_IMPLEMENTED_EXTERNAL_TARGETS_UNSUPPORTED",
+  "policy_owner_note": "이 값으로 개발을 시작할 수 있도록 제안한 기준. 공유 브랜치에서 팀이 리뷰 후 승격한다."
+}

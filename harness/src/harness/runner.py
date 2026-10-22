@@ -4,11 +4,15 @@ import asyncio
 import logging
 import time
 
+import httpx
+from jsonschema.exceptions import SchemaError, ValidationError
+
 from harness import agent_checks, oracle
 from harness.catalog import Catalog, TestSpec
 from harness.clients import AgentClient, ClientError, McpClient
 from harness.config import Settings
 from harness.events import EventLog, epoch_iso, now_iso
+from harness.simulation import Simulations
 from harness.store import Store
 from harness.validation import collect_evidence_ids, validate_report
 
@@ -49,11 +53,13 @@ class Runner:
         self.settings, self.catalog, self.store, self.events = settings, catalog, store, events
         self.mcp, self.agents = mcp, agents
         self.lock = asyncio.Lock()
+        self.batch_owner = None
         self.tasks: set[asyncio.Task] = set()
         # Agent tokens live only in memory (HARNESS_SPEC 3.1).
         self.tokens: dict[str, dict[str, str]] = {}
         # Agent run → (Harness run that stores its events, last Agent-local sequence).
         self.agent_cursor: dict[str, int] = {}
+        self.simulations = Simulations(self)
 
     # lifecycle
 
@@ -76,18 +82,85 @@ class Runner:
             for run in self.store.all_runs()
         )
 
+    async def execution_profile(self, runtime_id=None):
+        if not runtime_id or runtime_id == "reference-purchase-v1":
+            return await self.agents.execution_profile()
+        try:
+            return await self.simulations.profile(runtime_id)
+        except (httpx.HTTPError, ValueError, KeyError):
+            raise ClientError("external-agent", 503, "AGENT_PROFILE_UNAVAILABLE") from None
+
+    async def plan_profile(self, plan):
+        binding = plan.get("design", {}).get("registration", {}).get("execution_binding", {})
+        adapter = plan["cases"][0]["simulation"]["adapter_id"]
+        return await self.execution_profile(binding.get("runtime_id", adapter))
+
+    async def check_plan(self, plan, case=None):
+        try:
+            current = self.catalog.planner.rebuild(plan, case)
+        except (ValueError, KeyError, SchemaError, ValidationError):
+            raise RunnerError(409, "QA_PLAN_CHANGED") from None
+        if current != plan:
+            raise RunnerError(409, "QA_PLAN_CHANGED", "Rebuild the plan with current rules")
+        binding = plan.get("design", {}).get("registration", {}).get("execution_binding")
+        if binding:
+            try:
+                live_profile = await self.execution_profile(binding["runtime_id"])
+            except ClientError:
+                raise RunnerError(503, "AGENT_PROFILE_UNAVAILABLE") from None
+            if live_profile != binding["execution_profile"]:
+                raise RunnerError(409, "TARGET_RUNTIME_CHANGED")
+            return live_profile
+        return None
+
     # public operations
 
-    async def create_run(self, test_id: str, system_id: str | None, user_id: str) -> dict:
+    async def create_run(
+        self,
+        test_id: str | None,
+        system_id: str | None,
+        user_id: str,
+        plan_id: str | None = None,
+        case_id: str | None = None,
+        batch_id: str | None = None,
+    ) -> dict:
+        plan, selected_case = None, None
+        if case_id is not None:
+            plan = self.store.get_plan(plan_id, user_id)
+            if plan is None:
+                raise RunnerError(404, "QA_PLAN_NOT_FOUND")
+            selected_case = next((c for c in plan["cases"] if c["case_id"] == case_id), None)
+            if selected_case is None:
+                raise RunnerError(404, "QA_CASE_NOT_FOUND")
+            if selected_case["execution"]["status"] != "READY":
+                raise RunnerError(422, "UNSUPPORTED_SIMULATION")
+            await self.check_plan(plan, selected_case)
+            test_id = selected_case["execution"]["registered_test_id"]
         test = self.catalog.tests.get(test_id)
         if test is None:
             raise RunnerError(400, "VALIDATION_ERROR", f"unknown test_id {test_id}")
         if test.test_kind == "SYSTEM":
+            case = selected_case or self.catalog.planned_case(test_id)
+            if case is None:
+                raise RunnerError(422, "UNSUPPORTED_SIMULATION", "No registered execution case")
+            if case["execution"]["rule_ids"] != test.rule_ids:
+                raise RunnerError(422, "QA_RULE_BINDING_MISMATCH")
+            if (
+                selected_case is None
+                and plan_id is not None
+                and plan_id != self.catalog.qa_plan["plan_id"]
+            ):
+                raise RunnerError(409, "QA_PLAN_CHANGED", "Rebuild the plan before execution")
             if system_id not in self.catalog.systems:
                 raise RunnerError(400, "VALIDATION_ERROR", "SYSTEM tests need system_id B0 or B1")
         else:
+            if plan_id is not None:
+                raise RunnerError(400, "VALIDATION_ERROR", "plan_id requires a SYSTEM test")
             system_id = None
+            case = None
         async with self.lock:
+            if self.batch_owner and self.batch_owner != batch_id:
+                raise RunnerError(409, "QA_BATCH_IN_PROGRESS")
             if self.busy():
                 raise RunnerError(409, "RUN_IN_PROGRESS")
             run_id = f"RUN-{self.store.count_runs('RUN-') + 1:03d}"
@@ -99,9 +172,12 @@ class Runner:
                 "status": "PREPARING",
                 "status_reason": None,
                 "created_by": user_id,
+                "qa_batch_id": batch_id,
+                "qa_batch_case_id": case_id if batch_id else None,
                 "created_at": now_iso(),
                 "finished_at": None,
-                "manifest": self.catalog.manifest(test, system_id),
+                "manifest": self.catalog.manifest(test, system_id, plan, case),
+                "qa_case": case,
                 "request": None,
                 "approval_request": None,
                 "approval": None,
@@ -172,9 +248,13 @@ class Runner:
     async def _execute(self, run_id: str, test: TestSpec):
         try:
             if test.test_kind == "SYSTEM":
-                await self._system(run_id, test)
+                adapter = self._run(run_id)["qa_case"]["simulation"]["adapter_id"]
+                if adapter in {"reference-production-v1", "reference-quality-v1"}:
+                    await self.simulations.execute(run_id)
+                else:
+                    await self._system(run_id, test)
             elif test.test_kind == "PURCHASE_AGENT":
-                await self._purchase_unit(run_id, test)
+                await self._reference_target_unit(run_id, test)
             else:
                 await self._investigation_unit(run_id, test)
         except RunFailed as exc:
@@ -205,9 +285,13 @@ class Runner:
                     "fixture_id": manifest["fixture_id"],
                     "requested_by": run["created_by"],
                     "faults": manifest["faults"],
+                    "initial_state": run["qa_case"]["initial_state"],
                 }
             )
             self.tokens[run_id] = init["agent_tokens"]
+            if init["request"] != run["qa_case"]["business_input"]:
+                await self._finalize_quietly(run_id)
+                raise RunFailed("QA_DATA_MISMATCH")
             run["request"] = init["request"]
             self.store.put_run(run)
             await self._start_agent(
@@ -269,6 +353,8 @@ class Runner:
                     agent_result=run["agent"]["result"],
                     agent_termination=termination,
                     oracle_database_url=self.settings.oracle_database_url,
+                    expected_faults=manifest["faults"],
+                    adapter_id=run["qa_case"]["simulation"]["adapter_id"],
                 )
             )
         except Exception as exc:
@@ -277,14 +363,14 @@ class Runner:
         await self._save_checks(run_id, checks)
         run = self._run(run_id)
         investigate = any(c["verdict"] in {"FAIL", "INCONCLUSIVE"} for c in run["checks"])
-        # Reserve the investigation before publishing COMPLETED; clients may start the next run immediately.
+        # Reserve the investigation before COMPLETED; clients may start another run immediately.
         if investigate:
             run["investigation"]["status"] = "RUNNING"
         await self._set_status(run, "COMPLETED")
         if investigate:
             await self._investigate(run_id, "mcp", run_id, None)
 
-    async def _purchase_unit(self, run_id: str, test: TestSpec):
+    async def _reference_target_unit(self, run_id: str, test: TestSpec):
         try:
             await self._start_agent(
                 run_id,

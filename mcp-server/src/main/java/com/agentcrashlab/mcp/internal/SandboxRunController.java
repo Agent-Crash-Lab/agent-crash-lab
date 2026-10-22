@@ -22,7 +22,7 @@ import com.agentcrashlab.mcp.common.ToolException;
 import com.agentcrashlab.mcp.domain.Approvals;
 import com.agentcrashlab.mcp.domain.PurchasePayload;
 import com.agentcrashlab.mcp.domain.RunFinalizer;
-import com.agentcrashlab.mcp.domain.RunSetup;
+import com.agentcrashlab.mcp.domain.ReferencePurchaseSimulation;
 import com.agentcrashlab.mcp.fault.FaultRules;
 
 /**
@@ -32,7 +32,7 @@ import com.agentcrashlab.mcp.fault.FaultRules;
 @RequestMapping("/internal/sandbox/runs")
 class SandboxRunController {
 
-	private final RunSetup runSetup;
+	private final ReferencePurchaseSimulation runSetup;
 
 	private final Approvals approvals;
 
@@ -40,7 +40,7 @@ class SandboxRunController {
 
 	private final RunFinalizer finalizer;
 
-	SandboxRunController(RunSetup runSetup, Approvals approvals, FaultRules faultRules, RunFinalizer finalizer) {
+	SandboxRunController(ReferencePurchaseSimulation runSetup, Approvals approvals, FaultRules faultRules, RunFinalizer finalizer) {
 		this.runSetup = runSetup;
 		this.approvals = approvals;
 		this.faultRules = faultRules;
@@ -52,20 +52,21 @@ class SandboxRunController {
 	}
 
 	record InitializeBody(@NotBlank String runId, @NotBlank String scenarioId, @NotBlank String serverPolicyVersion,
-			@NotBlank String fixtureId, @NotBlank String requestedBy, @NotNull List<@Valid FaultRuleBody> faults) {
+			@NotBlank String fixtureId, @NotBlank String requestedBy, @NotNull List<@Valid FaultRuleBody> faults,
+			Map<String, Object> initialState) {
 	}
 
 	/** 3.1 실행 초기화 */
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
-	RunSetup.Result initialize(@Valid @RequestBody InitializeBody body) {
-		List<RunSetup.FaultRule> faults = body.faults()
+	ReferencePurchaseSimulation.Result initialize(@Valid @RequestBody InitializeBody body) {
+		List<ReferencePurchaseSimulation.FaultRule> faults = body.faults()
 			.stream()
-			.map(f -> new RunSetup.FaultRule(f.faultId(), f.toolName(), f.trigger(), f.maxAppliedCount(),
+			.map(f -> new ReferencePurchaseSimulation.FaultRule(f.faultId(), f.toolName(), f.trigger(), f.maxAppliedCount(),
 					f.targetErrorCode()))
 			.toList();
-		return this.runSetup.initialize(new RunSetup.Command(body.runId(), body.scenarioId(), body.serverPolicyVersion(),
-				body.fixtureId(), body.requestedBy(), faults));
+		return this.runSetup.initialize(new ReferencePurchaseSimulation.Command(body.runId(), body.scenarioId(), body.serverPolicyVersion(),
+				body.fixtureId(), body.requestedBy(), faults, body.initialState()));
 	}
 
 	record ApprovalRequestBody(@NotNull Map<String, Object> request) {

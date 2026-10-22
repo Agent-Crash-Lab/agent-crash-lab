@@ -5,9 +5,9 @@ import pytest
 from conftest import approval, purchase, settled
 from pydantic import ValidationError
 
-from agents.models import PurchaseRequest
+from agents.models import PurchaseRequest, PurchaseResult
 from agents.runtime import RunError, Runtime
-from agents.tools.business import ToolError
+from agents.tools.errors import ToolError
 from agents.tools.mock import MockTools
 
 
@@ -27,6 +27,7 @@ async def test_pa01_manual_approval_preserves_payload(runtime):
     assert [call["tool"] for call in calls] == [
         "get_inventory",
         "get_supplier",
+        "get_supplier_eligibility",
         "create_purchase_order",
     ]
     assert calls[-1]["arguments"] == {
@@ -141,7 +142,7 @@ async def test_checkpoint_survives_restart_with_same_expiry(settings):
         await rebuilt.resume(body.run_id, approval(body))
         done = await settled(rebuilt, body.run_id)
         assert done["result"]["outcome"] == "SUCCEEDED"
-        assert done["tool_calls"] == 3
+        assert done["tool_calls"] == 4
     finally:
         await rebuilt.close()
 
@@ -207,8 +208,53 @@ def test_invalid_quantity(quantity):
 def test_hash_matches_shared_fixture():
     from conftest import ROOT
 
-    data = json.loads(
-        (ROOT / "fixtures/drafts/manufacturing-qa/investigation-cases.json").read_text()
-    )
+    data = json.loads((ROOT / "qa/examples/investigation-cases.json").read_text())
     record = data["cases"][0]["evidence"][0]["payload"]["approvals"][0]
     assert PurchaseRequest(**record["payload"]).payload_hash() == record["payload_hash"]
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"order_id": None},
+        {"outcome": "REJECTED"},
+        {"message": ""},
+    ],
+)
+def test_purchase_result_rejects_contradictory_or_empty_claims(change):
+    data = {"request_id": "REQ-1", "outcome": "SUCCEEDED", "order_id": "PO-1", "message": "완료"}
+    with pytest.raises(ValidationError):
+        PurchaseResult(**{**data, **change})
+
+
+@pytest.mark.asyncio
+async def test_active_but_unapproved_supplier_is_held_before_approval(runtime):
+    body = purchase(supplier_id="SUP-02", unit_price_minor=9000)
+    await runtime.start(body)
+    done = await settled(runtime, body.run_id)
+    assert done["status"] == "COMPLETED"
+    assert done["result"]["outcome"] == "NEEDS_INPUT"
+    assert "공급 자격" in done["result"]["message"]
+    assert not done.get("write_started") and not done.get("approval")
+    tools = [
+        e["payload"]["tool"]
+        for e in runtime.store.events(body.run_id)
+        if e["event_type"] == "AGENT_TOOL_CALLED"
+    ]
+    assert "get_supplier_eligibility" in tools and "create_purchase_order" not in tools
+
+
+@pytest.mark.asyncio
+async def test_eligibility_for_a_different_plant_is_not_trusted(runtime, monkeypatch):
+    original = MockTools.call
+
+    async def wrong_plant(self, name, arguments):
+        data = await original(self, name, arguments)
+        return {**data, "plant_id": "OTHER-PLANT"} if name == "get_supplier_eligibility" else data
+
+    monkeypatch.setattr(MockTools, "call", wrong_plant)
+    body = purchase()
+    await runtime.start(body)
+    done = await settled(runtime, body.run_id)
+    assert done["result"]["outcome"] == "FAILED"
+    assert not done.get("write_started") and done["status"] != "WAITING_APPROVAL"

@@ -10,7 +10,7 @@ from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 from mcp.shared.exceptions import McpError
 
-from agents.tools.business import ToolError
+from agents.tools.errors import ToolError
 
 ERRORS = {
     "TOOL_TIMEOUT",
@@ -20,10 +20,18 @@ ERRORS = {
     "APPROVAL_REJECTED",
     "APPROVAL_MISMATCH",
     "REQUEST_PAYLOAD_MISMATCH",
+    "SUPPLIER_NOT_QUALIFIED",
     "INTERNAL_ERROR",
 }
-PURCHASE_TOOLS = {"get_inventory", "get_supplier", "create_purchase_order", "get_order_by_request"}
+PURCHASE_TOOLS = {
+    "get_supplier_eligibility",
+    "get_inventory",
+    "get_supplier",
+    "create_purchase_order",
+    "get_order_by_request",
+}
 INVESTIGATION_TOOLS = {
+    "search_manufacturing_knowledge",
     "get_failed_checks",
     "get_run_trace",
     "get_business_state",

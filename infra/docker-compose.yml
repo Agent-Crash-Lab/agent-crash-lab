@@ -6,7 +6,8 @@ name: agent-crash-lab
 
 services:
   postgres:
-    image: postgres:16
+    build: ./postgres
+    image: agent-crash-lab-postgres-vector:16
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -25,10 +26,36 @@ services:
       timeout: 3s
       retries: 10
 
+  knowledge:
+    build:
+      context: ..
+      dockerfile: knowledge/Dockerfile
+    environment:
+      KNOWLEDGE_DATABASE_URL: postgresql://harness_app:${HARNESS_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-}
+      MODEL_DIR: /models
+      CORPUS_MANIFEST: /project/qa/knowledge/corpus.json
+      CORPUS_RAW_DIR: /data/raw
+      EMBEDDING_THREADS: 2
+    volumes:
+      - knowledge_models:/models
+      - ../qa:/project/qa:ro
+      - ../artifacts/local-runs/knowledge/raw:/data/raw:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8010/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+      start_period: 180s
+
   mcp-server:
     build: ../mcp-server
     environment:
       SERVER_PORT: 8081
+      KNOWLEDGE_URL: http://knowledge:8010
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
       SPRING_DATASOURCE_USERNAME: mcp_app
       SPRING_DATASOURCE_PASSWORD: ${MCP_DB_PASSWORD}
@@ -41,7 +68,7 @@ services:
     ports:
       - "${MCP_SERVER_PORT:-8081}:8081"
     volumes:
-      - ../fixtures:/fixtures:ro
+      - ../qa:/qa:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -56,11 +83,15 @@ services:
     build: ../agents
     environment:
       MCP_URL: http://mcp-server:8081/mcp
+      SIMULATION_CALLBACK_BASE: ${SIMULATION_CALLBACK_BASE:-http://harness:8000}
       LLM_API_KEY: ${LLM_API_KEY}
       LLM_MODEL: ${LLM_MODEL:-}
       AGENT_MODEL_MODE: ${AGENT_MODEL_MODE:-offline}
       PURCHASE_LLM_MODEL: ${PURCHASE_LLM_MODEL:-}
       INVESTIGATION_LLM_MODEL: ${INVESTIGATION_LLM_MODEL:-}
+      QA_DESIGN_MODEL_MODE: ${QA_DESIGN_MODEL_MODE:-offline}
+      QA_DESIGN_LLM_MODEL: ${QA_DESIGN_LLM_MODEL:-}
+      QA_REVIEW_LLM_MODEL: ${QA_REVIEW_LLM_MODEL:-}
       LLM_BUDGET_STAGE: ${LLM_BUDGET_STAGE:-smoke}
       INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-}
       AGENT_PROJECT_ROOT: /project
@@ -68,8 +99,7 @@ services:
     volumes:
       - agent_state:/state
       - ../config:/project/config:ro
-      - ../contracts:/project/contracts:ro
-      - ../fixtures:/project/fixtures:ro
+      - ../qa:/project/qa:ro
     ports:
       - "${AGENTS_PORT:-8090}:8090"
     depends_on:
@@ -93,13 +123,13 @@ services:
       INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-}
       HARNESS_PROJECT_ROOT: /project
       HARNESS_DEV_AUTH: ${HARNESS_DEV_AUTH:-false}
+      EXTERNAL_AGENT_ENDPOINTS: ${EXTERNAL_AGENT_ENDPOINTS:-{}}
+      SIMULATION_CALLBACK_BASE: ${SIMULATION_CALLBACK_BASE:-http://harness:8000}
     ports:
       - "${HARNESS_PORT:-8000}:8000"
     volumes:
       - ../config:/project/config:ro
-      - ../contracts:/project/contracts:ro
-      - ../scenarios:/project/scenarios:ro
-      - ../fixtures:/project/fixtures:ro
+      - ../qa:/project/qa:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -124,3 +154,5 @@ services:
 volumes:
   pgdata:
   agent_state:
+
+  knowledge_models:

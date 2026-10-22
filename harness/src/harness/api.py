@@ -3,20 +3,33 @@
 import json
 import secrets
 from contextlib import asynccontextmanager
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import Depends, FastAPI, Header, Query, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel, ConfigDict, Field
+from fastapi.responses import JSONResponse, Response, StreamingResponse
+from jsonschema.exceptions import SchemaError, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+from referencing.exceptions import Unresolvable
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from harness.batches import Batches
 from harness.catalog import Catalog
-from harness.clients import AgentClient, McpClient
+from harness.clients import AgentClient, ClientError, McpClient
 from harness.compare import NotComparable, compare
 from harness.config import Settings
 from harness.events import EventLog, InvalidEvent
+from harness.registrations import (
+    CAPABILITY_OPTIONS,
+    Registration,
+    bind_runtime,
+    library_hash,
+    profile,
+    target_input,
+)
+from harness.reporting import qa_report
 from harness.runner import Runner, RunnerError
+from harness.simulation import Decision, SimulationError
 from harness.store import Store
 
 DEV_USER = ("requester-01", ["REQUESTER"])
@@ -31,8 +44,56 @@ class ApiError(Exception):
 
 class CreateRun(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    test_id: str = Field(min_length=1)
+    test_id: str | None = Field(default=None, min_length=1)
     system_id: str | None = None
+    plan_id: str | None = None
+    case_id: str | None = Field(default=None, min_length=1)
+
+    @model_validator(mode="after")
+    def select_execution(self):
+        if self.case_id is not None:
+            if not self.plan_id or self.test_id is not None:
+                raise ValueError("Use plan_id + case_id, without test_id")
+        elif self.test_id is None:
+            raise ValueError("Select test_id or plan_id + case_id")
+        return self
+
+
+class PlanRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    target: dict | None = None
+    sample_data: dict | None = None
+    knowledge_query: str | None = Field(default=None, min_length=2, max_length=1000)
+    knowledge_target_type: Literal["COMMON", "PURCHASE", "PRODUCTION", "QUALITY"] = "COMMON"
+
+
+class DesignOptions(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    generation_mode: Literal["configured", "llm", "offline"] = "configured"
+
+
+class DesignPlanRequest(DesignOptions):
+    model_config = ConfigDict(extra="forbid")
+    target: dict | None = None
+    sample_data: dict | None = None
+
+
+class BatchRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    request_id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")
+    plan_id: str = Field(min_length=1, max_length=128)
+    case_ids: list[str] = Field(default_factory=list, max_length=10)
+    systems: list[Literal["B0", "B1"]] = Field(default=["B0", "B1"], min_length=1, max_length=2)
+    mode: Literal["SMOKE", "RELIABILITY"] = "SMOKE"
+    max_runs: int = Field(default=8, ge=1, le=300)
+    max_seconds: int = Field(default=900, ge=1, le=3600)
+    max_cost_usd: float = Field(default=1.0, ge=0, le=1.0, allow_inf_nan=False)
+
+    @model_validator(mode="after")
+    def unique_systems(self):
+        if len(self.systems) != len(set(self.systems)):
+            raise ValueError("Duplicate systems")
+        return self
 
 
 class ResumeBody(BaseModel):
@@ -53,9 +114,17 @@ def _error(status: int, code: str, message: str = "") -> JSONResponse:
 
 def public_view(run: dict) -> dict:
     return {
+        "qa_report": qa_report(run) if run.get("run_id") and run.get("status") else None,
         **{k: v for k, v in run.items() if k != "observation"},
+        "observed_change_count": (
+            len(run["observation"].get("changes", run["observation"].get("orders", [])))
+            if run.get("observation") is not None
+            else None
+        ),
         "observed_order_count": (
-            len(run["observation"].get("orders", [])) if run.get("observation") is not None else None
+            len(run["observation"].get("orders", []))
+            if run.get("observation") is not None
+            else None
         ),
     }
 
@@ -74,11 +143,14 @@ def create_app(settings: Settings | None = None, mcp=None, agents=None) -> FastA
         agent_client = agents or AgentClient(settings.agent_url, token)
         runner = Runner(settings, catalog, store, events, mcp_client, agent_client)
         runner.recover()
+        app.state.batches = Batches(runner)
+        app.state.batches.recover()
         app.state.catalog, app.state.store, app.state.events = catalog, store, events
         app.state.runner = runner
         try:
             yield
         finally:
+            await app.state.batches.close()
             await runner.close()
             await events.close()
             if mcp is None:
@@ -92,6 +164,10 @@ def create_app(settings: Settings | None = None, mcp=None, agents=None) -> FastA
     @app.exception_handler(ApiError)
     async def api_error(request, exc: ApiError):
         return _error(exc.status, exc.code, exc.message)
+
+    @app.exception_handler(SimulationError)
+    async def simulation_error(request, exc):
+        return _error(exc.status, exc.code)
 
     @app.exception_handler(RunnerError)
     async def runner_error(request, exc: RunnerError):
@@ -153,12 +229,250 @@ def create_app(settings: Settings | None = None, mcp=None, agents=None) -> FastA
     async def scenarios(request: Request, _: User):
         return request.app.state.catalog.scenarios_response()
 
+    @app.get("/api/qa/targets")
+    async def target_types(request: Request, _: User):
+        return {"types": request.app.state.catalog.planner.target_types()}
+
+    @app.get("/api/qa/target")
+    async def reference_target(
+        request: Request,
+        _: User,
+        target_type: Literal["PURCHASE", "PRODUCTION", "QUALITY"] = "PURCHASE",
+    ):
+        planner = request.app.state.catalog.planner
+        return planner.target_input(target_type)
+
+    @app.post("/api/qa/plans")
+    async def plan_qa(body: PlanRequest, request: Request, who: User):
+        if "REQUESTER" not in who[1]:
+            raise ApiError(403, "PERMISSION_DENIED", "REQUESTER role required")
+        try:
+            context = None
+            if body.knowledge_query:
+                try:
+                    result = await request.app.state.runner.mcp.search_knowledge(
+                        {
+                            "query": body.knowledge_query,
+                            "target_type": body.knowledge_target_type,
+                            "limit": 3,
+                        }
+                    )
+                except ClientError:
+                    raise ApiError(503, "KNOWLEDGE_UNAVAILABLE") from None
+                context = {
+                    "query": result["query"],
+                    "target_type": body.knowledge_target_type,
+                    "index_version": result["index_version"],
+                    "model": result["model"],
+                    "model_revision": result["model_revision"],
+                    "sources": [
+                        {
+                            k: s[k]
+                            for k in (
+                                "document_id",
+                                "source_id",
+                                "version",
+                                "location",
+                                "source_url",
+                                "content_kind",
+                            )
+                        }
+                        for s in result["results"]
+                    ],
+                }
+            plan = request.app.state.catalog.planner.build(body.target, body.sample_data, context)
+            request.app.state.store.put_plan(plan, who[0])
+            return plan
+        except (ValidationError, SchemaError, ValueError, Unresolvable, RecursionError) as exc:
+            raise ApiError(
+                400, "INVALID_QA_INPUT", "Invalid target description or sample data"
+            ) from exc
+
+    def registration_view(saved):
+        runtime_id = saved.get("execution_binding", {}).get("runtime_id", "")
+        if runtime_id.startswith("external-") and runtime_id not in json.loads(
+            settings.external_agent_endpoints.get_secret_value()
+        ):
+            return {**saved, "execution_status": "ADAPTER_REQUIRED"}
+        return saved
+
+    @app.get("/api/qa/registrations")
+    async def registrations(request: Request, who: User):
+        return {
+            "profiles": [
+                registration_view(p) for p in request.app.state.store.list_registrations(who[0])
+            ],
+            "execution_runtimes": [
+                {"runtime_id": key, "name": "외부 " + value["agent_type"] + " · " + key}
+                for key, value in json.loads(
+                    settings.external_agent_endpoints.get_secret_value()
+                ).items()
+            ],
+            "capabilities": CAPABILITY_OPTIONS,
+        }
+
+    @app.get("/api/qa/registrations/{profile_id}")
+    async def registration(profile_id: str, request: Request, who: User):
+        result = request.app.state.store.get_registration(profile_id, who[0])
+        if result is None:
+            raise ApiError(404, "QA_TARGET_NOT_FOUND")
+        return registration_view(result)
+
+    @app.post("/api/qa/registrations")
+    async def register(body: Registration, request: Request, who: User):
+        if "REQUESTER" not in who[1]:
+            raise ApiError(403, "PERMISSION_DENIED")
+        try:
+            agents = request.app.state.runner.agents
+            binding = bind_runtime(
+                body,
+                request.app.state.catalog.planner,
+                await request.app.state.runner.execution_profile(body.execution_runtime)
+                if body.execution_runtime
+                else {},
+            )
+            saved = profile(body, None, settings.harness_project_root, binding)
+            existing = request.app.state.store.get_registration(saved["profile_id"], who[0])
+            if existing is not None:
+                return existing
+            saved["analysis"] = await agents.analyze(target_input(body))
+            return request.app.state.store.put_registration(saved, who[0])
+        except ClientError:
+            raise ApiError(503, "QA_ANALYSIS_UNAVAILABLE") from None
+        except (ValidationError, SchemaError, ValueError, KeyError, RecursionError) as exc:
+            code = (
+                "INCOMPATIBLE_EXECUTION_TARGET" if body.execution_runtime else "INVALID_QA_TARGET"
+            )
+            raise ApiError(400, code, str(exc)[:250] if body.execution_runtime else code) from None
+
+    @app.post("/api/qa/registrations/{profile_id}/design")
+    async def design_registered(
+        profile_id: str, request: Request, who: User, options: DesignOptions
+    ):
+        if "REQUESTER" not in who[1]:
+            raise ApiError(403, "PERMISSION_DENIED")
+        saved = await registration(profile_id, request, who)
+        if not saved["can_design"]:
+            raise ApiError(422, "PROFILE_INFORMATION_REQUIRED")
+        if saved["risk_library_hash"] != library_hash(settings.harness_project_root):
+            raise ApiError(409, "PROFILE_ANALYSIS_CHANGED")
+        try:
+            planner = request.app.state.catalog.planner
+            body = Registration(**saved["input"])
+            data = target_input(body)
+            data.pop("unknown_policies")
+            binding = saved.get("execution_binding")
+            if binding:
+                current = bind_runtime(
+                    body,
+                    planner,
+                    await request.app.state.runner.execution_profile(body.execution_runtime),
+                )
+                if current != binding:
+                    raise ApiError(
+                        409, "TARGET_RUNTIME_CHANGED", "실행기가 바뀌었습니다. 다시 등록하세요."
+                    )
+                data["target"] = planner.target_input(body.agent_type)["target"]
+            designed = await request.app.state.runner.agents.design(
+                {**data, "generation_mode": options.generation_mode}
+            )
+            designed["registration"] = {
+                k: saved[k]
+                for k in ("profile_id", "profile_hash", "name", "assurance", "risk_library_hash")
+            }
+            if binding:
+                designed["registration"]["execution_binding"] = binding
+            plan = planner.build_designed(data["target"], data["sample_data"], designed)
+            if not binding and any(c["execution"]["status"] == "READY" for c in plan["cases"]):
+                raise ValueError("Unbound registrations cannot acquire execution support")
+            request.app.state.store.put_plan(plan, who[0])
+            return plan
+        except ClientError as exc:
+            raise ApiError(
+                503,
+                exc.code
+                if exc.code in {"LLM_KEY_NOT_CONFIGURED", "UNPRICED_MODEL", "LLM_BUDGET_EXHAUSTED"}
+                else "QA_DESIGN_UNAVAILABLE",
+            ) from None
+        except (ValidationError, SchemaError, ValueError, KeyError, RecursionError):
+            raise ApiError(400, "INVALID_QA_DESIGN") from None
+
+    @app.post("/api/qa/design")
+    async def design_plan(body: DesignPlanRequest, request: Request, who: User):
+        if "REQUESTER" not in who[1]:
+            raise ApiError(403, "PERMISSION_DENIED", "REQUESTER role required")
+        planner = request.app.state.catalog.planner
+        try:
+            # Validate input locally before contacting the design service.
+            planner.build(body.target, body.sample_data)
+            target = body.target if body.target is not None else planner.reference_target
+            sample = body.sample_data if body.sample_data is not None else planner.reference_sample
+            designed = await request.app.state.runner.agents.design(
+                {"target": target, "sample_data": sample, "generation_mode": body.generation_mode}
+            )
+            plan = planner.build_designed(target, sample, designed)
+            request.app.state.store.put_plan(plan, who[0])
+            return plan
+        except ClientError as exc:
+            raise ApiError(
+                503,
+                exc.code
+                if exc.code in {"LLM_KEY_NOT_CONFIGURED", "UNPRICED_MODEL", "LLM_BUDGET_EXHAUSTED"}
+                else "QA_DESIGN_UNAVAILABLE",
+            ) from None
+        except (ValidationError, SchemaError, ValueError, KeyError, Unresolvable, RecursionError):
+            raise ApiError(400, "INVALID_QA_DESIGN") from None
+
+    @app.get("/api/qa/plans/{plan_id}")
+    async def saved_plan(plan_id: str, request: Request, who: User):
+        plan = request.app.state.store.get_plan(plan_id, who[0])
+        if plan is None:
+            raise ApiError(404, "QA_PLAN_NOT_FOUND")
+        return plan
+
+    @app.post("/api/qa/batches", status_code=202)
+    async def create_batch(body: BatchRequest, request: Request, who: User):
+        if "REQUESTER" not in who[1]:
+            raise ApiError(403, "PERMISSION_DENIED")
+        try:
+            return await request.app.state.batches.create(body, who[0])
+        except ClientError:
+            raise ApiError(503, "AGENT_PROFILE_UNAVAILABLE") from None
+        except (ValidationError, ValueError, KeyError):
+            raise ApiError(409, "INVALID_QA_STRATEGY") from None
+
+    @app.get("/api/qa/batches/{batch_id}")
+    async def batch_detail(batch_id: str, request: Request, who: User):
+        return request.app.state.batches.get(batch_id, who[0])
+
+    @app.get("/api/qa/batches")
+    async def batch_list(request: Request, who: User):
+        return {
+            "batches": [
+                b
+                for b in sorted(
+                    request.app.state.store.all_batches(),
+                    key=lambda b: b["created_at"],
+                    reverse=True,
+                )
+                if b["created_by"] == who[0]
+            ][:30]
+        }
+
+    @app.post("/api/qa/batches/{batch_id}/stop")
+    async def stop_batch(batch_id: str, request: Request, who: User):
+        if "REQUESTER" not in who[1]:
+            raise ApiError(403, "PERMISSION_DENIED")
+        return request.app.state.batches.stop(batch_id, who[0])
+
     @app.post("/api/runs", status_code=202)
     async def create_run(body: CreateRun, request: Request, who: User):
         user_id, roles = who
         if "REQUESTER" not in roles:
             raise ApiError(403, "PERMISSION_DENIED", "REQUESTER role required")
-        run = await runner(request).create_run(body.test_id, body.system_id, user_id)
+        run = await runner(request).create_run(
+            body.test_id, body.system_id, user_id, body.plan_id, body.case_id
+        )
         return {
             "run_id": run["run_id"],
             "status": run["status"],
@@ -242,6 +556,28 @@ def create_app(settings: Settings | None = None, mcp=None, agents=None) -> FastA
             return compare(get_run(request, left), get_run(request, right))
         except NotComparable as exc:
             raise ApiError(422, exc.code) from exc
+
+    @app.post("/api/qa/runs/{run_id}/approval")
+    async def simulation_approval(run_id: str, body: Decision, request: Request, who: User):
+        if "APPROVER" not in who[1]:
+            raise ApiError(403, "PERMISSION_DENIED")
+        if get_run(request, run_id)["created_by"] == who[0]:
+            raise ApiError(403, "SELF_APPROVAL_DENIED")
+        return await runner(request).simulations.decide(run_id, body, who[0])
+
+    @app.post("/simulations/{run_id}/mcp")
+    async def simulation_mcp(
+        run_id: str, request: Request, authorization: str | None = Header(default=None)
+    ):
+        raw = await request.body()
+        if len(raw) > 100_000:
+            raise ApiError(413, "REQUEST_TOO_LARGE")
+        try:
+            body = json.loads(raw)
+        except ValueError:
+            raise ApiError(400, "INVALID_JSON_RPC") from None
+        result = await runner(request).simulations.rpc(run_id, authorization, body)
+        return Response(status_code=202) if result is None else JSONResponse(result)
 
     # internal API for mcp-server (HARNESS_SPEC §4)
 

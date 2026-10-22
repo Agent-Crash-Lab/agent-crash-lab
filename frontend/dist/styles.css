@@ -40,3 +40,26 @@
 .live-guidance{padding:24px;border:1px solid #cbd6c5;border-radius:12px;background:#f3f6ed;scroll-margin-top:24px}.live-guidance-copy strong{display:block;font-size:19px;line-height:1.5}.live-guidance-copy p{margin:8px 0 0;line-height:1.7;color:#46523f}.live-guidance>.primary{margin-top:18px}.live-steps{display:flex;flex-wrap:wrap;gap:8px 16px;list-style:none;margin:0 0 20px;padding:0}.live-steps li{margin:0}.live-steps button{padding:8px 0;min-height:44px;color:#5c6657;background:transparent;border:0;font:inherit;font-size:12px;cursor:pointer}.live-steps button[aria-current]{font-weight:700;color:#263d24;border-bottom:2px solid currentColor}[data-live-result]{scroll-margin-top:24px}
 
 .live-action-anchor{display:flex;flex-direction:column;align-items:flex-start;gap:12px;max-width:100%;min-width:0}.live-action-bubble{position:relative;box-sizing:border-box;max-width:360px;margin:0;padding:12px 16px;background:#344b2d;color:#fff;border-radius:12px;font-size:13px;line-height:1.65;box-shadow:0 4px 12px #25371815;overflow-wrap:anywhere}.live-action-bubble:after{content:"";position:absolute;left:22px;bottom:-7px;width:14px;height:14px;background:#344b2d;transform:rotate(45deg)}.live-action-anchor>form,.live-action-anchor>.full,.live-action-anchor>.live-history{width:100%}.live-action-anchor>button{max-width:100%}.live-flow-actions>.live-action-anchor{flex-basis:100%}[data-live-login]>.live-action-anchor{margin-top:16px}.live-compare-area .live-action-anchor{width:100%}
+
+.live-knowledge-hit{padding:20px 0;border-top:1px solid var(--line);margin-top:16px}.live-knowledge-hit>p{margin-top:10px}.live-knowledge-hit pre{font-size:13px}.live-layout fieldset{border:1px solid var(--line);border-radius:12px;padding:16px;margin:20px 0}.live-layout legend{padding:0 8px;font-weight:600}
+
+.live-design-case {border-top:1px solid var(--line,#ddd);padding:20px 0;}
+.live-design-case blockquote {margin:12px 0;padding:12px 16px;border-left:3px solid #536b48;background:#f6f8f4;line-height:1.65;}
+.live-design-case pre {max-height:240px;overflow:auto;}
+
+.live-selected-design {padding:16px;margin:12px 0;border:1px solid #9eaf95;border-radius:12px;background:#f4f7f1;}
+
+[data-live-batch-results] .live-table{table-layout:fixed}[data-live-batch-results] .live-table th:first-child{width:52%}[data-live-batch-results] .live-table th,[data-live-batch-results] .live-table td{white-space:normal;overflow-wrap:anywhere;word-break:normal;padding:10px 6px}
+
+/* The three manufacturing target types share the same QA flow. */
+.live-targets{grid-template-columns:repeat(3,minmax(0,1fr))}
+.live-targets>details{grid-column:1/-1}
+[data-live-manual]>summary{padding:14px 4px;cursor:pointer}
+@media(max-width:1000px){.live-targets{grid-template-columns:1fr}}
+
+/* Agent registration uses the existing console palette and motion settings. */
+.qa-form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+[data-qa-registration] textarea{width:100%;box-sizing:border-box;resize:vertical;border:1px solid var(--border,#dce2ed);border-radius:10px;background:var(--surface,#fff);color:inherit;padding:10px;font:inherit}
+[data-qa-registration] label{display:grid;gap:7px;margin:12px 0}
+.qa-profile-analysis{border-top:1px solid var(--border,#dce2ed);margin-top:18px;padding-top:18px}
+[data-qa-profiles]>button{margin:4px}

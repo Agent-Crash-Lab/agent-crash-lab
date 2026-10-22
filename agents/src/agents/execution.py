@@ -7,7 +7,7 @@ from uuid import uuid4
 from jsonschema import validate
 
 from agents.config import redact
-from agents.tools.business import ToolError
+from agents.tools.errors import ToolError
 from agents.tools.mcp import INVESTIGATION_TOOLS, PURCHASE_TOOLS
 
 

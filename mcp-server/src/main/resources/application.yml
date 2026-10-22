@@ -46,8 +46,8 @@ crashlab:
   harness-url: ${HARNESS_URL:http://localhost:8000}
   # Agent가 접속할 MCP 주소 (실행 초기화 응답에 담는다)
   mcp-url: ${MCP_PUBLIC_URL:http://mcp-server:8081/mcp}
-  # 저장소의 fixtures/ 위치. 컨테이너에서는 Dockerfile이 /fixtures로 지정한다.
-  fixtures-dir: ${CRASHLAB_FIXTURES_DIR:../fixtures}
+  # 저장소의 qa/ 위치. 컨테이너에서는 Dockerfile이 /qa로 지정한다.
+  qa-dir: ${CRASHLAB_QA_DIR:${CRASHLAB_FIXTURES_DIR:../qa}}
   demo-user-password: ${DEMO_USER_PASSWORD:crashlab}
   tool-timeout: 10s
   approval-wait: 300s

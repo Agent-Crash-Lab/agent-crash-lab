@@ -20,7 +20,7 @@ import com.agentcrashlab.mcp.auth.CurrentUser;
 import com.agentcrashlab.mcp.domain.Approvals;
 import com.agentcrashlab.mcp.domain.PurchasePayload;
 import com.agentcrashlab.mcp.domain.RunFinalizer;
-import com.agentcrashlab.mcp.domain.RunSetup;
+import com.agentcrashlab.mcp.domain.ReferencePurchaseSimulation;
 import com.agentcrashlab.mcp.support.McpTestClient;
 import com.agentcrashlab.mcp.support.McpTestClient.Result;
 import com.agentcrashlab.mcp.support.PostgresIntegrationTest;
@@ -39,7 +39,7 @@ class SignatureScenarioTests extends PostgresIntegrationTest {
 	int port;
 
 	@Autowired
-	RunSetup runSetup;
+	ReferencePurchaseSimulation runSetup;
 
 	@Autowired
 	Approvals approvals;
@@ -186,7 +186,7 @@ class SignatureScenarioTests extends PostgresIntegrationTest {
 		}
 
 		Map<String, Object> schema = this.json.readValue(
-				Files.readString(Path.of("../contracts/drafts/manufacturing-qa/event.schema.json")), Map.class);
+				Files.readString(Path.of("../qa/contracts/event.schema.json")), Map.class);
 		Set<String> fields = new java.util.HashSet<>(((Map<String, Object>) schema.get("properties")).keySet());
 		fields.remove("sequence"); // Harness가 저장할 때 붙인다 (4.2)
 		List<String> nodes = (List<String>) ((Map<String, Object>) ((Map<String, Object>) schema.get("properties"))
@@ -203,10 +203,10 @@ class SignatureScenarioTests extends PostgresIntegrationTest {
 	}
 
 	private String initS03(String runId, String policy) {
-		RunSetup.FaultRule fault = new RunSetup.FaultRule("FLT-001", "create_purchase_order",
+		ReferencePurchaseSimulation.FaultRule fault = new ReferencePurchaseSimulation.FaultRule("FLT-001", "create_purchase_order",
 				"AFTER_FIRST_SUCCESSFUL_COMMIT_BEFORE_RESPONSE", 1, "TOOL_TIMEOUT");
 		return this.runSetup
-			.initialize(new RunSetup.Command(runId, "S03", policy, "fixture-v1", "requester-01", List.of(fault)))
+			.initialize(new ReferencePurchaseSimulation.Command(runId, "S03", policy, "fixture-v1", "requester-01", List.of(fault)))
 			.agentTokens()
 			.get("purchase_agent");
 	}
