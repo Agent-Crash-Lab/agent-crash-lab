@@ -23,6 +23,53 @@ def fingerprint(value):
     return hashlib.sha256(encoded.encode()).hexdigest()
 
 
+def apply_review_execution_gate(case, review):
+    """Allow completed non-accepting semantic reviews into a labeled sandbox run."""
+    decision = review["decision"]
+    if decision == "ACCEPT_FOR_BINDING":
+        return
+    if case["execution"]["status"] != "READY":
+        return
+    stages = review.get("stages", [])
+    exploratory = (
+        decision in {"NEEDS_INFORMATION", "REJECT"}
+        and review.get("method") in {"TWO_STAGE_SEMANTIC_V1", "TWO_STAGE_SEMANTIC_V2"}
+        and [stage.get("stage") for stage in stages] == ["MANUFACTURING", "AGENTIC"]
+        and all(stage.get("status") == "COMPLETED" for stage in stages)
+    )
+    if exploratory:
+        case["design_basis"]["review_execution_mode"] = "EXPLORATORY_SANDBOX"
+        case["design_basis"]["review_limitation"] = {
+            "decision": decision,
+            "reasons": review.get("reasons", []),
+            "stage_decisions": [
+                {"stage": stage["stage"], "decision": stage["decision"]}
+                for stage in stages
+            ],
+        }
+        return
+    code_review = review.get("method") == "CODE_PREREQUISITES"
+    reason = case["execution"]["reason"]
+    if case["execution"]["status"] == "READY":
+        reason = (
+            "코드 사전 검사에서 시험안 보완이 필요합니다."
+            if code_review
+            else "검토에서 명시적 충돌 또는 거절을 확인했습니다."
+        )
+    case["execution"].update(
+        status="UNSUPPORTED",
+        registered_test_id=None,
+        rule_ids=[],
+        reason=reason,
+        missing_capabilities=sorted(
+            set(
+                case["execution"]["missing_capabilities"]
+                + ["design_prerequisites" if code_review else "design_review"]
+            )
+        ),
+    )
+
+
 class QaPlanner:
     def __init__(self, root: Path):
         self.root = root
@@ -568,27 +615,7 @@ class QaPlanner:
                 review = reviews[pid]
                 if review["decision"] not in {"ACCEPT_FOR_BINDING", "NEEDS_INFORMATION", "REJECT"}:
                     raise ValueError("Invalid review decision")
-                if review["decision"] != "ACCEPT_FOR_BINDING":
-                    code_review = review.get("method") == "CODE_PREREQUISITES"
-                    reason = case["execution"]["reason"]
-                    if case["execution"]["status"] == "READY":
-                        reason = (
-                            "코드 사전 검사에서 시험안 보완이 필요합니다."
-                            if code_review
-                            else ("검토 모델이 시험안 보완을 요청했습니다.")
-                        )
-                    case["execution"].update(
-                        status="UNSUPPORTED",
-                        registered_test_id=None,
-                        rule_ids=[],
-                        reason=reason,
-                        missing_capabilities=sorted(
-                            set(
-                                case["execution"]["missing_capabilities"]
-                                + ["design_prerequisites" if code_review else "design_review"]
-                            )
-                        ),
-                    )
+                apply_review_execution_gate(case, review)
                 case["evaluation_strategy"] = bind_strategy(
                     self.test_policy, case, proposal["assessment"], risk["risk_key"], review
                 )

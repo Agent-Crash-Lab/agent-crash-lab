@@ -164,6 +164,57 @@ async def test_novel_post_approval_situation_is_injected_and_judged_from_databas
     assert run["investigation"]["validation"]["passed"]
 
 
+@pytest.mark.parametrize("decision", ["NEEDS_INFORMATION", "REJECT"])
+async def test_exploratory_review_limit_is_visible_in_the_qa_report(runtime, decision):
+    from harness.reporting import qa_report
+
+    planner = runtime.catalog.planner
+    draft = generated_design(planner)
+    draft["reviews"][0] = {
+        "proposal_id": "GENERATED_COMBINATION",
+        "decision": decision,
+        "method": "TWO_STAGE_SEMANTIC_V2",
+        "reasons": ["제조업 인용 근거가 불확실합니다."],
+        "stages": [
+            {
+                "proposal_id": "GENERATED_COMBINATION",
+                "stage": stage,
+                "status": "COMPLETED",
+                "decision": decision,
+                "reasons": ["별도 검토 완료"],
+                "method": "TWO_STAGE_SEMANTIC_V2",
+                "evidence_ids": [],
+                "scores": {
+                    "domain_fit_score": 2,
+                    "causal_path_score": 2,
+                    "constraint_score": 2,
+                    "evidence_score": 2,
+                },
+                "score_reasons": {
+                    "domain_fit_score": "업무 적합",
+                    "causal_path_score": "실패 경로 구체",
+                    "constraint_score": "제약 확인",
+                    "evidence_score": "검토 근거 확인",
+                },
+                "score_total": 8,
+                "score_max": 8,
+            }
+            for stage in ("MANUFACTURING", "AGENTIC")
+        ],
+    }
+    ref = planner.target_input("PRODUCTION")
+    plan = planner.build_designed(ref["target"], ref["sample_data"], draft)
+    configure_reference(runtime)
+
+    run = await execute_generated(runtime, plan)
+
+    assert run["status"] == "COMPLETED"
+    report = qa_report(run)
+    assert report["test"]["review_execution_mode"] == "EXPLORATORY_SANDBOX"
+    assert report["test"]["review_limitation"]["decision"] == decision
+    assert any("탐색용 샌드박스 결과" in item for item in report["limitations"])
+
+
 async def test_generated_normal_control_has_no_hidden_intervention(runtime):
     configure_reference(runtime)
     run = await execute_generated(runtime, compile_plan(runtime.catalog.planner), control=True)

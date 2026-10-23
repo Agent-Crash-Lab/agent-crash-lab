@@ -2,11 +2,20 @@ import pytest
 from conftest import ROOT, wait_for
 
 from harness.design_reviews import validate_staged_review
-from harness.planning import QaPlanner, fingerprint
+from harness.planning import QaPlanner, apply_review_execution_gate, fingerprint
 
 
 @pytest.mark.parametrize(
-    "mutation", ["none", "missing-stage", "wrong-domain", "overridden-rejection", "score-total", "score-gate"]
+    "mutation",
+    [
+        "none",
+        "missing-stage",
+        "wrong-domain",
+        "overridden-rejection",
+        "score-total",
+        "score-gate",
+        "fabricated-quote",
+    ],
 )
 def test_harness_independently_enforces_two_review_gates(mutation):
     import copy
@@ -20,9 +29,12 @@ def test_harness_independently_enforces_two_review_gates(mutation):
         sid: {"sha256": sid, "risk_types": ["RESOURCE_CONSTRAINT"], "evidence_domains": [domain]}
         for sid, domain in (("MF", "MANUFACTURING"), ("AG", "AGENTIC"))
     }
-    sources = {sid + ":p0": {"source_id": sid, "version": sid} for sid in records}
+    sources = {
+        sid + ":p0": {"source_id": sid, "version": sid, "matched_text": f"source {sid} passage"}
+        for sid in records
+    }
     review = {
-        "method": "TWO_STAGE_SEMANTIC_V1",
+        "method": "TWO_STAGE_SEMANTIC_V2",
         "decision": "ACCEPT_FOR_BINDING",
         "stages": [
             {
@@ -41,6 +53,7 @@ def test_harness_independently_enforces_two_review_gates(mutation):
                     "causal_path_score": "조건에서 결과로 이어지는 경로를 확인함",
                     "constraint_score": "운영 제약을 확인함",
                     "evidence_score": "단계에 맞는 출처를 확인함",
+                    "evidence_quote": sources[sid + ":p0"]["matched_text"],
                 },
                 "score_total": 8,
                 "score_max": 8,
@@ -66,11 +79,155 @@ def test_harness_independently_enforces_two_review_gates(mutation):
     elif mutation == "score-gate":
         changed["stages"][1]["scores"]["evidence_score"] = 0
         changed["stages"][1]["score_total"] = 6
+    elif mutation == "fabricated-quote":
+        changed["stages"][1]["score_reasons"]["evidence_quote"] = "invented passage"
     if mutation == "none":
         validate_staged_review(changed, proposal, sources, records)
     else:
         with pytest.raises(ValueError):
             validate_staged_review(changed, proposal, sources, records)
+
+
+def test_unverified_quote_is_allowed_only_as_an_explicit_needs_information_result():
+    # A missing exact quote is valid only when this gate records no evidence support.
+    proposal = {
+        "proposal_id": "P1",
+        "risk_key": "RESOURCE_CONSTRAINT",
+        "evidence_ids": ["MF:p0", "AG:p0"],
+    }
+    records = {
+        sid: {"sha256": sid, "risk_types": ["RESOURCE_CONSTRAINT"], "evidence_domains": [domain]}
+        for sid, domain in (("MF", "MANUFACTURING"), ("AG", "AGENTIC"))
+    }
+    sources = {
+        sid + ":p0": {
+            "source_id": sid,
+            "version": sid,
+            "matched_text": f"source {sid} passage",
+        }
+        for sid in records
+    }
+    review = {
+        "proposal_id": "P1",
+        "method": "TWO_STAGE_SEMANTIC_V2",
+        "decision": "NEEDS_INFORMATION",
+        "stages": [],
+    }
+    for sid, domain in (("MF", "MANUFACTURING"), ("AG", "AGENTIC")):
+        review["stages"].append(
+            {
+                "stage": domain,
+                "status": "COMPLETED",
+                "decision": "ACCEPT_FOR_BINDING" if sid == "MF" else "NEEDS_INFORMATION",
+                "evidence_ids": [sid + ":p0"],
+                "scores": {
+                    "domain_fit_score": 2,
+                    "causal_path_score": 2,
+                    "constraint_score": 2,
+                    "evidence_score": 2 if sid == "MF" else 0,
+                },
+                "score_reasons": {
+                    "domain_fit_score": "업무 관련 문헌을 확인함",
+                    "causal_path_score": "조건에서 결과로 이어지는 경로를 확인함",
+                    "constraint_score": "운영 제약을 확인함",
+                    "evidence_score": "단계에 맞는 출처를 확인함",
+                    "evidence_quote": sources[sid + ":p0"]["matched_text"]
+                    if sid == "MF"
+                    else "없는 인용",
+                },
+                "score_total": 6 if sid == "AG" else 8,
+                "score_max": 8,
+                "assessment": {
+                    "policy_alignment": "ALIGNED",
+                    "evidence_relevance": "SUPPORTED" if sid == "MF" else "UNCLEAR",
+                    "scenario_consistency": "COHERENT",
+                },
+            }
+        )
+    validate_staged_review(review, proposal, sources, records)
+
+
+@pytest.mark.parametrize("decision", ["NEEDS_INFORMATION", "REJECT"])
+def test_non_accepting_semantic_review_can_run_as_labeled_sandbox_case(decision):
+    case = {
+        "execution": {
+            "status": "READY",
+            "reason": "Registered simulator and code evaluator available",
+            "missing_capabilities": [],
+            "registered_test_id": "S03",
+            "rule_ids": ["R01"],
+        },
+        "design_basis": {},
+    }
+    review = {
+        "decision": decision,
+        "method": "TWO_STAGE_SEMANTIC_V2",
+        "reasons": ["제조업 인용 근거가 불확실합니다."],
+        "stages": [
+            {
+                "stage": stage,
+                "status": "COMPLETED",
+                "decision": decision if stage == "MANUFACTURING" else "ACCEPT_FOR_BINDING",
+            }
+            for stage in ("MANUFACTURING", "AGENTIC")
+        ],
+    }
+
+    apply_review_execution_gate(case, review)
+
+    assert case["execution"]["status"] == "READY"
+    assert case["design_basis"]["review_execution_mode"] == "EXPLORATORY_SANDBOX"
+    assert case["design_basis"]["review_limitation"]["decision"] == decision
+
+
+def test_code_prerequisite_review_stays_out_of_execution():
+    case = {
+        "execution": {
+            "status": "READY",
+            "reason": "Registered simulator and code evaluator available",
+            "missing_capabilities": [],
+            "registered_test_id": "S03",
+            "rule_ids": ["R01"],
+        },
+        "design_basis": {},
+    }
+    apply_review_execution_gate(
+        case,
+        {
+            "decision": "NEEDS_INFORMATION",
+            "method": "CODE_PREREQUISITES",
+            "stages": [{"stage": "MANUFACTURING", "status": "COMPLETED"}],
+            "reasons": [],
+        },
+    )
+    assert case["execution"]["status"] == "UNSUPPORTED"
+
+
+def test_semantic_review_does_not_relabel_a_code_unsupported_case():
+    case = {
+        "execution": {
+            "status": "UNSUPPORTED",
+            "reason": "The generated state is not supported",
+            "missing_capabilities": ["generated_data_validation"],
+            "registered_test_id": None,
+            "rule_ids": [],
+        },
+        "design_basis": {},
+    }
+    review = {
+        "decision": "REJECT",
+        "method": "TWO_STAGE_SEMANTIC_V2",
+        "reasons": ["상황 근거가 불확실합니다."],
+        "stages": [
+            {"stage": stage, "status": "COMPLETED", "decision": "REJECT"}
+            for stage in ("MANUFACTURING", "AGENTIC")
+        ],
+    }
+
+    apply_review_execution_gate(case, review)
+
+    assert case["execution"]["status"] == "UNSUPPORTED"
+    assert "review_execution_mode" not in case["design_basis"]
 
 
 def design(planner):

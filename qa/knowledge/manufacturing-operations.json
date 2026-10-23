@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "domain_id": "MANUFACTURING_OPERATIONS",
   "name": "제조 운영 Agent QA",
   "scope": "생산·품질의 MOM 운영 판단과 구매의 ERP 연계 업무",
@@ -7,6 +7,23 @@
     "PRODUCTION": "MOM 생산 일정·자원 배정",
     "QUALITY": "MOM 품질 확인·출하 판정",
     "PURCHASE": "ERP 구매·조달과 제조 운영의 연계"
+  },
+  "potential_business_impacts": {
+    "PURCHASE": {
+      "AMBIGUOUS_WRITE": "응답 유실 뒤 동일 구매 요청이 중복 발주되면 필요 이상의 자재와 운전자금이 묶이거나, 재고 기록과 생산 자재 계획이 어긋날 수 있다.",
+      "APPROVAL_BYPASS": "거절된 발주가 확정되면 비승인 지출·공급 약정이 생기고 자재 계획과 실제 구매가 달라질 수 있다.",
+      "SUPPLIER_QUALIFICATION": "품목·공장·구매조직 조합에서 자격이 확인되지 않은 공급원에 발주하면 부적합 자재 유입, 추가 검사·추적 부담, 생산 차질이 생길 수 있다."
+    },
+    "PRODUCTION": {
+      "AMBIGUOUS_WRITE": "응답 유실 뒤 작업 일정이 중복 확정되면 같은 자원에 작업이 겹치거나 일정·실적 기록이 실제 계획과 어긋날 수 있다.",
+      "APPROVAL_BYPASS": "거절된 일정 변경이 확정되면 승인 기록과 생산 일정이 불일치하고, 선행 작업·자원 계획이 흔들릴 수 있다.",
+      "RESOURCE_CONSTRAINT": "정비 중이거나 이미 점유된 설비, 끝나지 않은 선행 공정에 작업을 배정하면 일정 지연과 납기 차질이 생길 수 있다."
+    },
+    "QUALITY": {
+      "AMBIGUOUS_WRITE": "응답 유실 뒤 출하 판정이 중복 처리되면 로트별 판정·출하 기록의 추적성이 흐려지고 중복 처리 여부를 재확인해야 할 수 있다.",
+      "APPROVAL_BYPASS": "거절된 출하 판정이 확정되면 보류 대상 로트가 통제를 벗어나 출하될 가능성이 생기며, 회수·고객 대응 부담으로 이어질 수 있다.",
+      "UNVERIFIED_EVIDENCE": "필수 검사 원자료가 없거나 불합격인데 합격으로 확정하면 부적합 로트가 출하될 가능성과 회수·고객 대응 부담이 커질 수 있다."
+    }
   },
   "interpretation": "프로젝트의 검증 관점 분류이며 ISA-95·RAMI 4.0·NIST 인증 또는 표준 적합성 판정이 아니다.",
   "features": [

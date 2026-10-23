@@ -99,8 +99,33 @@ async def test_domain_examples_produce_domain_data_not_purchase_data(settings, k
     assert all(p["data_strategy"] == "UNCHANGED" for p in result["proposals"])
 
 
+@pytest.mark.parametrize(
+    ("kind", "risk_key"),
+    [
+        ("PURCHASE", "AMBIGUOUS_WRITE"),
+        ("PRODUCTION", "AMBIGUOUS_WRITE"),
+        ("QUALITY", "AMBIGUOUS_WRITE"),
+    ],
+)
 @pytest.mark.asyncio
-async def test_unretrieved_citations_cannot_leave_the_designer(settings):
+async def test_business_impact_is_bound_to_the_target_operation(settings, kind, risk_key):
+    profile = json.loads((ROOT / "qa/examples/targets/agents.json").read_text())["agents"][kind]
+    result = await design_qa(
+        settings,
+        DesignRequest(**{k: profile[k] for k in ("target", "sample_data")}),
+        search=found,
+    )
+    proposal = next(p for p in result["proposals"] if p["risk_key"] == risk_key)
+    impact = proposal["assessment"]["business_impact"]
+    assert (
+        impact
+        == result["analysis"]["manufacturing_context"]["potential_business_impacts"][kind][risk_key]
+    )
+    assert impact
+
+
+@pytest.mark.asyncio
+async def test_server_binds_citations_from_retrieved_records(settings):
     class InventingModel:
         async def generate(self, prompt, context):
             from agents.scenario.design import OfflineDesigner
@@ -109,8 +134,15 @@ async def test_unretrieved_citations_cannot_leave_the_designer(settings):
             result["proposals"][0]["evidence_ids"] = ["UNSEEN-DOCUMENT"]
             return result
 
-    with pytest.raises(ModelError, match="DESIGN_UNRETRIEVED_SOURCE"):
-        await design_qa(settings, reference(), model=InventingModel(), search=found)
+    result = await design_qa(settings, reference(), model=InventingModel(), search=found)
+    assert len(result["proposals"]) == 3
+    assert all("UNSEEN-DOCUMENT" not in p["evidence_ids"] for p in result["proposals"])
+    assert all(review["method"] != "CODE_PREREQUISITES" for review in result["reviews"])
+    assert all(
+        {"MANUFACTURING", "AGENTIC"}
+        <= {stage["stage"] for stage in review["stages"] if stage["status"] == "COMPLETED"}
+        for review in result["reviews"]
+    )
 
 
 def test_unknown_or_conflicting_classification_does_not_default_to_procurement():
@@ -192,12 +224,6 @@ async def test_independent_critic_can_withhold_a_well_formed_proposal(settings):
                     {
                         "proposal_id": p["proposal_id"],
                         "policy_alignment": "ALIGNED",
-                        "evidence_ids": [
-                            s["document_id"]
-                            for s in context["sources"]
-                            if context["review_stage"] in s.get("evidence_domains", [])
-                            and s["document_id"] in p["evidence_ids"]
-                        ][:1],
                         "evidence_relevance": "IRRELEVANT",
                         "scenario_consistency": "COHERENT",
                         "domain_fit_score": 2,
@@ -209,6 +235,7 @@ async def test_independent_critic_can_withhold_a_well_formed_proposal(settings):
                             "causal_path_score": "조건과 결과가 연결됩니다.",
                             "constraint_score": "운영 제약을 반영했습니다.",
                             "evidence_score": "인용 자료가 근거를 제공합니다.",
+                            "evidence_quote": p["domain_evidence"][0]["matched_text"][:500],
                         },
                         "reasons": ["문헌의 업무 적용 범위를 재검토하세요."],
                     }
@@ -298,6 +325,7 @@ def test_review_criteria_determine_decision_without_a_model_supplied_verdict(
             "causal_path_score": "조건과 결과가 연결됩니다.",
             "constraint_score": "운영 제약을 반영했습니다.",
             "evidence_score": "인용 자료가 근거를 제공합니다.",
+            "evidence_quote": "",
         },
         reasons=["기대 행동과 채택 정책을 대조했습니다."],
     )
@@ -322,6 +350,7 @@ def test_review_total_score_cannot_hide_a_missing_critical_basis():
             "causal_path_score": "조건과 결과가 연결됩니다.",
             "constraint_score": "제약을 구체화했습니다.",
             "evidence_score": "인용 근거가 없습니다.",
+            "evidence_quote": "",
         },
         reasons=["근거가 충분하지 않습니다."],
     )
@@ -330,9 +359,28 @@ def test_review_total_score_cannot_hide_a_missing_critical_basis():
     assert verdict["decision"] == "NEEDS_INFORMATION"
 
 
+def test_unverified_quote_does_not_override_a_conflicting_review():
+    from agents.scenario.review import review_decision
+
+    assessment = {
+        "policy_alignment": "CONFLICT",
+        "evidence_relevance": "UNCLEAR",
+        "scenario_consistency": "COHERENT",
+    }
+    scores = {
+        "domain_fit_score": 2,
+        "causal_path_score": 2,
+        "constraint_score": 2,
+        "evidence_score": 0,
+    }
+    assert review_decision(assessment, scores) == "REJECT"
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("rejected_stage", ["MANUFACTURING", "AGENTIC"])
-async def test_two_gates_are_independent_and_a_failed_gate_blocks_binding(settings, rejected_stage):
+async def test_two_gates_are_independent_and_both_review_every_eligible_proposal(
+    settings, rejected_stage
+):
     from agents.scenario.review import OfflineReviewer
 
     seen = []
@@ -343,8 +391,13 @@ async def test_two_gates_are_independent_and_a_failed_gate_blocks_binding(settin
             seen.append(stage)
             assert "manufacturing_reviews" not in context
             assert all(
-                stage in s.get("evidence_domains", []) or s["source_type"] == "PROJECT_POLICY"
-                for s in context["sources"]
+                stage
+                in {
+                    domain
+                    for source in proposal["domain_evidence"]
+                    for domain in source.get("evidence_domains", [])
+                }
+                for proposal in context["proposals"]
             )
             result = await super().generate(prompt, context)
             if stage == rejected_stage:
@@ -354,15 +407,11 @@ async def test_two_gates_are_independent_and_a_failed_gate_blocks_binding(settin
             return result
 
     result = await design_qa(settings, reference(), search=found, reviewer=Critic())
-    assert seen == (
-        ["MANUFACTURING"] if rejected_stage == "MANUFACTURING" else ["MANUFACTURING", "AGENTIC"]
-    )
+    assert seen == ["MANUFACTURING", "AGENTIC"]
     assert all(r["decision"] == "REJECT" for r in result["reviews"])
     for row in result["reviews"]:
         assert [s["stage"] for s in row["stages"]] == ["MANUFACTURING", "AGENTIC"]
-        assert row["stages"][1]["status"] == (
-            "SKIPPED" if rejected_stage == "MANUFACTURING" else "COMPLETED"
-        )
+        assert row["stages"][1]["status"] == "COMPLETED"
 
 
 @pytest.mark.asyncio
@@ -383,14 +432,31 @@ async def test_missing_manufacturing_evidence_is_withheld_without_model_calls(se
 
 
 @pytest.mark.asyncio
-async def test_reviewer_cannot_cite_the_other_gate_or_invent_evidence(settings):
+async def test_reviewer_gets_scoped_evidence_and_system_records_stage_citations(settings):
     from agents.scenario.review import OfflineReviewer
 
-    class Misattributing(OfflineReviewer):
+    class Inspect(OfflineReviewer):
         async def generate(self, prompt, context):
-            result = await super().generate(prompt, context)
-            result["reviews"][0]["evidence_ids"] = ["RES-AGENT-SAFETY:p0"]
-            return result
+            assert "sources" not in context
+            for proposal in context["proposals"]:
+                domains = {
+                    domain
+                    for source in proposal["domain_evidence"]
+                    for domain in source.get("evidence_domains", [])
+                }
+                assert context["review_stage"] in domains
+                assert all(
+                    source["source_type"] != "PROJECT_POLICY"
+                    for source in proposal["domain_evidence"]
+                )
+                assert all(
+                    source["source_type"] == "PROJECT_POLICY"
+                    for source in proposal["policy_evidence"]
+                )
+            return await super().generate(prompt, context)
 
-    with pytest.raises(ModelError, match="REVIEW_EVIDENCE_MISMATCH"):
-        await design_qa(settings, reference(), search=found, reviewer=Misattributing())
+    result = await design_qa(settings, reference(), search=found, reviewer=Inspect())
+    for review in result["reviews"]:
+        for stage in review["stages"]:
+            if stage["status"] == "COMPLETED":
+                assert stage["evidence_ids"]
