@@ -2989,6 +2989,120 @@ input[type=range] {
   display: block;
 }
 
+.demo-agent-list {
+  padding: 16px 20px;
+}
+
+.demo-agent-list .chain-svg {
+  margin-top: 10px;
+  max-width: 240px;
+}
+
+.preview-events {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 14px;
+  max-height: 360px;
+  overflow: auto;
+}
+
+.preview-events button {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: 10px;
+  align-items: center;
+  text-align: left;
+  padding: 10px 12px;
+  background: var(--raised);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.preview-events button:hover {
+  border-color: var(--control);
+  color: var(--text);
+}
+
+.preview-events button.selected {
+  background: #231712;
+  border-color: rgba(255, 106, 61, 0.45);
+  color: var(--text);
+}
+
+.preview-events button > span {
+  font: 600 11px var(--mono);
+  color: var(--muted);
+}
+
+.preview-events button small {
+  display: block;
+  font: 11px var(--mono);
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.registration-dialog {
+  max-width: 680px;
+  margin: auto;
+}
+
+.registration-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.registration-guide {
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 14px;
+  font-size: 12px;
+  color: var(--text-2);
+  margin: 12px 0 16px;
+  line-height: 1.65;
+}
+
+.registration-dialog textarea {
+  font: 12px / 1.55 var(--mono);
+  background: var(--ground);
+  margin-bottom: 8px;
+}
+
+.registration-valid {
+  background: var(--pos-bg);
+  border: 1px solid rgba(52, 179, 138, 0.35);
+  color: #6fd4ab;
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin: 10px 0;
+}
+
+.registration-errors {
+  background: var(--neg-bg);
+  border: 1px solid rgba(240, 86, 111, 0.35);
+  color: #ff8a9c;
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin: 10px 0;
+}
+
+.registration-dialog .flow-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.registration-dialog .flow-actions .primary {
+  width: auto;
+}
+
 /* ── Dialog & Toast ── */
 dialog, .registration-dialog {
   max-width: 560px;
