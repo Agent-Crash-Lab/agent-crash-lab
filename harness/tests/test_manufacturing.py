@@ -77,7 +77,8 @@ async def run_case(runner, kind, risk, system="B1"):
                 }
             )
             await runner.simulations.decide(run_id, body, "test-approver")
-        if run["status"] in {"COMPLETED", "ERROR"}:
+        # A non-PASS run investigates after its terminal status.
+        if run["status"] in {"COMPLETED", "ERROR"} and run["investigation"]["status"] != "RUNNING":
             await runner.close()
             return runner.store.get_run(run_id)
         await asyncio.sleep(0.001)

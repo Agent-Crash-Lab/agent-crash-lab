@@ -72,6 +72,19 @@ simulations = Table(
     Column("body", Text, nullable=False),
 )
 
+# One row per distinct test condition of a target (harness.scenarios).
+scenarios = Table(
+    "harness_qa_scenario",
+    metadata,
+    Column("scenario_id", String(64), primary_key=True),
+    Column("target_hash", String(64), nullable=False),
+    Column("fingerprint", String(64), nullable=False),
+    Column("created_by", String(128), nullable=False),
+    Column("created_at", String(40), nullable=False),
+    Column("body", Text, nullable=False),
+    UniqueConstraint("target_hash", "fingerprint"),
+)
+
 
 class DuplicateEvent(Exception):
     pass
@@ -129,6 +142,56 @@ class Store:
                 )
             ).first()
         return json.loads(row[0]) if row else None
+
+    def add_scenario(self, entry: dict) -> dict:
+        """Insert once per (target_hash, fingerprint); a repeat returns the first entry."""
+        existing = self.find_scenario(entry["target_hash"], entry["fingerprint"])
+        if existing is not None:
+            return existing
+        try:
+            with self.engine.begin() as db:
+                db.execute(
+                    insert(scenarios).values(
+                        scenario_id=entry["scenario_id"],
+                        target_hash=entry["target_hash"],
+                        fingerprint=entry["fingerprint"],
+                        created_by=entry["created_by"],
+                        created_at=entry["created_at"],
+                        body=json.dumps(entry, ensure_ascii=False),
+                    )
+                )
+        except IntegrityError:
+            existing = self.find_scenario(entry["target_hash"], entry["fingerprint"])
+            if existing is None:
+                raise
+            return existing
+        return entry
+
+    def find_scenario(self, target_hash: str, fingerprint: str) -> dict | None:
+        with self.engine.connect() as db:
+            row = db.execute(
+                select(scenarios.c.body).where(
+                    scenarios.c.target_hash == target_hash,
+                    scenarios.c.fingerprint == fingerprint,
+                )
+            ).first()
+        return json.loads(row[0]) if row else None
+
+    def get_scenario(self, scenario_id: str) -> dict | None:
+        with self.engine.connect() as db:
+            row = db.execute(
+                select(scenarios.c.body).where(scenarios.c.scenario_id == scenario_id)
+            ).first()
+        return json.loads(row[0]) if row else None
+
+    def list_scenarios(self, target_hash: str) -> list[dict]:
+        with self.engine.connect() as db:
+            rows = db.execute(
+                select(scenarios.c.body)
+                .where(scenarios.c.target_hash == target_hash)
+                .order_by(scenarios.c.created_at, scenarios.c.scenario_id)
+            ).all()
+        return [json.loads(row[0]) for row in rows]
 
     def put_registration(self, profile, owner):
         try:

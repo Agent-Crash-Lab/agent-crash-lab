@@ -24,6 +24,7 @@ Harness는 **QA Agent의 실행 관리 엔진**입니다. Scenario Agent가 검�
 | `src/harness/planning.py` | 대상·샘플 검증, 설계 제안의 실행 가능 여부 확인 |
 | `src/harness/batches.py`, `evaluation.py` | 정상 대조·위험 시험 반복, 중단·집계·조건부 반복 통계 |
 | `src/harness/catalog.py` | 등록 시험·규칙·참조 계획 구성 |
+| `src/harness/scenarios.py` | 시험 조건 지문·대상별 시나리오 보관함(중복 확인)·실행 연결 |
 | `src/harness/runner.py` | 실행·승인·관측·판정·조사 순서 관리 |
 | `src/harness/oracle/__init__.py` | SYSTEM 판정 호출 경계 |
 | `src/harness/adapters/reference_purchase/` | 구매 참조 설명·실제 상태 조회·업무 판정 |

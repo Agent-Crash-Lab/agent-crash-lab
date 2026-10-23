@@ -655,6 +655,7 @@ MCP는 이 호출을 10초 안에 응답받아야 한다 (mcp-server 읽기 time
 |---|---|
 | `GET /internal/runs/{run_id}/checks?verdicts=FAIL,INCONCLUSIVE` | `{ "checks": [QaCheck] }` (2.8) |
 | `GET /internal/runs/{run_id}/events` | `{ "events": [Event] }` (MCP_SPEC 2.1). 해당 실행의 이벤트를 `sequence` 순서로 모두 반환 |
+| `GET /internal/runs/{run_id}/simulation-state` | 생산·품질 시험 DB 상태 (MCP_SPEC 4.4): `run_id`, `agent_type`, `snapshot_complete`, `snapshot_evidence_ids`, `commit_evidence_ids`, `request`, `initial_state`, `current_state`, `changes[]`, `approval`, `tool_calls[]`(`tool`, `arguments`, `effect`, `evidence_ids`, `is_error`, `error_code`). 시험 DB가 없는 실행은 404 |
 
 ---
 

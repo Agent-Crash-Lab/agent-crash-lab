@@ -12,6 +12,7 @@ from harness.catalog import Catalog, TestSpec
 from harness.clients import AgentClient, ClientError, McpClient
 from harness.config import Settings
 from harness.events import EventLog, epoch_iso, now_iso, occurred_epoch
+from harness.scenarios import register as register_scenario
 from harness.simulation import Simulations
 from harness.store import Store
 from harness.validation import collect_evidence_ids, validate_report
@@ -166,6 +167,12 @@ class Runner:
                 raise RunnerError(400, "VALIDATION_ERROR", "plan_id requires a SYSTEM test")
             system_id = None
             case = None
+        # Runs of the same condition share a scenario_id across plans (harness.scenarios).
+        scenario = (
+            register_scenario(self.store, plan or self.catalog.qa_plan, case, user_id, now_iso())
+            if case is not None
+            else None
+        )
         async with self.lock:
             if self.batch_owner and self.batch_owner != batch_id:
                 raise RunnerError(409, "QA_BATCH_IN_PROGRESS")
@@ -191,6 +198,7 @@ class Runner:
                 "finished_at": None,
                 "manifest": self.catalog.manifest(test, system_id, plan, case),
                 "qa_case": case,
+                "qa_scenario_id": scenario["scenario_id"] if scenario else None,
                 "request": None,
                 "approval_request": None,
                 "approval": None,
@@ -453,11 +461,12 @@ class Runner:
         await self._save_checks(run_id, checks)
         await self._set_status(self._run(run_id), "COMPLETED")
 
-    async def _investigate(self, run_id, mode, target_run_id, fixture_id, test=None):
+    async def _investigate(self, run_id, mode, target_run_id, fixture_id, test=None, token=None):
         """Run the investigation Agent; its events go to the Harness run `run_id`.
 
         Returns (validation, REPORT_READY event_id, R10 check). The R10 check is only built for
         the IA unit test (`test`); after a SYSTEM run the usage is recorded but not judged.
+        `token` is a sandbox run's investigation token from MCP_SPEC 3.6.
         """
         run = self._run(run_id)
         run["investigation"]["status"] = "RUNNING"
@@ -470,7 +479,7 @@ class Runner:
             "target_run_id": target_run_id,
         }
         if mode == "mcp":
-            body["agent_token"] = self.tokens.get(run_id, {}).get("investigation_agent")
+            body["agent_token"] = token or self.tokens.get(run_id, {}).get("investigation_agent")
         else:
             body["fixture_id"] = fixture_id
         agent, active, runner_timeout = None, 0.0, False

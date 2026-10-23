@@ -19,7 +19,7 @@ from harness.clients import AgentClient, ClientError, McpClient
 from harness.compare import NotComparable, compare
 from harness.config import Settings
 from harness.designing import design_with_repair
-from harness.events import EventLog, InvalidEvent
+from harness.events import EventLog, InvalidEvent, now_iso
 from harness.followups import recommendation
 from harness.registrations import (
     CAPABILITY_OPTIONS,
@@ -31,7 +31,8 @@ from harness.registrations import (
 )
 from harness.reporting import qa_report
 from harness.runner import Runner, RunnerError
-from harness.simulation import Decision, SimulationError
+from harness.scenarios import index_plan
+from harness.simulation import Decision, SimulationError, investigation_state
 from harness.store import Store
 
 DEV_USER = ("requester-01", ["REQUESTER"])
@@ -219,6 +220,13 @@ def create_app(settings: Settings | None = None, mcp=None, agents=None) -> FastA
             raise ApiError(404, "NOT_FOUND", f"run {run_id}")
         return run
 
+    def save_plan(request: Request, plan: dict, owner: str) -> dict:
+        """Store the plan unchanged and register its executable cases in the library."""
+        store = request.app.state.store
+        store.put_plan(plan, owner)
+        index_plan(store, plan, owner, now_iso())
+        return plan
+
     # health
 
     @app.get("/health")
@@ -283,8 +291,7 @@ def create_app(settings: Settings | None = None, mcp=None, agents=None) -> FastA
                     ],
                 }
             plan = request.app.state.catalog.planner.build(body.target, body.sample_data, context)
-            request.app.state.store.put_plan(plan, who[0])
-            return plan
+            return save_plan(request, plan, who[0])
         except (ValidationError, SchemaError, ValueError, Unresolvable, RecursionError) as exc:
             raise ApiError(
                 400, "INVALID_QA_INPUT", "Invalid target description or sample data"
@@ -389,8 +396,7 @@ def create_app(settings: Settings | None = None, mcp=None, agents=None) -> FastA
             plan = planner.build_designed(data["target"], data["sample_data"], designed)
             if not binding and any(c["execution"]["status"] == "READY" for c in plan["cases"]):
                 raise ValueError("Unbound registrations cannot acquire execution support")
-            request.app.state.store.put_plan(plan, who[0])
-            return plan
+            return save_plan(request, plan, who[0])
         except ClientError as exc:
             raise ApiError(
                 503,
@@ -417,8 +423,7 @@ def create_app(settings: Settings | None = None, mcp=None, agents=None) -> FastA
                 {"target": target, "sample_data": sample, "generation_mode": body.generation_mode},
             )
             plan = planner.build_designed(target, sample, designed)
-            request.app.state.store.put_plan(plan, who[0])
-            return plan
+            return save_plan(request, plan, who[0])
         except ClientError as exc:
             raise ApiError(
                 503,
@@ -435,6 +440,52 @@ def create_app(settings: Settings | None = None, mcp=None, agents=None) -> FastA
         if plan is None:
             raise ApiError(404, "QA_PLAN_NOT_FOUND")
         return plan
+
+    @app.get("/api/qa/plans/{plan_id}/scenarios")
+    async def plan_scenarios(plan_id: str, request: Request, who: User):
+        """Each executable case of the plan against the target's scenario library."""
+        plan = request.app.state.store.get_plan(plan_id, who[0])
+        if plan is None:
+            raise ApiError(404, "QA_PLAN_NOT_FOUND")
+        rows = index_plan(request.app.state.store, plan, who[0], now_iso())
+        return {"plan_id": plan_id, "target_id": plan["target_id"], "scenarios": rows}
+
+    @app.get("/api/qa/scenarios/{scenario_id}/runs")
+    async def scenario_runs(scenario_id: str, request: Request, who: User):
+        """The requester's own runs of one scenario, from any plan. Others' runs stay hidden."""
+        store = request.app.state.store
+        entry = store.get_scenario(scenario_id)
+        if entry is None:
+            raise ApiError(404, "QA_SCENARIO_NOT_FOUND")
+        owned = entry["created_by"] == who[0]
+        runs = sorted(
+            (
+                run
+                for run in store.all_runs()
+                if run.get("qa_scenario_id") == scenario_id and run.get("created_by") == who[0]
+            ),
+            key=lambda run: run["created_at"],
+            reverse=True,
+        )
+        return {
+            "scenario_id": scenario_id,
+            "target_id": entry["target_id"],
+            "owned": owned,
+            **({"condition": entry["condition"]} if owned else {}),
+            "runs": [
+                {
+                    "run_id": run["run_id"],
+                    "plan_id": run["manifest"].get("qa_plan_id"),
+                    "case_id": run["manifest"].get("qa_case_id"),
+                    "system_id": run.get("system_id"),
+                    "status": run["status"],
+                    "summary": run.get("summary"),
+                    "created_at": run["created_at"],
+                    "finished_at": run.get("finished_at"),
+                }
+                for run in runs
+            ],
+        }
 
     @app.post("/api/qa/batches", status_code=202)
     async def create_batch(body: BatchRequest, request: Request, who: User):
@@ -649,6 +700,15 @@ def create_app(settings: Settings | None = None, mcp=None, agents=None) -> FastA
         get_run(request, run_id)
         await request.app.state.events.flush(run_id, force=True)
         return {"events": request.app.state.store.list_events(run_id)}
+
+    @app.get("/internal/runs/{run_id}/simulation-state", dependencies=[Depends(internal)])
+    async def internal_simulation_state(run_id: str, request: Request):
+        """MCP_SPEC 4.4: the production/quality sandbox, read by Spring's investigation tools."""
+        get_run(request, run_id)
+        state = request.app.state.store.get_simulation(run_id)
+        if state is None:
+            raise ApiError(404, "SIMULATION_NOT_FOUND", f"run {run_id}")
+        return investigation_state(run_id, state)
 
     return app
 

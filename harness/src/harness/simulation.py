@@ -8,6 +8,7 @@ import asyncio
 import copy
 import hashlib
 import json
+import logging
 import secrets
 import time
 from datetime import UTC, datetime, timedelta
@@ -22,11 +23,49 @@ from harness.adapters.manufacturing import CONDITIONS, domain_errors
 from harness.events import now_iso
 from harness.schemas import validate_instance
 
+log = logging.getLogger(__name__)
+
 
 def digest(value):
     return hashlib.sha256(
         json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
+
+
+def investigation_state(run_id, state):
+    """MCP_SPEC 4.4. Spring returns all but tool_calls from get_business_state and the
+    tool_calls from get_run_trace. Every evidence ID belongs to this run."""
+    return {
+        "run_id": run_id,
+        "agent_type": state["kind"],
+        "snapshot_complete": bool(state["closed"]),
+        "snapshot_evidence_ids": [state["snapshot_evidence_id"]],
+        "commit_evidence_ids": [c["evidence_id"] for c in state["changes"]],
+        "request": state["request"],
+        "initial_state": state["initial_state"],
+        "current_state": state.get("current_state", state["initial_state"]),
+        "changes": [
+            {
+                "evidence_ids": [c["evidence_id"]],
+                "payload": c["payload"],
+                "approval_decision": (c.get("approval") or {}).get("decision"),
+                "domain_errors": c.get("domain_errors", []),
+            }
+            for c in state["changes"]
+        ],
+        "approval": state["approval"],
+        "tool_calls": [
+            {
+                "tool": c["name"],
+                "arguments": c["arguments"],
+                "effect": c["effect"],
+                "evidence_ids": [c["evidence_id"]],
+                "is_error": "code" in c["result"],
+                "error_code": c["result"].get("code"),
+            }
+            for c in state["calls"]
+        ],
+    }
 
 
 class Decision(BaseModel):
@@ -289,32 +328,70 @@ class Simulations:
         )
         await r._save_checks(run_id, checks)
         run = self.store.get_run(run_id)
+        summary = None
         if any(c["verdict"] != "PASS" for c in checks):
-            facts = [
-                {"text": c["reason"], "evidence_ids": c["evidence_ids"]}
-                for c in checks
-                if c["verdict"] != "PASS"
-            ]
-            run["investigation"] = {
-                "status": "READY",
-                "method": "CODE_EVIDENCE_SUMMARY",
-                "report": {
-                    "target_run_id": run_id,
-                    "facts": facts,
-                    "cause_candidates": [
-                        "실제 도구 기록과 저장 상태에서 위반 또는 관측 부족을 확인했습니다."
-                    ],
-                    "missing_evidence": [] if result else ["정상 종료한 Agent 결과 없음"],
-                    "improvements": [],
-                    "retest_scenario_ids": [run["test_id"]],
-                },
-                "validation": {
-                    "passed": all(f["evidence_ids"] for f in facts),
-                    "errors": [],
-                    "method": "DATABASE_FACTS_ONLY",
-                },
-            }
+            summary = self.code_summary(run, checks, result)
+            # Reserve the investigation before the terminal status; clients may poll at once.
+            run["investigation"] = {"status": "RUNNING", "report": None, "validation": None}
         await r._set_status(run, "COMPLETED" if result or session.get("limit_reason") else "ERROR")
+        if summary is not None:
+            await self.investigate(run, summary)
+
+    @staticmethod
+    def code_summary(run, checks, result):
+        """Facts copied from non-PASS checks; kept when the investigation Agent cannot report."""
+        facts = [
+            {"text": c["reason"], "evidence_ids": c["evidence_ids"]}
+            for c in checks
+            if c["verdict"] != "PASS"
+        ]
+        return {
+            "status": "READY",
+            "method": "CODE_EVIDENCE_SUMMARY",
+            "report": {
+                "target_run_id": run["run_id"],
+                "facts": facts,
+                "cause_candidates": [
+                    "실제 도구 기록과 저장 상태에서 위반 또는 관측 부족을 확인했습니다."
+                ],
+                "missing_evidence": [] if result else ["정상 종료한 Agent 결과 없음"],
+                "improvements": [],
+                "retest_scenario_ids": [run["test_id"]],
+            },
+            "validation": {
+                "passed": all(f["evidence_ids"] for f in facts),
+                "errors": [],
+                "method": "DATABASE_FACTS_ONLY",
+            },
+        }
+
+    async def investigate(self, run, summary):
+        """Register the run with Spring (MCP_SPEC 3.6) and run the investigation Agent on
+        Spring's rag-mcp, which reads this sandbox through MCP_SPEC 4.4."""
+        r, run_id = self.runner, run["run_id"]
+        validation = None
+        try:
+            registered = await r.mcp.register_investigation(
+                {
+                    "run_id": run_id,
+                    "agent_type": self.store.get_simulation(run_id)["kind"],
+                    "scenario_id": run["test_id"],
+                    "requested_by": run["created_by"],
+                }
+            )
+            token = registered["agent_tokens"]["investigation_agent"]
+            validation, _, _ = await r._investigate(run_id, "mcp", run_id, None, token=token)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            # Never persist exception text: client errors may echo credentials.
+            log.exception("sandbox investigation failed for %s", run_id)
+        run = self.store.get_run(run_id)
+        if validation is None:
+            run["investigation"] = {**run["investigation"], **summary, "agent_status": "ERROR"}
+        else:
+            run["investigation"]["method"] = "INVESTIGATION_AGENT"
+        self.store.put_run(run)
 
     @staticmethod
     def active_seconds(session):
