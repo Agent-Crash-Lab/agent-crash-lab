@@ -11,7 +11,7 @@ const purchaseScenarios = {
   S02: { title: '승인 거절', subtitle: '담당자 거절 · 생성 호출 차단', description: '거절 후 생성 호출을 시도하지 않고 발주가 0건인지 확인합니다.', fault: false },
   S03: { title: '응답 유실', subtitle: '첫 commit 후 응답 유실', description: '발주는 저장됐지만 응답이 사라진 상황에서 후속 행동을 추적합니다.', fault: true },
 };
-const state = { tab: 'agents', agentId: 'purchase', draft: {agentId:'purchase',scenario:'S03',config:'B0'}, verified:{}, run:null, scenario: 'S03', config: 'B0', mode: 'spatial', cursor: 5, playing: false, speed: 1, selected: null };
+const state = { tab: 'agents', agentId: 'purchase', draft: {agentId:'purchase',scenario:'S03',config:'B0'}, verified:{}, run:null, scenario: 'S03', config: 'B0', mode: 'spatial', cursor: 5, playing: false, speed: 1, selected: null, tutorialTour: true };
 let playbackTimer;
 let workspacePage='agents';
 const esc = (v) => String(v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -114,7 +114,10 @@ function tutorialMilestone(stage) {
  };
  const cur=copyMap[stage]||copyMap.agents;
  return `<section class="tutorial-milestone" aria-label="튜토리얼 진행 이정표">
-  <div class="tutorial-steps-track">${steps.map((s,i)=>`<button type="button" class="tutorial-step-pill ${i===activeIdx?'current':i<activeIdx?'done':''}" data-demo-tab="${s.key}"><span class="t-num">${i<activeIdx?'✓':s.num}</span><span class="t-label">${s.label}</span></button>${i<steps.length-1?'<span class="t-connector" aria-hidden="true">───</span>':''}`).join('')}</div>
+  <div class="tutorial-milestone-top">
+   <div class="tutorial-steps-track">${steps.map((s,i)=>`<button type="button" class="tutorial-step-pill ${i===activeIdx?'current':i<activeIdx?'done':''}" data-demo-tab="${s.key}"><span class="t-num">${i<activeIdx?'✓':s.num}</span><span class="t-label">${s.label}</span></button>${i<steps.length-1?'<span class="t-connector" aria-hidden="true">───</span>':''}`).join('')}</div>
+   <button type="button" class="secondary tutorial-spotlight-toggle" data-action="toggle-tour">${state.tutorialTour ? '말풍선 가이드 끄기' : '말풍선 가이드 켜기 💬'}</button>
+  </div>
   <div class="tutorial-bubble-box">
    <div class="tutorial-bubble-icon" aria-hidden="true">💬</div>
    <div class="tutorial-bubble-body">
@@ -257,8 +260,131 @@ function structureView(){const{agent,graph,events}=previewData();state.previewCu
  ${tutorialMilestone('structure')}
  <div class="card strip"><div class="lead"><label>구조 버전</label><div class="v" style="font-size:20px">${esc(graph.version)}</div><div class="d">${agent.custom?'사용자 등록 구조':'데모 참조 구조'}</div></div><div><label>등록 노드</label><div class="v">${graph.nodes.length}<small>개</small></div><div class="d">역할 기반 3D 배치</div></div><div><label>연결 경로</label><div class="v">${graph.edges.length}<small>개</small></div><div class="d">방향성 호출 · 응답</div></div><div><label>샘플 사건</label><div class="v">${events.length}<small>개</small></div><div class="d">${unmappedCount?`<span class="neg-t">${unmappedCount}개 미매핑</span>`:'전체 매핑 확인'}</div></div><div><label>현재 선택 노드</label><div class="v" style="font-size:20px">${esc(node?.id||'—')}</div><div class="d">${esc(node?.role||'미선택')}</div></div></div>
  <div class="inspection-grid structure-inspection"><section class="stage-panel"><div class="stage-toolbar"><div class="segmented view-toggle"><button data-preview-mode="spatial" class="${state.previewMode!=='timeline'?'selected':''}">◈ 3D 구조</button><button data-preview-mode="timeline" class="${state.previewMode==='timeline'?'selected':''}">등록 노드 목록</button></div></div>${state.previewMode==='timeline'?`<div class="topology-fallback">${graph.nodes.map(n=>`<button class="secondary full" data-preview-node="${esc(n.id)}">${esc(n.label)} · ${esc(n.role)}</button>`).join('')}</div>`:`<div class="visual-stage topology-stage"><div class="stage-caption"><span class="stage-kicker">${agent.custom?'사용자 등록 구조':'데모 Agent 구조'}</span><strong>${esc(current?.event.title||'구조만 등록됨')}</strong><span>노드 역할로 입체 형태를, 연결 정보로 경로를 구성합니다.</span></div><div id="structure-host" role="group" aria-label="등록 구조 3D 미리보기"></div></div>`}</section><aside class="card"><div class="card-h"><h2>${node?'선택한 노드':'노드 · 샘플 사건'}</h2><span class="meta mono">${esc(node?.id||'—')}</span></div><div class="section-pad"><h3>${esc(node?.label||'구조 정보')}</h3><p class="mono dim">${esc(node?.id||'—')} · ${esc(node?.role||'—')}</p><p class="live-hint">${events.length?'샘플 사건을 선택하면 해당 노드와 연결을 강조합니다.':'샘플 이벤트가 없어 등록된 구조만 표시합니다.'}</p>${node&&!events.slice(0,state.previewCursor+1).some(e=>e.node_id===node.id)?'<p class="mapping-warning">이 시점까지 이 노드에서 관측된 사건이 없습니다.</p>':''}<div class="preview-events">${events.map((e,i)=>`<button data-preview-event="${i}" class="${i===state.previewCursor?'selected':''}"><span>${String(i+1).padStart(2,'0')}</span><div>${esc(e.title)}<small>${esc(e.node_id)}${e.edge_id?` · ${esc(e.edge_id)}`:''}</small></div></button>`).join('')}</div></div></aside></div>${graphDetails(graph)}`;}
+function removeCoachmark(){
+ if(typeof document==='undefined')return;
+ document.getElementById('tutorial-coachmark-overlay')?.remove();
+ document.querySelectorAll('.coachmark-highlight-target').forEach(el=>el.classList.remove('coachmark-highlight-target'));
+}
+function renderCoachmark(){
+ if(typeof document==='undefined')return;
+ removeCoachmark();
+ if(workspacePage!=='demo'||!state.tutorialTour)return;
+ const id=state.draft?.agentId||state.agentId||'purchase';
+ const verified=!!state.verified[id]?.ok;
+ let cfg=null;
+ if(state.tab==='agents'){
+  if(!verified){
+   cfg={
+    selector:'button[data-action="verify"]',
+    step:'1 / 4 단계',
+    title:'데모 데이터 점검하기',
+    desc:'평가 대상의 3D 노드와 사건 기록이 올바르게 연결되어 있는지 먼저 점검하세요.',
+    btnText:'데모 데이터 점검하기',
+    action:'verify'
+   };
+  } else {
+   cfg={
+    selector:'button[data-action="continue"]',
+    step:'1 / 4 단계 완료',
+    title:'점검 완료! 2단계로 이동',
+    desc:'데이터 검증을 마쳤습니다. [데모 시험 준비]를 눌러 장애 시나리오 설정으로 이동하세요.',
+    btnText:'데모 시험 준비 →',
+    action:'continue'
+   };
+  }
+ } else if(state.tab==='prepare'){
+  cfg={
+   selector:verified?'button[data-action="load"]':'button[data-action="tutorial-verify-and-load"]',
+   step:'2 / 4 단계',
+   title:'S03 장애 시험 불러오기',
+   desc:'DB commit 직후 응답이 유실되는 S03 사고 시나리오와 B0 기본 서버 조건으로 3D 실행도를 엽니다.',
+   btnText:'데모 시험 불러오기 →',
+   action:verified?'load':'tutorial-verify-and-load'
+  };
+ } else if(state.tab==='execution'){
+  cfg={
+   selector:'.run-insight button[data-action="compare"], button[data-action="compare"]',
+   step:'3 / 4 단계',
+   title:'B0 ↔ B1 결과 비교 확인',
+   desc:'응답 유실로 DB에 중복 발주(PO-002)가 발생했습니다. 이제 서버 방어 정책(B1)과 비교해 보세요.',
+   btnText:'B0 ↔ B1 결과 비교 →',
+   action:'compare'
+  };
+ } else if(state.tab==='compare'){
+  cfg={
+   selector:'.tutorial-bubble-actions button[data-tab="agents"], .header-end .demo-entry',
+   step:'4 / 4 단계 (완료)',
+   title:'튜토리얼 완주! 실제 워크스페이스 시작',
+   desc:'B1(요청 키 중복 방지)에서는 동일 재시도가 차단되어 PASS를 확인했습니다! 이제 실제 워크스페이스를 시작하세요.',
+   btnText:'실제 워크스페이스로 이동 →',
+   action:'exit-tutorial'
+  };
+ }
+ if(!cfg)return;
+ const targetEl=document.querySelector(cfg.selector);
+ if(!targetEl)return;
+ targetEl.classList.add('coachmark-highlight-target');
+ const overlay=document.createElement('div');
+ overlay.id='tutorial-coachmark-overlay';
+ overlay.className='tutorial-coachmark-overlay';
+ overlay.innerHTML=`
+  <div class="coachmark-backdrop" data-action="close-tour"></div>
+  <div class="coachmark-spotlight" id="coachmark-spotlight"></div>
+  <div class="coachmark-bubble-wrapper" id="coachmark-bubble-wrapper">
+   <div class="coachmark-bubble">
+    <div class="coachmark-bubble-tail"></div>
+    <div class="coachmark-bubble-head">
+     <span class="coachmark-step-badge">${cfg.step}</span>
+     <button type="button" class="coachmark-close-btn" data-action="close-tour" title="말풍선 가이드 닫기" aria-label="말풍선 가이드 닫기">✕</button>
+    </div>
+    <strong class="coachmark-bubble-title">${cfg.title}</strong>
+    <p class="coachmark-bubble-desc">${cfg.desc}</p>
+    <div class="coachmark-bubble-footer">
+     <span class="coachmark-bubble-hint">강조된 버튼을 누르거나 아래를 클릭하세요</span>
+     <button type="button" class="coachmark-bubble-action" data-action="${cfg.action}">${cfg.btnText} ↵</button>
+    </div>
+   </div>
+  </div>`;
+ document.body.appendChild(overlay);
+
+ function updatePositions(){
+  if(!targetEl||!overlay.isConnected)return;
+  const rect=targetEl.getBoundingClientRect();
+  const spotlight=document.getElementById('coachmark-spotlight');
+  const bubbleWrapper=document.getElementById('coachmark-bubble-wrapper');
+  if(!spotlight||!bubbleWrapper)return;
+  spotlight.style.top=(rect.top-6)+'px';
+  spotlight.style.left=(rect.left-6)+'px';
+  spotlight.style.width=(rect.width+12)+'px';
+  spotlight.style.height=(rect.height+12)+'px';
+  const spaceAbove=rect.top;
+  const spaceBelow=window.innerHeight-rect.bottom;
+  const isAbove=spaceAbove>190||spaceAbove>spaceBelow;
+  bubbleWrapper.className=`coachmark-bubble-wrapper ${isAbove?'pointing-down':'pointing-up'}`;
+  const maxLeft=Math.max(12,window.innerWidth-380);
+  const bubbleLeft=Math.max(12,Math.min(rect.left+rect.width/2-50,maxLeft));
+  bubbleWrapper.style.left=bubbleLeft+'px';
+  const tail=bubbleWrapper.querySelector('.coachmark-bubble-tail');
+  if(tail){
+   const tailOffset=Math.max(20,Math.min(rect.left+rect.width/2-bubbleLeft-7,310));
+   tail.style.left=tailOffset+'px';
+  }
+  if(isAbove){
+   bubbleWrapper.style.bottom=(window.innerHeight-rect.top+14)+'px';
+   bubbleWrapper.style.top='auto';
+  }else{
+   bubbleWrapper.style.top=(rect.bottom+14)+'px';
+   bubbleWrapper.style.bottom='auto';
+  }
+ }
+ requestAnimationFrame(()=>{
+  targetEl.scrollIntoView({behavior:'smooth',block:'nearest'});
+  setTimeout(updatePositions,100);
+ });
+}
 function render() {
  leaveLive();
+ removeCoachmark();
  $('#demo-navigation').hidden=workspacePage!=='demo';
  const stepNav=$('.step-nav');
  if(stepNav && workspacePage==='demo') stepNav.hidden=true;
@@ -285,6 +411,7 @@ function render() {
  if(state.tab==='structure'&&state.previewMode!=='timeline'){const{graph,events}=previewData();const frame={...frameFor(graph,events,state.previewCursor??0),preview:true};if(state.previewNode){frame.activeNode=state.previewNode;frame.activeEdge=null;}mountScene($('#structure-host'),graph,frame,id=>{state.previewNode=id;render();});}
  else if(state.run&&state.tab==='execution'&&state.mode==='spatial'){const selected=state.selected?.kind==='event'?state.selected.index:state.selected?.kind==='check'?checksFor()[state.selected.index].evidence:state.cursor;mountScene($('#scene-host'),runTopology(),{...frameFor(runTopology(),eventsFor(),state.cursor,selected),playing:state.playing},selectNode);}else pauseScene();
  $('#scrubber')?.addEventListener('change',e=>{const val=Number(e.target.value);stopPlayback();state.cursor=val;state.selected=null;render();$('#scrubber').focus();});
+ renderCoachmark();
 }
 function stopPlayback(){state.playing=false;clearTimeout(playbackTimer);}
 function scheduleNext(){clearTimeout(playbackTimer);if(!state.playing)return;playbackTimer=setTimeout(()=>{if(state.cursor>=eventsFor().length-1){stopPlayback();render();return;}state.cursor++;state.selected=null;render();scheduleNext();},1200/state.speed);}
@@ -318,6 +445,9 @@ document.addEventListener('click',async e=>{
  case 'prepare':navigate('prepare');break;
  case 'compare':navigate('compare');break;
  case 'load':loadDemo();break;
+ case 'close-tour':state.tutorialTour=false;removeCoachmark();render();break;
+ case 'toggle-tour':state.tutorialTour=!state.tutorialTour;render();break;
+ case 'exit-tutorial':state.tutorialTour=false;removeCoachmark();navigateWorkspace('agents');break;
  case 'play':if(state.playing){stopPlayback();render();}else{if(state.cursor===eventsFor().length-1)state.cursor=0;state.playing=true;state.selected=null;render();scheduleNext();}break;
  case 'speed':state.speed=state.speed===1?2:state.speed===2?.5:1;render();scheduleNext();break;
  case 'export':exportEvidence();break;
@@ -362,6 +492,26 @@ updateThemeUI();
 window.toggleTheme = toggleTheme;
 window.updateThemeUI = updateThemeUI;
 $('.brand').addEventListener('click',e=>{e.preventDefault();navigateWorkspace('agents');});
+if(typeof window!=='undefined'){
+ window.addEventListener('resize',()=>{if(state.tutorialTour&&workspacePage==='demo')renderCoachmark();});
+ window.addEventListener('scroll',()=>{
+  if(state.tutorialTour&&workspacePage==='demo'){
+   const spotlight=document.getElementById('coachmark-spotlight');
+   const targetEl=document.querySelector('.coachmark-highlight-target');
+   const bubbleWrapper=document.getElementById('coachmark-bubble-wrapper');
+   if(spotlight&&targetEl&&bubbleWrapper){
+    const rect=targetEl.getBoundingClientRect();
+    spotlight.style.top=(rect.top-6)+'px';
+    spotlight.style.left=(rect.left-6)+'px';
+    spotlight.style.width=(rect.width+12)+'px';
+    spotlight.style.height=(rect.height+12)+'px';
+    const isAbove=bubbleWrapper.classList.contains('pointing-down');
+    if(isAbove)bubbleWrapper.style.bottom=(window.innerHeight-rect.top+14)+'px';
+    else bubbleWrapper.style.top=(rect.bottom+14)+'px';
+   }
+  }
+ },true);
+}
 initRegistration(result=>{state.draft={agentId:result.profile.id,scenario:'CUSTOM',config:'B0'};state.previewMode='spatial';state.previewCursor=0;state.previewNode=null;navigate('structure');toast(result.persisted?'Agent 구조를 이 브라우저에 등록했습니다.':'구조를 등록했습니다. 저장소를 사용할 수 없어 새로고침하면 사라집니다.');});
 function readRoute(){
  if(!isLiveAuthenticated()){workspacePage='agents';return {page:'agents',show3d:false};}
