@@ -25,6 +25,13 @@
   --neg-bg: #2a141a;
   --warn-bg: #272012;
   --sig-bg: #2a1610;
+  --sig-tint-bg: #1d1410;
+  --sig-tint-border: rgba(255, 106, 61, 0.35);
+  --sig-tint-text: #ffc2ad;
+  --code-ink: #b9b9c0;
+  --neg-text: #ff8a9c;
+  --pos-text: #6fd4ab;
+  --warn-text: #f0c46a;
   --font: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
@@ -36,6 +43,86 @@
   --line: var(--border);
   --orange: var(--signal);
   --green: var(--pos);
+
+  /* 3D Stage ISO Tokens (Dark) */
+  --iso-plat-front: #0a0a0d;
+  --iso-plat-side: #060608;
+  --iso-plat-edge: #141419;
+  --iso-plat-top-edge: #272732;
+  --iso-plat-rim: #343444;
+  --iso-plat-rim-side: #282836;
+  --iso-plat-grad-1: #1a1a20;
+  --iso-plat-grad-2: #101014;
+  --iso-plat-grad-hi-1: #1e1e24;
+  --iso-plat-grad-hi-2: #141418;
+  --iso-track-under: #101015;
+  --iso-node-default-top: #2b2b34;
+  --iso-node-default-left: #1e1e24;
+  --iso-node-default-right: #17171c;
+  --iso-node-default-stroke: #3e3e4a;
+  --iso-node-dim-top: #222227;
+  --iso-node-dim-left: #17171b;
+  --iso-node-dim-right: #111114;
+  --iso-node-dim-stroke: #2a2a32;
+  --iso-db-lid: #27333d;
+  --iso-terminal-bg: #0e1014;
+  --iso-terminal-stroke: #4e5464;
+  --iso-disc-bg: #16221c;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --ground: #f4f5f8;
+  --surface: #ffffff;
+  --raised: #ffffff;
+  --raised-2: #e9edf3;
+  --border: #d4d9e2;
+  --rule: #e2e6ee;
+  --control: #c5cbd6;
+  --text: #111418;
+  --text-2: #424754;
+  --muted: #6b7280;
+  --signal: #e4572e;
+  --signal-ink: #ffffff;
+  --pos: #15805a;
+  --neg: #d32f4c;
+  --warn: #b47210;
+  --pos-bg: #eaf7f1;
+  --neg-bg: #fdebed;
+  --warn-bg: #fef6e7;
+  --sig-bg: #fff0eb;
+  --sig-tint-bg: #fff2ed;
+  --sig-tint-border: rgba(228, 87, 46, 0.3);
+  --sig-tint-text: #96280b;
+  --code-ink: #272c36;
+  --neg-text: #c9203d;
+  --pos-text: #0f7a52;
+  --warn-text: #9f6108;
+
+  /* 3D Stage ISO Tokens (Light) */
+  --iso-plat-front: #cdd3de;
+  --iso-plat-side: #bec5d2;
+  --iso-plat-edge: #b4bdcb;
+  --iso-plat-top-edge: #c6cfdc;
+  --iso-plat-rim: #aeb8c8;
+  --iso-plat-rim-side: #9ea9bb;
+  --iso-plat-grad-1: #edf0f5;
+  --iso-plat-grad-2: #e4e8f0;
+  --iso-plat-grad-hi-1: #f3f5f9;
+  --iso-plat-grad-hi-2: #e9edf4;
+  --iso-track-under: #d8dee8;
+  --iso-node-default-top: #ffffff;
+  --iso-node-default-left: #eaedf3;
+  --iso-node-default-right: #dde2ec;
+  --iso-node-default-stroke: #b8c2d1;
+  --iso-node-dim-top: #eef1f6;
+  --iso-node-dim-left: #e2e6ee;
+  --iso-node-dim-right: #d7dce6;
+  --iso-node-dim-stroke: #c8d0de;
+  --iso-db-lid: #d6e5f2;
+  --iso-terminal-bg: #e8ecf4;
+  --iso-terminal-stroke: #9ea9bc;
+  --iso-disc-bg: #e6f5ed;
 }
 
 *, *::before, *::after {
@@ -108,8 +195,8 @@ a {
   color: var(--muted);
 }
 
-.neg-t { color: #ff8a9c; }
-.pos-t { color: #6fd4ab; }
+.neg-t { color: var(--neg-text, #ff8a9c); }
+.pos-t { color: var(--pos-text, #6fd4ab); }
 .text-strong { color: var(--text); font-weight: 600; }
 
 /* ── Animations ─────────────────────────────── */
@@ -931,7 +1018,7 @@ main#main:has([data-live-auth-split]:not([hidden])) {
 
 .role-preset.on {
   border-color: var(--signal);
-  background: #1d1410;
+  background: var(--sig-tint-bg);
 }
 
 .login-form-fields {
@@ -1035,7 +1122,7 @@ main#main:has([data-live-auth-split]:not([hidden])) {
 
 .target-row.live-target.selected,
 .target-row.live-target.on {
-  background: #18130f;
+  background: var(--sig-tint-bg);
   padding: 22px 24px;
   border: 0;
   border-bottom: 1px solid var(--border);
@@ -1278,9 +1365,9 @@ main#main:has([data-live-auth-split]:not([hidden])) {
   position: relative;
   margin: 0;
   padding: 10px 14px;
-  background: #241610;
-  border: 1px solid #ff6a3d55;
-  color: #ffc2ad;
+  background: var(--sig-tint-bg, #241610);
+  border: 1px solid var(--sig-tint-border, #ff6a3d55);
+  color: var(--sig-tint-text, #ffc2ad);
   border-radius: 8px;
   font-size: 12px;
   line-height: 1.5;
@@ -1293,9 +1380,9 @@ main#main:has([data-live-auth-split]:not([hidden])) {
   bottom: -6px;
   width: 10px;
   height: 10px;
-  background: #241610;
-  border-right: 1px solid #ff6a3d55;
-  border-bottom: 1px solid #ff6a3d55;
+  background: var(--sig-tint-bg, #241610);
+  border-right: 1px solid var(--sig-tint-border, #ff6a3d55);
+  border-bottom: 1px solid var(--sig-tint-border, #ff6a3d55);
   transform: rotate(45deg);
 }
 
@@ -1427,7 +1514,7 @@ main#main:has([data-live-auth-split]:not([hidden])) {
 }
 
 .live-event.selected {
-  background: #231712;
+  background: var(--sig-tint-bg);
   color: var(--text);
 }
 
@@ -1437,7 +1524,7 @@ main#main:has([data-live-auth-split]:not([hidden])) {
   font: 12px/1.65 var(--mono);
   background: var(--ground);
   border: 1px solid var(--border);
-  color: #b9b9c0;
+  color: var(--code-ink, #b9b9c0);
   padding: 14px;
   border-radius: 6px;
   max-height: 400px;
@@ -1604,7 +1691,7 @@ main#main:has([data-live-auth-split]:not([hidden])) {
 }
 
 .agent-option.selected {
-  background: #18130f;
+  background: var(--sig-tint-bg);
   border-color: var(--signal);
 }
 
@@ -3523,4 +3610,125 @@ table.mx tr:last-child td {
     opacity: 1;
     transform: none;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   LIGHT / DARK THEME TOGGLE & ADAPTIVE SURFACES
+   ═══════════════════════════════════════════════════════════════ */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding: 0 11px;
+  border-radius: 999px;
+  background: var(--raised-2);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s var(--ease);
+}
+.theme-toggle:hover {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--control);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.theme-toggle-label {
+  font-size: 12px;
+  line-height: 1;
+  user-select: none;
+}
+
+.theme-icon-sun {
+  display: block;
+  flex: none;
+  color: #ff9d7d;
+}
+.theme-icon-moon {
+  display: none;
+  flex: none;
+  color: #5b8fb5;
+}
+:root[data-theme="light"] .theme-icon-sun {
+  display: none;
+}
+:root[data-theme="light"] .theme-icon-moon {
+  display: block;
+}
+
+.theme-toggle-rail {
+  margin-top: auto;
+  color: var(--muted);
+}
+.theme-toggle-rail:hover {
+  color: var(--text);
+  background: var(--raised);
+}
+
+@media (max-width: 900px) {
+  .theme-toggle-label {
+    display: none;
+  }
+}
+
+/* ── Light Mode Specific Overrides ── */
+:root[data-theme="light"] .scene-label {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid #cbd2de;
+  color: #111418;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+:root[data-theme="light"] .scene-label:hover {
+  border-color: var(--signal);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+:root[data-theme="light"] .scene-label.selected {
+  border-color: var(--signal);
+  box-shadow: 0 0 0 1px var(--signal), 0 6px 20px rgba(228, 87, 46, 0.22);
+}
+:root[data-theme="light"] .scene-label.fault-label {
+  background: #fff4f0;
+  border-color: #e4572e;
+  color: #a82a0b;
+}
+:root[data-theme="light"] .scene-label.fault-label span {
+  color: #c93b16;
+}
+
+:root[data-theme="light"] .secondary:hover:not(:disabled),
+:root[data-theme="light"] .btn.sec:hover:not(:disabled) {
+  background: #dfe3ec;
+}
+:root[data-theme="light"] .chip-logout:hover {
+  background: #e2e6ef;
+}
+:root[data-theme="light"] .code-label button:hover {
+  background: #dfe3ec;
+}
+:root[data-theme="light"] .live-callout-warning {
+  background: var(--sig-tint-bg);
+  border-color: var(--sig-tint-border);
+  color: var(--sig-tint-text);
+}
+:root[data-theme="light"] dialog,
+:root[data-theme="light"] .registration-dialog {
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
+}
+:root[data-theme="light"] dialog::backdrop {
+  background: rgba(15, 18, 24, 0.45);
+}
+:root[data-theme="light"] .live-layout pre,
+:root[data-theme="light"] .code {
+  color: var(--code-ink);
+  background: #f8f9fc;
+}
+:root[data-theme="light"] .ambient-backdrop {
+  opacity: 0.18;
+}
+:root[data-theme="light"] .login-ticker {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
 }

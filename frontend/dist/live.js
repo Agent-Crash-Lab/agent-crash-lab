@@ -128,14 +128,14 @@ function renderLoginTopoSvg() {
   [0,1,2,3].forEach(l=>{
     const y0=l*1.15-1.7, a=P(-1.85,y0-0.45), b=P(1.85,y0-0.45), c=P(1.85,y0+0.45), d=P(-1.85,y0+0.45), t=0.12;
     const ad=[a[0],a[1]+t*S], bd=[b[0],b[1]+t*S], cd=[c[0],c[1]+t*S], dd=[d[0],d[1]+t*S];
-    g+=poly([d,c,cd,dd],'#0a0a0d')+poly([b,c,cd,bd],'#060608')+poly([a,b,c,d],l%2?'#19191e':'#1c1c22','#272732',1);
+    g+=poly([d,c,cd,dd],'var(--iso-plat-front, #0a0a0d)')+poly([b,c,cd,bd],'var(--iso-plat-side, #060608)')+poly([a,b,c,d],l%2?'var(--iso-plat-grad-1, #19191e)':'var(--iso-plat-grad-hi-1, #1c1c22)','var(--iso-plat-top-edge, #272732)',1);
   });
   EDGES.forEach(([s,t,st],i)=>{
     const [x1,y1]=pos[s],[x2,y2]=pos[t], off=st==='fault'?0.18:0;
     const pts=[P(x1+off,y1,0.02),P(x1+off,y2,0.02),P(x2+off,y2,0.02)];
     const d=`M${pts[0]} L${pts[1]} L${pts[2]}`;
     const col=st==='done'?'#50dfb0':st==='fault'?'#ff6a3d':'#2a2a36';
-    g+=`<path d="${d}" fill="none" stroke="#101014" stroke-width="4.5" stroke-linecap="round"/>`;
+    g+=`<path d="${d}" fill="none" stroke="var(--iso-track-under, #101014)" stroke-width="4.5" stroke-linecap="round"/>`;
     g+=`<path id="lg-e${i}" d="${d}" fill="none" stroke="${col}" stroke-width="1.8" ${st==='fault'?'stroke-dasharray="6 5" class="fault-wire-glitch"':''} opacity="${st==='idle'?0.6:0.95}"/>`;
     if(st==='done'){
       g+=`<circle r="3.2" fill="#6fd4ab" filter="url(#lg-glow)"><animateMotion dur="${2.0+i*0.35}s" repeatCount="indefinite" path="${d}"/></circle>`;
@@ -151,8 +151,8 @@ function renderLoginTopoSvg() {
   const order=[...NODES].sort((a,b)=>(pos[a.id][0]+pos[a.id][1])-(pos[b.id][0]+pos[b.id][1]));
   order.forEach(nd=>{
     const [x,y]=pos[nd.id], w=0.27, h=nd.kind==='disc'?0.08:nd.kind==='cyl'?0.42:0.34;
-    const top=nd.fault?'#3a2116':nd.dim?'#26262b':'#2e2e35', left=nd.fault?'#2a170f':nd.dim?'#1b1b1f':'#222228', right=nd.fault?'#1f110b':nd.dim?'#151518':'#19191e';
-    const st=nd.fault?'#ff6a3d':nd.dim?'#2c2c33':'#3d3d46';
+    const top=nd.fault?'#3a2116':nd.dim?'var(--iso-node-dim-top, #26262b)':'var(--iso-node-default-top, #2e2e35)', left=nd.fault?'#2a170f':nd.dim?'var(--iso-node-dim-left, #1b1b1f)':'var(--iso-node-default-left, #222228)', right=nd.fault?'#1f110b':nd.dim?'var(--iso-node-dim-right, #151518)':'var(--iso-node-default-right, #19191e)';
+    const st=nd.fault?'#ff6a3d':nd.dim?'var(--iso-node-dim-stroke, #2c2c33)':'var(--iso-node-default-stroke, #3d3d46)';
     if(nd.fault){
       const c=P(x,y,0);
       g+=`<ellipse class="shock s1" cx="${c[0]}" cy="${c[1]}" rx="${(0.9*S).toFixed(1)}" ry="${(0.52*S).toFixed(1)}" fill="none" stroke="#ff6a3d" stroke-width="1.6"/>`;

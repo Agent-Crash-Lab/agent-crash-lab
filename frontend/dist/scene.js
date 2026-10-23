@@ -36,12 +36,12 @@ function renderIsoScene(container, graph, data = {}, onSelect) {
 
   let defs = `<defs>
     <linearGradient id="grad-platform-a" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1e1e24"/>
-      <stop offset="100%" stop-color="#141418"/>
+      <stop offset="0%" stop-color="var(--iso-plat-grad-hi-1, #1e1e24)"/>
+      <stop offset="100%" stop-color="var(--iso-plat-grad-hi-2, #141418)"/>
     </linearGradient>
     <linearGradient id="grad-platform-b" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1a1a20"/>
-      <stop offset="100%" stop-color="#101014"/>
+      <stop offset="0%" stop-color="var(--iso-plat-grad-1, #1a1a20)"/>
+      <stop offset="100%" stop-color="var(--iso-plat-grad-2, #101014)"/>
     </linearGradient>
     <linearGradient id="grad-fault-flare" x1="0%" y1="0%" x2="100%" y2="0%">
       <stop offset="0%" stop-color="#ff8a5f" stop-opacity="1"/>
@@ -97,13 +97,13 @@ function renderIsoScene(container, graph, data = {}, onSelect) {
 
     // Ground platform base & bevels
     g += `<g class="iso-platform" data-layer="${lIdx}">`;
-    g += poly([d, c, cd, dd], '#0a0a0d', '#141419', 1);
-    g += poly([b, c, cd, bd], '#060608', '#141419', 1);
-    g += poly([a, b, c, d], fillTop, '#272732', 1);
+    g += poly([d, c, cd, dd], 'var(--iso-plat-front, #0a0a0d)', 'var(--iso-plat-edge, #141419)', 1);
+    g += poly([b, c, cd, bd], 'var(--iso-plat-side, #060608)', 'var(--iso-plat-edge, #141419)', 1);
+    g += poly([a, b, c, d], fillTop, 'var(--iso-plat-top-edge, #272732)', 1);
 
     // Neon edge highlight rail on front platform rim
-    g += `<line x1="${d[0]}" y1="${d[1]}" x2="${c[0]}" y2="${c[1]}" stroke="#343444" stroke-width="1.8"/>`;
-    g += `<line x1="${c[0]}" y1="${c[1]}" x2="${b[0]}" y2="${b[1]}" stroke="#282836" stroke-width="1.6"/>`;
+    g += `<line x1="${d[0]}" y1="${d[1]}" x2="${c[0]}" y2="${c[1]}" stroke="var(--iso-plat-rim, #343444)" stroke-width="1.8"/>`;
+    g += `<line x1="${c[0]}" y1="${c[1]}" x2="${b[0]}" y2="${b[1]}" stroke="var(--iso-plat-rim-side, #282836)" stroke-width="1.6"/>`;
 
     // Ambient platform coordinate markers
     const pMarkA = P(-1.95, y0 + 0.42);
@@ -126,7 +126,7 @@ function renderIsoScene(container, graph, data = {}, onSelect) {
     const d = `M${pts[0]} L${pts[1]} L${pts[2]}`;
 
     // Conduit track underlay
-    g += `<path d="${d}" fill="none" stroke="#101015" stroke-width="5" stroke-linecap="round"/>`;
+    g += `<path d="${d}" fill="none" stroke="var(--iso-track-under, #101015)" stroke-width="5" stroke-linecap="round"/>`;
     g += `<path d="${d}" fill="none" stroke="${isFault ? '#4a1e14' : isSeen ? '#2a3a34' : '#1e1e28'}" stroke-width="2.6" stroke-linecap="round"/>`;
 
     // Core fiber optical line
@@ -189,10 +189,10 @@ function renderIsoScene(container, graph, data = {}, onSelect) {
     const w = 0.29, h = kind === 'disc' ? 0.09 : kind === 'cyl' ? 0.46 : 0.36;
 
     // Palette per state
-    const top = isFault ? '#3d2014' : isActive ? '#38251c' : isDim ? '#222227' : '#2b2b34';
-    const left = isFault ? '#2c150c' : isActive ? '#281811' : isDim ? '#17171b' : '#1e1e24';
-    const right = isFault ? '#200e07' : isActive ? '#1c100a' : isDim ? '#111114' : '#17171c';
-    const strokeCol = isFault ? '#ff6a3d' : isActive ? '#ff8a5f' : isDim ? '#2a2a32' : '#3e3e4a';
+    const top = isFault ? '#3d2014' : isActive ? '#38251c' : isDim ? 'var(--iso-node-dim-top, #222227)' : 'var(--iso-node-default-top, #2b2b34)';
+    const left = isFault ? '#2c150c' : isActive ? '#281811' : isDim ? 'var(--iso-node-dim-left, #17171b)' : 'var(--iso-node-default-left, #1e1e24)';
+    const right = isFault ? '#200e07' : isActive ? '#1c100a' : isDim ? 'var(--iso-node-dim-right, #111114)' : 'var(--iso-node-default-right, #17171c)';
+    const strokeCol = isFault ? '#ff6a3d' : isActive ? '#ff8a5f' : isDim ? 'var(--iso-node-dim-stroke, #2a2a32)' : 'var(--iso-node-default-stroke, #3e3e4a)';
 
     // Ambient Shockwave & Holographic Base Glow
     if (isFault || isActive) {
@@ -224,7 +224,7 @@ function renderIsoScene(container, graph, data = {}, onSelect) {
       g += `<path d="M${c0[0] - rx},${rib2} A${rx},${ry} 0 0 0 ${c0[0] + rx},${rib2}" fill="none" stroke="${strokeCol}" stroke-width="1.4"/>`;
 
       // Top lid
-      g += `<ellipse cx="${c1[0]}" cy="${c1[1]}" rx="${rx}" ry="${ry}" fill="#27333d" stroke="${commits > 1 ? '#ff6a88' : '#5b92ba'}" stroke-width="1.5"/>`;
+      g += `<ellipse cx="${c1[0]}" cy="${c1[1]}" rx="${rx}" ry="${ry}" fill="var(--iso-db-lid, #27333d)" stroke="${commits > 1 ? '#ff6a88' : '#5b92ba'}" stroke-width="1.5"/>`;
 
       // Glowing liquid commit volume
       const fillRadius = commits > 1 ? rx * 0.82 : commits === 1 ? rx * 0.58 : rx * 0.34;
@@ -258,7 +258,7 @@ function renderIsoScene(container, graph, data = {}, onSelect) {
         const s4 = P(x - w * 0.6, y - w * 0.12, h + 0.42);
 
         // Terminal bezel & monitor
-        g += poly([s1, s2, s3, s4], '#0e1014', isDim ? '#282832' : '#4e5464', 1.4);
+        g += poly([s1, s2, s3, s4], 'var(--iso-terminal-bg, #0e1014)', isDim ? 'var(--iso-node-dim-stroke, #282832)' : 'var(--iso-terminal-stroke, #4e5464)', 1.4);
 
         if (!isDim) {
           // Glass reflection highlight
@@ -286,7 +286,7 @@ function renderIsoScene(container, graph, data = {}, onSelect) {
         // ── APPROVAL GATE: Dual Rotating Concentric Security Rings ──
         const cDisc = P(x, y, h + 0.03);
         const rxD = +(w * 0.85 * S).toFixed(1), ryD = +(w * 0.48 * S).toFixed(1);
-        g += `<ellipse cx="${cDisc[0]}" cy="${cDisc[1]}" rx="${rxD}" ry="${ryD}" fill="#16221c" stroke="#34b38a" stroke-width="1.6"/>`;
+        g += `<ellipse cx="${cDisc[0]}" cy="${cDisc[1]}" rx="${rxD}" ry="${ryD}" fill="var(--iso-disc-bg, #16221c)" stroke="#34b38a" stroke-width="1.6"/>`;
         g += `<ellipse cx="${cDisc[0]}" cy="${cDisc[1]}" rx="${(rxD * 0.65).toFixed(1)}" ry="${(ryD * 0.65).toFixed(1)}" fill="none" stroke="#6fd4ab" stroke-width="1.4" stroke-dasharray="8 4" class="halo-orbit-rev"/>`;
         g += `<circle cx="${cDisc[0]}" cy="${cDisc[1]}" r="3.2" fill="#50dfb0" filter="url(#f-glow)"/>`;
       }

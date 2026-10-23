@@ -248,6 +248,39 @@ document.addEventListener('click',async e=>{
 document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.matches('svg [role=button]')){e.preventDefault();e.target.dispatchEvent(new MouseEvent('click',{bubbles:true}));}});
 for(const id of ['help-button','about-button'])$('#'+id).addEventListener('click',()=>$('#info-dialog').showModal());
 for(const id of ['close-dialog','understood'])$('#'+id).addEventListener('click',()=>$('#info-dialog').close());
+function updateThemeUI() {
+  const isLight = document.documentElement.dataset.theme === 'light';
+  const label = $('#theme-toggle-label');
+  if (label) label.textContent = isLight ? '다크 모드' : '라이트 모드';
+  const title = isLight ? '다크 모드로 전환' : '라이트 모드로 전환';
+  $('#theme-toggle')?.setAttribute('title', title);
+  $('#theme-toggle')?.setAttribute('aria-label', title);
+  $('#theme-toggle-rail')?.setAttribute('title', title);
+  $('#theme-toggle-rail')?.setAttribute('aria-label', title);
+  const meta = $('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', isLight ? '#f4f5f8' : '#0e0e10');
+}
+function toggleTheme() {
+  const current = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
+  const next = current === 'light' ? 'dark' : 'light';
+  document.documentElement.dataset.theme = next;
+  try {
+    localStorage.setItem('crashlab_theme', next);
+  } catch (e) {}
+  updateThemeUI();
+  toast(next === 'light' ? '라이트 모드로 전환했습니다.' : '다크 모드로 전환했습니다.');
+}
+$('#theme-toggle')?.addEventListener('click', toggleTheme);
+$('#theme-toggle-rail')?.addEventListener('click', toggleTheme);
+window.matchMedia?.('(prefers-color-scheme: light)').addEventListener('change', e => {
+  if (!localStorage.getItem('crashlab_theme')) {
+    document.documentElement.dataset.theme = e.matches ? 'light' : 'dark';
+    updateThemeUI();
+  }
+});
+updateThemeUI();
+window.toggleTheme = toggleTheme;
+window.updateThemeUI = updateThemeUI;
 $('.brand').addEventListener('click',e=>{e.preventDefault();navigateWorkspace('agents');});
 initRegistration(result=>{state.draft={agentId:result.profile.id,scenario:'CUSTOM',config:'B0'};state.previewMode='spatial';state.previewCursor=0;state.previewNode=null;navigate('structure');toast(result.persisted?'Agent 구조를 이 브라우저에 등록했습니다.':'구조를 등록했습니다. 저장소를 사용할 수 없어 새로고침하면 사라집니다.');});
 function readRoute(){
