@@ -127,9 +127,12 @@ function structureView(){const{agent,graph,events}=previewData();state.previewCu
 function render() {
  leaveLive();
  $('#demo-navigation').hidden=workspacePage!=='demo';
- document.querySelectorAll('.workspace-bar [data-tab]').forEach(button=>{button.classList.toggle('active',button.dataset.tab===workspacePage);button.setAttribute('aria-current',button.dataset.tab===workspacePage?'page':'false');});
+ document.querySelectorAll('.workspace-bar [data-tab], .site-rail [data-tab]').forEach(button=>{button.classList.toggle('active',button.dataset.tab===workspacePage);button.setAttribute('aria-current',button.dataset.tab===workspacePage?'page':'false');});
  $('.footer>span').textContent=workspacePage==='demo'?'데모 예시입니다. 실제 시험 결과와 구분합니다.':'서버에서 조회한 실제 실행·검사·근거를 표시합니다.';
  if(workspacePage!=='demo'){mountLive($('#main'),workspacePage,navigateWorkspace);return;}
+ if($('#header-mode-label'))$('#header-mode-label').textContent='데모 예시';
+ if($('#header-scope'))$('#header-scope').textContent=agents[state.agentId]?.name||'데모 참조';
+ if($('#header-page-label'))$('#header-page-label').textContent={agents:'데모 평가 대상',prepare:'데모 시험 조건',execution:'데모 실행 분석',compare:'데모 결과 비교',structure:'등록 구조'}[state.tab]||'데모 예시';
  $('#main').innerHTML=state.tab==='structure'?structureView():state.tab==='agents'?agentView():state.tab==='prepare'?withDraft(prepareView):!state.run?emptyRunView():state.tab==='execution'?executionView():compareView();
 
  document.querySelectorAll('[data-demo-tab]').forEach(b=>{b.classList.toggle('active',b.dataset.demoTab===(state.tab==='structure'?'agents':state.tab));b.setAttribute('aria-current',b.dataset.demoTab===(state.tab==='structure'?'agents':state.tab)?'page':'false');});

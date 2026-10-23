@@ -1,13 +1,105 @@
 <!doctype html>
 <html lang="ko">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#f7f8fa"><meta name="description" content="Agent Crash Lab — 사고의 흐름과 실제 상태를 관찰하는 검사 워크스페이스"><title>Crash Lab · 검사 워크스페이스</title><link rel="stylesheet" href="./styles.css?v=0.15.0"></head>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0e0e10">
+<meta name="description" content="Agent Crash Lab — 사고의 흐름과 실제 상태를 관찰하는 검사 워크스페이스">
+<title>Crash Lab · 검사 워크스페이스</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./styles.css?v=0.15.0">
+</head>
 <body>
 <div class="app-shell">
-<header class="site-header"><a href="#agents" class="brand" aria-label="Agent Crash Lab 홈"><svg width="25" height="28" viewBox="0 0 25 28" fill="none" aria-hidden="true"><path d="M12 1 24 8v12l-12 7L1 20V8Z" stroke="currentColor" stroke-width="1.8"/><path d="m1 8 11 7 12-7M12 15v12M6 5l12 7v12" stroke="currentColor" stroke-width="1.5"/></svg><strong>crash<span>lab</span></strong></a><span class="header-divider"></span><span class="project-title">Agent 평가 워크스페이스 <span class="project-version">v0.14</span></span><div class="header-end"><span class="demo-tag"><i></i>실제 서비스</span><button class="help-button" id="help-button" aria-label="이용 안내">?</button><button class="avatar" id="about-button" aria-label="워크스페이스 안내">CL</button></div></header>
-<div class="workspace-bar"><nav aria-label="주 메뉴"><button data-tab="agents" class="active">평가 대상</button><button data-tab="prepare">시험 설계</button><button data-tab="live">실제 실행</button><button data-tab="execution">실행 분석</button><button data-tab="compare">결과 비교</button></nav><button class="secondary demo-entry" data-tab="demo">데모 예시</button></div>
-<div id="demo-navigation" class="demo-navigation" role="navigation" aria-label="데모 메뉴" hidden><strong>데모 예시</strong><button data-demo-tab="agents">데모 평가 대상</button><button data-demo-tab="prepare">데모 시험 조건</button><button data-demo-tab="execution">데모 실행 분석</button><button data-demo-tab="compare">데모 결과 비교</button></div>
-<main id="main"></main>
-<footer class="footer"><span>서버에서 조회한 실제 실행·검사·근거를 표시합니다.</span><span>Agent Crash Lab <span class="footer-dot">·</span> 2026</span></footer>
+  <aside class="site-rail" aria-label="주 아이콘 탐색">
+    <a href="#agents" class="brand" aria-label="Agent Crash Lab 홈" title="Crash Lab 홈">
+      <svg width="26" height="28" viewBox="0 0 26 28" fill="none" aria-hidden="true">
+        <path d="M13 1.5 24.5 8v12L13 26.5 1.5 20V8Z" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M1.5 8 13 14.5 24.5 8M13 14.5v12" stroke="currentColor" stroke-width="1.6"/>
+        <path d="m15.5 4 -3 5 3.2 1.4-2.6 4.6" stroke="#ff6a3d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+    <div class="rail-nav" role="group" aria-label="워크스페이스 단계">
+      <button type="button" data-tab="agents" class="rail-btn active" aria-label="평가 대상" title="1. 평가 대상">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h12M3 9h12M3 14h7"/></svg>
+      </button>
+      <button type="button" data-tab="prepare" class="rail-btn" aria-label="시험 설계" title="2. 시험 설계">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 2h7l3 3v11H4z"/><path d="M7 9h5M7 12h5"/></svg>
+      </button>
+      <button type="button" data-tab="live" class="rail-btn" aria-label="실제 실행" title="3. 실제 실행">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3l10 6-10 6z"/></svg>
+      </button>
+      <button type="button" data-tab="execution" class="rail-btn" aria-label="실행 분석" title="4. 실행 분석">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 15V9M8 15V4M13 15v-4"/></svg>
+      </button>
+      <button type="button" data-tab="compare" class="rail-btn" aria-label="결과 비교" title="5. 결과 비교">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h5v8H3zM10 5h5v8h-5z"/></svg>
+      </button>
+    </div>
+    <div class="rail-spacer"></div>
+    <button type="button" class="rail-btn help-button" id="help-button" aria-label="이용 안내" title="워크스페이스 안내">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="9" cy="9" r="7"/><path d="M7 7a2 2 0 1 1 2.5 1.9c-.4.2-.5.5-.5 1.1M9 12.5v.2" stroke-linecap="round"/></svg>
+    </button>
+    <button type="button" class="avatar" id="about-button" aria-label="워크스페이스 안내" title="계정 · 안내">CL</button>
+  </aside>
+
+  <div class="app-main">
+    <header class="site-header workspace-bar">
+      <div class="header-crumb">
+        <strong class="brand-word">Crash Lab</strong>
+        <span class="crumb-sep">/</span>
+        <span class="project-title" id="header-scope">자재 구매 · 발주</span>
+        <span class="crumb-sep">/</span>
+        <b class="crumb-current" id="header-page-label">평가 대상</b>
+      </div>
+      <nav class="step-nav" aria-label="주 메뉴">
+        <button type="button" data-tab="agents" class="step-item active"><span class="step-k">1</span><span class="step-label">평가 대상</span></button>
+        <span class="step-arrow" aria-hidden="true">›</span>
+        <button type="button" data-tab="prepare" class="step-item"><span class="step-k">2</span><span class="step-label">시험 설계</span></button>
+        <span class="step-arrow" aria-hidden="true">›</span>
+        <button type="button" data-tab="live" class="step-item"><span class="step-k">3</span><span class="step-label">실험 실행</span></button>
+        <span class="step-arrow" aria-hidden="true">›</span>
+        <button type="button" data-tab="execution" class="step-item"><span class="step-k">4</span><span class="step-label">실행 분석</span></button>
+        <span class="step-arrow" aria-hidden="true">›</span>
+        <button type="button" data-tab="compare" class="step-item"><span class="step-k">5</span><span class="step-label">결과 비교</span></button>
+      </nav>
+      <div class="header-end">
+        <span class="wait-pill" id="header-approval-pill" hidden><i class="pulse-dot sig"></i><span>승인 대기 1</span></span>
+        <div class="header-user" id="header-user" hidden></div>
+        <button type="button" class="secondary demo-entry" data-tab="demo">데모 예시</button>
+        <span class="demo-tag"><i class="pulse-dot"></i><span id="header-mode-label">실제 API</span></span>
+      </div>
+    </header>
+
+    <div id="demo-navigation" class="demo-navigation" role="navigation" aria-label="데모 메뉴" hidden>
+      <strong>데모 예시</strong>
+      <button type="button" data-demo-tab="agents">데모 평가 대상</button>
+      <button type="button" data-demo-tab="prepare">데모 시험 조건</button>
+      <button type="button" data-demo-tab="execution">데모 실행 분석</button>
+      <button type="button" data-demo-tab="compare">데모 결과 비교</button>
+    </div>
+
+    <main id="main"></main>
+
+    <footer class="footer">
+      <span>서버에서 조회한 실제 실행·검사·근거를 표시합니다.</span>
+      <span>Agent Crash Lab <span class="footer-dot">·</span> 2026</span>
+    </footer>
+  </div>
 </div>
-<dialog id="info-dialog"><div class="dialog-header"><span>워크스페이스 안내</span><button class="icon-button" id="close-dialog" aria-label="닫기">×</button></div><h2>사건을 따라가고, 근거를 확인하세요.</h2><p>평가 대상·시험 조건·실제 실행·실행 분석·결과 비교는 실제 API에 연결되어 있습니다. 데모 예시는 별도 메뉴에서 제공합니다.</p><p>로그인한 뒤 평가 대상과 시험 조건을 선택하고 실제 실행에서 시작·승인합니다. 실행 분석과 결과 비교는 같은 실제 실행 정보를 사용합니다.</p><div class="dialog-note">COMPLETED는 실행 종료를 뜻하며 모든 검사의 PASS를 의미하지 않습니다.</div><button class="primary" id="understood">확인</button></dialog><div id="toast" role="status"></div><script type="module" src="./app.js?v=0.15.0"></script>
-</body></html>
+
+<dialog id="info-dialog">
+  <div class="dialog-header"><span>워크스페이스 안내</span><button class="icon-button" id="close-dialog" aria-label="닫기">×</button></div>
+  <h2>사건을 따라가고, 근거를 확인하세요.</h2>
+  <p>평가 대상·시험 조건·실제 실행·실행 분석·결과 비교는 실제 API에 연결되어 있습니다. 데모 예시는 별도 메뉴에서 제공합니다.</p>
+  <p>로그인한 뒤 평가 대상과 시험 조건을 선택하고 실제 실행에서 시작·승인합니다. 실행 분석과 결과 비교는 같은 실제 실행 정보를 사용합니다.</p>
+  <div class="dialog-note">COMPLETED는 실행 종료를 뜻하며 모든 검사의 PASS를 의미하지 않습니다.</div>
+  <button class="primary" id="understood">확인</button>
+</dialog>
+<div id="toast" role="status"></div>
+<script type="module" src="./app.js?v=0.15.0"></script>
+</body>
+</html>

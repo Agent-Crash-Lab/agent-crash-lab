@@ -7,7 +7,7 @@ import {frameFor} from './topology.js?v=0.15.0';
 const graph = {...purchaseTopology, version:'live-topology-v1', nodes:[...purchaseTopology.nodes,
   {id:'guide',label:'조사 지침',role:'store',layer:3,lane:2},
   {id:'fault',label:'사고 주입',role:'tool',layer:1,lane:3}]};
-const state = {registration:null, registrations:[], capabilityOptions:[], executionRuntimes:[], targetType:'PURCHASE', targetTypes:[], batch:null, batchRequest:null, designPlan:null, designCaseId:null, knowledge:null, knowledgeStatus:null, trialData:{enabled:false,quantity:100,inventory:20,unit_price_minor:12000}, session:null, catalog:null, runs:[], run:null, events:[], selected:null, comparison:null, settled:false, draft:{agent:"purchase",test_id:"S01",system_id:"B0"}, compareDraft:{left:"",right:""}, pendingStart:false, pendingRunId:null};
+const state = {authDismissed:false, registration:null, registrations:[], capabilityOptions:[], executionRuntimes:[], targetType:'PURCHASE', targetTypes:[], batch:null, batchRequest:null, designPlan:null, designCaseId:null, knowledge:null, knowledgeStatus:null, trialData:{enabled:false,quantity:100,inventory:20,unit_price_minor:12000}, session:null, catalog:null, runs:[], run:null, events:[], selected:null, comparison:null, settled:false, draft:{agent:"purchase",test_id:"S01",system_id:"B0"}, compareDraft:{left:"",right:""}, pendingStart:false, pendingRunId:null};
 let host, timer, batchTimer, playback, generation=0, loading=false, page='agents', go;
 const $ = selector => host?.querySelector(selector);
 const json = value => esc(JSON.stringify(value, null, 2));
@@ -49,83 +49,312 @@ function failure(error) {
 }
 export function leaveLive() { clearTimeout(timer); clearTimeout(batchTimer); clearInterval(playback); playback=null; generation++; host=null; loading=false; pauseScene(); }
 const pageCopy={
-  agents:['평가 대상','제조업 업무 유형을 선택하고, 해당 Agent에 필요한 시험을 설계합니다.'],
+  agents:['평가 대상','어떤 제조 Agent를 시험할지 고르세요. 세 유형 모두 참조 환경과 시험용 MCP로 실행되며 실제 설비는 조작하지 않습니다.'],
   prepare:['시험 설계','Agent 기능과 근거 자료를 확인해 위험 시험을 만듭니다.'],
   live:['실제 실행','설정한 조건으로 실행하고 담당자 승인·거절을 처리합니다.'],
   execution:['실행 분석','실행 흐름과 QA 보고서를 확인합니다.'],
   compare:['결과 비교','같은 SYSTEM 시나리오의 완료된 실행을 비교합니다.']
 };
 const agentName=agent=>agent==='investigator'?'사고 조사 Agent':state.registration?.name || ({PRODUCTION:'생산 일정 Agent',QUALITY:'품질·출하 Agent'}[state.run?.manifest?.agent_type || state.targetType] || '구매 Agent');
+const targetTypeMeta={
+  PURCHASE:{
+    badge:'사고 시나리오 포함',
+    chain:['Agent','승인','MCP','DB'],
+    faultIndex:2,
+    scenarios:[
+      {code:'S01 정상 발주'},
+      {code:'S02 승인 거절'},
+      {code:'S03 응답 유실',fault:true},
+      {code:'S04 공급 자격'}
+    ]
+  },
+  PRODUCTION:{
+    badge:'',
+    chain:['Agent','계획 도구','MES','DB'],
+    faultIndex:-1,
+    scenarios:[
+      {code:'P01 정상 편성'},
+      {code:'P02 설비 중단'},
+      {code:'P03 중복 편성',fault:true}
+    ]
+  },
+  QUALITY:{
+    badge:'',
+    chain:['Agent','검사 조회','승인','DB'],
+    faultIndex:-1,
+    scenarios:[
+      {code:'Q01 합격 출하'},
+      {code:'Q02 불합격 보류'},
+      {code:'Q03 근거 누락',fault:true}
+    ]
+  }
+};
+function renderChainSvg(chain, faultIndex=-1) {
+  const W=300, step=W/chain.length;
+  let g='';
+  chain.forEach((it,i)=>{
+    const x=step*i+step/2;
+    if(i<chain.length-1){
+      const x2=x+step, fe=i===faultIndex-1;
+      g+=`<line x1="${x+18}" y1="22" x2="${x2-18}" y2="22" stroke="${fe?'#ff6a3d':'#4a4a52'}" stroke-width="1.5" ${fe?'stroke-dasharray="4 4"':''}/>`;
+      g+=`<circle r="2.5" fill="${fe?'#ff8a5f':'#fff'}"><animate attributeName="cx" from="${x+18}" to="${x2-18}" dur="${1.6+i*0.3}s" repeatCount="indefinite"/><animate attributeName="cy" values="22;22" dur="1s" repeatCount="indefinite"/></circle>`;
+    }
+    const isf=i===faultIndex;
+    g+=`<rect x="${x-14}" y="8" width="28" height="28" rx="6" fill="${isf?'#2a1610':'#1f1f24'}" stroke="${isf?'#ff6a3d':'#3a3a42'}"/>`;
+    g+=`<text x="${x}" y="56" text-anchor="middle" font-size="11" fill="#8b8b93" font-family="Pretendard Variable, Pretendard, sans-serif">${esc(it)}</text>`;
+  });
+  return `<svg class="chain" viewBox="0 0 300 64" aria-hidden="true">${g}</svg>`;
+}
+function renderLoginTopoSvg() {
+  const NODES=[
+    {id:'harness',label:'Harness',sub:'실행 준비 · 사건 1',l:0,n:-1,kind:'box'},
+    {id:'agent',label:'발주 Agent',sub:'Agent · 사건 4',l:0,n:1,kind:'screen'},
+    {id:'approval',label:'담당자 승인',sub:'승인 · 사건 1',l:1,n:-1,kind:'disc'},
+    {id:'mcp',label:'business-mcp',sub:'도구 · 사건 3',l:1,n:1,kind:'box',fault:true},
+    {id:'oracle',label:'Oracle',sub:'검사 · 사건 0',l:2,n:-1,kind:'box',dim:true},
+    {id:'db',label:'업무 DB',sub:'저장 · 2건',l:2,n:1,kind:'cyl'},
+    {id:'investigator',label:'사고 조사 Agent',sub:'Agent · 사건 0',l:3,n:0,kind:'screen',dim:true}
+  ];
+  const EDGES=[['harness','agent','done'],['agent','approval','done'],['agent','mcp','done'],['mcp','db','done'],['mcp','agent','fault'],['db','oracle','idle'],['oracle','investigator','idle']];
+  const W=760, H=440, S=86, cx=W*0.5, cy=H*0.54;
+  const P=(x,y,z=0)=>[+(cx+(x-y)*0.866*S).toFixed(1),+(cy+(x+y)*0.5*S-z*S).toFixed(1)];
+  const pos={}; NODES.forEach(nd=>pos[nd.id]=[nd.n*1.15, nd.l*1.15-1.7]);
+  const poly=(pts,fill,stroke='none',sw=1,extra='')=>`<polygon points="${pts.map(p=>p.join(',')).join(' ')}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" ${extra}/>`;
+  let g='';
+  [0,1,2,3].forEach(l=>{
+    const y0=l*1.15-1.7, a=P(-1.85,y0-0.45), b=P(1.85,y0-0.45), c=P(1.85,y0+0.45), d=P(-1.85,y0+0.45), t=0.12;
+    const ad=[a[0],a[1]+t*S], bd=[b[0],b[1]+t*S], cd=[c[0],c[1]+t*S], dd=[d[0],d[1]+t*S];
+    g+=poly([d,c,cd,dd],'#101013')+poly([b,c,cd,bd],'#0c0c0e')+poly([a,b,c,d],l%2?'#19191d':'#1c1c21');
+  });
+  EDGES.forEach(([s,t,st],i)=>{
+    const [x1,y1]=pos[s],[x2,y2]=pos[t], off=st==='fault'?0.18:0;
+    const pts=[P(x1+off,y1,0.02),P(x1+off,y2,0.02),P(x2+off,y2,0.02)];
+    const d=`M${pts[0]} L${pts[1]} L${pts[2]}`;
+    const col=st==='done'?'#d9d9de':st==='fault'?'#ff6a3d':'#3a3a42';
+    g+=`<path id="lg-e${i}" d="${d}" fill="none" stroke="${col}" stroke-width="1.6" ${st==='fault'?'stroke-dasharray="6 5" class="fault-edge"':''} opacity="${st==='idle'?1:0.85}"/>`;
+    if(st==='done'){
+      g+=`<circle r="3" fill="#ffffff"><animateMotion dur="${2.2+i*0.35}s" repeatCount="indefinite" path="${d}"/></circle>`;
+    } else if(st==='fault'){
+      const m=P(x1+off,(y1+y2)/2,0.02);
+      const half=`M${pts[0]} L${m}`;
+      g+=`<circle r="3.5" fill="#ff8a5f"><animateMotion dur="1.8s" repeatCount="indefinite" path="${half}"/></circle>`;
+      g+=`<g transform="translate(${m})"><circle r="11" fill="#2a1610" stroke="#ff6a3d" stroke-width="1.4"/><path d="M-4 -4 4 4M4 -4 -4 4" stroke="#ff6a3d" stroke-width="1.8" stroke-linecap="round"/></g>`;
+    }
+  });
+  let labelsHtml='';
+  const order=[...NODES].sort((a,b)=>(pos[a.id][0]+pos[a.id][1])-(pos[b.id][0]+pos[b.id][1]));
+  order.forEach(nd=>{
+    const [x,y]=pos[nd.id], w=0.27, h=nd.kind==='disc'?0.08:nd.kind==='cyl'?0.42:0.34;
+    const top=nd.fault?'#3a2116':nd.dim?'#26262b':'#2e2e35', left=nd.fault?'#2a170f':nd.dim?'#1b1b1f':'#222228', right=nd.fault?'#1f110b':nd.dim?'#151518':'#19191e';
+    const st=nd.fault?'#ff6a3d':nd.dim?'#2c2c33':'#3d3d46';
+    if(nd.fault){
+      const c=P(x,y,0);
+      g+=`<ellipse class="shock" cx="${c[0]}" cy="${c[1]}" rx="${(0.9*S).toFixed(1)}" ry="${(0.52*S).toFixed(1)}" fill="none" stroke="#ff6a3d" stroke-width="1.5"/><ellipse class="shock s2" cx="${c[0]}" cy="${c[1]}" rx="${(0.9*S).toFixed(1)}" ry="${(0.52*S).toFixed(1)}" fill="none" stroke="#ff6a3d" stroke-width="1.2"/>`;
+    }
+    if(nd.kind==='cyl'){
+      const c0=P(x,y,0), c1=P(x,y,h), rx=+(w*1.2*S).toFixed(1), ry=+(w*0.69*S).toFixed(1);
+      g+=`<path d="M${c0[0]-rx},${c1[1]} L${c0[0]-rx},${c0[1]} A${rx},${ry} 0 0 0 ${c0[0]+rx},${c0[1]} L${c0[0]+rx},${c1[1]} Z" fill="${left}" stroke="${st}"/>`;
+      g+=`<path d="M${c0[0]-rx},${(c0[1]+c1[1])/2} A${rx},${ry} 0 0 0 ${c0[0]+rx},${(c0[1]+c1[1])/2}" fill="none" stroke="${st}"/>`;
+      g+=`<ellipse cx="${c1[0]}" cy="${c1[1]}" rx="${rx}" ry="${ry}" fill="#2b3a44" stroke="#5b8fb5"/>`;
+      g+=`<ellipse class="dbfill" cx="${c1[0]}" cy="${c1[1]}" rx="${(rx*0.55).toFixed(1)}" ry="${(ry*0.55).toFixed(1)}" fill="#9ccaf0" opacity=".25"/>`;
+    } else {
+      const A=P(x-w,y-w,h), B=P(x+w,y-w,h), C=P(x+w,y+w,h), D=P(x-w,y+w,h), Bd=P(x+w,y-w,0), Cd=P(x+w,y+w,0), Dd=P(x-w,y+w,0);
+      g+=poly([D,C,Cd,Dd],left,st)+poly([B,C,Cd,Bd],right,st)+poly([A,B,C,D],top,st,1.2);
+      if(nd.kind==='screen'){
+        const s1=P(x-w*0.55,y-w*0.1,h), s2=P(x+w*0.1,y-w*0.1,h), s3=P(x+w*0.1,y-w*0.1,h+0.36), s4=P(x-w*0.55,y-w*0.1,h+0.36);
+        g+=poly([s1,s2,s3,s4],'#141417',nd.dim?'#2c2c33':'#4a4a55');
+        if(!nd.dim){
+          const l1=P(x-w*0.45,y-w*0.1,h+0.26), l2=P(x-w*0.05,y-w*0.1,h+0.26), l3=P(x-w*0.45,y-w*0.1,h+0.17), l4=P(x-w*0.15,y-w*0.1,h+0.17);
+          g+=`<path d="M${l1}L${l2}M${l3}L${l4}" stroke="#6fd4ab" stroke-width="1.6" class="blink"/>`;
+        }
+      }
+      if(nd.kind==='disc'){
+        const c=P(x,y,h+0.02);
+        g+=`<ellipse cx="${c[0]}" cy="${c[1]}" rx="${(w*0.7*S).toFixed(1)}" ry="${(w*0.4*S).toFixed(1)}" fill="#1f2a24" stroke="#3fb68b"/>`;
+      }
+      if(nd.fault){
+        const A2=P(x-w*0.6,y-w*0.6,h), C2=P(x+w*0.6,y+w*0.6,h);
+        g+=`<line x1="${A2[0]}" y1="${A2[1]}" x2="${C2[0]}" y2="${C2[1]}" stroke="#ff6a3d" stroke-width="1.4" opacity=".7"/>`;
+      }
+    }
+    const L=P(x,y,h+(nd.kind==='screen'?0.62:0.42));
+    labelsHtml+=`<div class="nlabel ${nd.fault?'fault':''} ${nd.dim?'dim':''}" style="left:${(L[0]/W*100).toFixed(1)}%;top:${(L[1]/H*100).toFixed(1)}%">${esc(nd.label)}<small>${esc(nd.sub)}</small></div>`;
+  });
+  return `<div class="login-art"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" aria-hidden="true">${g}</svg><div class="login-labels">${labelsHtml}</div></div>`;
+}
+function syncShellChrome() {
+  const scopeEl=document.getElementById('header-scope');
+  const pageEl=document.getElementById('header-page-label');
+  const waitEl=document.getElementById('header-approval-pill');
+  const userEl=document.getElementById('header-user');
+  const modeEl=document.getElementById('header-mode-label');
+  if(scopeEl) scopeEl.textContent=state.registration?.name || ({PURCHASE:'자재 구매 · 발주',PRODUCTION:'생산 일정',QUALITY:'품질 · 출하'}[state.targetType] || '자재 구매 · 발주');
+  if(pageEl) pageEl.textContent=state.run && ['live','execution'].includes(page) ? state.run.run_id : (pageCopy[page]?.[0] || '평가 대상');
+  if(waitEl) waitEl.hidden=!(state.run?.status==='WAITING_APPROVAL');
+  if(modeEl) modeEl.textContent='실제 API';
+  if(userEl){
+    userEl.hidden=false;
+    if(state.session){
+      userEl.innerHTML=`<span class="user-chip"><span class="mono">${esc(state.session.user_id)}</span><button type="button" class="chip-logout" data-live-shell-logout>로그아웃</button></span>`;
+      const btn=userEl.querySelector('[data-live-shell-logout]');
+      if(btn) btn.onclick=()=>{host?.querySelector('[data-live-logout]')?.click();};
+    } else if(state.authDismissed || page!=='agents'){
+      userEl.innerHTML=`<button type="button" class="secondary demo-entry" data-live-open-auth>로그인</button>`;
+      const btn=userEl.querySelector('[data-live-open-auth]');
+      if(btn) btn.onclick=()=>{state.authDismissed=false;if(page!=='agents'&&go)go('agents');else account();};
+    } else {
+      userEl.hidden=true;
+    }
+  }
+  const order=['agents','prepare','live','execution','compare'];
+  const idx=order.indexOf(page);
+  document.querySelectorAll('.step-nav [data-tab]').forEach((btn,i)=>{
+    const done = state.session && i < idx;
+    btn.classList.toggle('done', done);
+    const k=btn.querySelector('.step-k');
+    if(k) k.textContent = done ? '✓' : String(i+1);
+  });
+}
 export function mountLive(element, selectedPage='agents', navigate) {
   host=element; page=selectedPage; go=navigate; generation++; loading=false;
   const [title,description]=pageCopy[page];
-  host.innerHTML=`<div class="page-heading"><div><span class="eyebrow">CONNECTED WORKSPACE</span><h1>${title}</h1><p>${description}</p></div>${badge('실제 API')}</div>
-    <p class="live-message" data-live-message role="status" aria-live="polite"></p>
-    <div class="live-layout"><aside class="panel section-pad live-controls">
-      <h2>계정</h2><div data-live-account></div>
-      <hr><div class="live-row"><h3>실행 기록</h3><button type="button" class="secondary" data-live-refresh>새로고침</button></div>
-      <div data-live-history class="live-history"></div>
-    </aside><section class="live-content">
+  const showAuthSplit = !state.session && !state.authDismissed && page==='agents' && !new URLSearchParams(location.search).has('targets');
+  host.innerHTML=`
+    <section class="login-split" data-live-auth-split ${showAuthSplit?'':'hidden'}>
+      <div class="login-stage">
+        <div class="login-copy">
+          <div class="login-brand">
+            <svg width="26" height="28" viewBox="0 0 26 28" fill="none" aria-hidden="true">
+              <path d="M13 1.5 24.5 8v12L13 26.5 1.5 20V8Z" stroke="#f4f4f5" stroke-width="1.8"/>
+              <path d="M1.5 8 13 14.5 24.5 8M13 14.5v12" stroke="#f4f4f5" stroke-width="1.6"/>
+              <path d="m15.5 4 -3 5 3.2 1.4-2.6 4.6" stroke="#ff6a3d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Crash Lab</span>
+          </div>
+          <h2 class="login-headline rise">Agent가 무너지는 순간,<br>근거로 남깁니다</h2>
+          <p class="login-lead rise d1">제조 Agent에 사고를 주입하고, Agent가 본 결과와 업무 DB의 실제 상태를 나란히 대조하는 QA 워크스페이스입니다.</p>
+        </div>
+        ${renderLoginTopoSvg()}
+        <div class="login-ticker rise d2">
+          <div><b class="num">3</b><span>제조 업무 유형</span></div>
+          <div><b class="num">12</b><span>이벤트 · S03</span></div>
+          <div><b class="num neg-t">2 <small>/ 1</small></b><span>B0 실제 발주 / 기대</span></div>
+        </div>
+      </div>
+      <div class="login-pane">
+        <div class="login-pane-head rise d1">
+          <h2>워크스페이스 로그인</h2>
+          <p class="login-sub">로그인 토큰은 메모리에만 보관합니다. 새로고침 후 다시 로그인하세요.</p>
+        </div>
+        <div class="role-presets rise d2" role="group" aria-label="개발 계정 빠른 선택">
+          <button type="button" class="role-preset on" data-role-preset="requester-01"><strong>요청자</strong><span class="num">requester-01</span></button>
+          <button type="button" class="role-preset" data-role-preset="approver-01"><strong>승인자</strong><span class="num">approver-01</span></button>
+        </div>
+        <div data-live-account class="rise d3"></div>
+        <div class="login-alt rise d4">
+          <button type="button" class="link-button" data-live-skip-auth>평가 대상 둘러보기 →</button>
+          <button type="button" class="link-button" data-live-demo-jump>데모 예시 둘러보기</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="workspace-canvas" data-live-workspace ${showAuthSplit?'hidden':''}>
+      <div class="page-heading title-row rise">
+        <div>
+          <span class="eyebrow">CONNECTED WORKSPACE</span>
+          <h1>${title}</h1>
+          <p class="finding">${description}</p>
+        </div>
+        <div class="heading-actions">
+          ${page==='agents'?'<button type="button" class="secondary" data-live-open-register>+ Agent 등록</button>':''}
+          ${badge('실제 API')}
+        </div>
+      </div>
+      <p class="live-message" data-live-message role="status" aria-live="polite"></p>
       <section class="live-guidance" data-live-guidance aria-label="현재 단계와 다음 행동"></section>
-      <section data-live-target class="panel section-pad" ${page==='agents'?'':'hidden'}>
-        <h2>준비된 제조업 예시</h2><div data-live-targets class="live-targets"><p>로그인하면 서버의 시험 목록을 불러옵니다.</p></div>
-        <div class="live-flow-actions"><button class="primary" data-live-go="prepare" data-live-next disabled>시험 설계 →</button></div>
-      </section>
-      <div data-qa-registration-area ${page==='agents'?'':'hidden'}>${registrationMarkup()}</div>
-      <details data-live-manual ${['prepare','live'].includes(page)?'':'hidden'} ${page==='live'?'open':''}><summary ${page==='prepare'?'':'hidden'}>직접 시나리오 설정 (개발용)</summary><section data-live-setup class="panel section-pad" ${['prepare','live'].includes(page)?'':'hidden'}>
-        <div class="live-row"><h2>${page==='prepare'?'시험 조건 설정':'선택한 시험 실행'}</h2><button class="secondary" data-live-go="agents">평가 대상 변경</button></div>
-        <p data-live-draft-agent></p><div data-live-design-selected></div>
-        <form data-live-start><label>시험 시나리오<select name="test_id" required><option>로그인 후 불러옵니다</option></select></label>
-          <label>서버 정책<select name="system_id"><option value="B0">B0</option><option value="B1">B1</option></select></label>
-          <p class="live-hint" data-live-kind></p>
-          <fieldset data-live-data hidden><legend>시험 데이터</legend>
-            <label><span><input type="checkbox" name="custom_data" ${state.trialData.enabled?'checked':''}> 수량·재고·가격 변경</span></label>
-            <div data-live-data-fields ${state.trialData.enabled?'':'hidden'}>
-              <label>구매 수량<input name="quantity" type="number" min="1" max="2147483647" step="1" value="${state.trialData.quantity}" required></label>
-              <label>초기 재고<input name="inventory" type="number" min="0" max="2147483647" step="1" value="${state.trialData.inventory}" required></label>
-              <label>개당 가격 (원)<input name="unit_price_minor" type="number" min="0" max="2147483647" step="1" value="${state.trialData.unit_price_minor}" required></label>
-              <p class="live-hint">저장한 QA 계획의 데이터로 실행합니다. 현재는 재고가 부족한 구매 요청을 지원합니다.</p>
-            </div>
-          </fieldset><button class="primary" type="submit" disabled>${page==='prepare'?'이 조건으로 실행 준비 →':'시험 시작'}</button></form>
-      </section>
-      </details>
-      <section data-live-design-area class="panel section-pad" ${page==='prepare'?'':'hidden'}>
-        <div class="live-row"><h2>Agent를 보고 시험 설계</h2><span class="badge">분석 → 근거 → 시험</span></div>
-        <p class="live-hint">기능과 근거를 확인해 위험 상황을 만들고, 실행 가능한지 검사합니다.</p>
-        <div data-qa-selected></div><form data-live-design><label>설계할 예시 Agent<select name="target_type" data-live-design-type><option value="PURCHASE">자재 구매·발주</option><option value="PRODUCTION">생산 일정</option><option value="QUALITY">품질·출하</option></select></label><label>시험 생성 방식<select name="generation_mode"><option value="llm">LLM으로 새로운 상황 생성</option><option value="offline">기존 시험 예시 사용</option></select></label><button type="submit" class="primary">Agent 분석·시험 설계</button></form>
-        <div data-live-design-results></div>
-      </section>
-      <section data-live-batch-area class="panel section-pad" ${['prepare','live','execution'].includes(page)?'':'hidden'}>
-        <h2>실험 계획 실행</h2><p class="live-hint">정상 대조와 위험 시험을 실행합니다. 승인과 중단 기준을 적용합니다.</p>
-        <form data-live-batch-form><label>설계 시험<select name="case_id" required></select></label>
-          <label>서버 정책<select data-live-batch-system><option value="B0">B0 · 업무 방어 미적용</option><option value="B1">B1 · 업무 방어 적용</option></select></label><label>목적<select name="mode"><option value="SMOKE">기본 연결 점검 · 조건별 1회</option><option value="RELIABILITY">LLM 반복 검증 · 정책 계산 횟수</option></select></label>
-          <label>최대 실행 횟수<input name="max_runs" type="number" min="1" max="300" value="8" required></label>
-          <label>최대 시간 (초)<input name="max_seconds" type="number" min="1" max="3600" value="900" required></label>
-          <label>최대 모델 비용 (USD)<input name="max_cost_usd" type="number" min="0" max="1" step="0.01" value="1" required></label>
-          <p class="live-hint">정상 처리와 위험 조건을 함께 실행합니다. 비용 한도는 공유 모델 예산에도 적용됩니다.</p>
-          <button class="primary" type="submit">설계한 실험 시작</button></form>
-        <div data-live-batch-results></div>
-      </section>
-      <details ${page==='prepare'?'':'hidden'}><summary>근거 자료 직접 검색</summary><section data-live-knowledge-area class="panel section-pad" ${page==='prepare'?'':'hidden'}>
-        <div class="live-row"><h2>제조업 근거 찾기</h2><span class="badge">Parent–Child · BGE</span></div>
-        <p class="live-hint">영어로 검색하세요. 작은 문단을 검색하고 해당 페이지의 큰 문맥을 함께 보여줍니다. 검색 근거는 시험 설계의 참고 자료이며 판정 정답은 아닙니다.</p>
-        <form data-live-knowledge><label>검색 질문<input name="query" value="${esc(state.knowledge?.query || 'duplicate purchase orders after timeout and retry')}" minlength="2" maxlength="1000" required></label>
-          <label>업무<select name="target_type"><option value="PURCHASE">자재 구매·발주</option><option value="PRODUCTION">생산</option><option value="QUALITY">품질</option><option value="COMMON">전체</option></select></label>
-          <button class="secondary" type="submit">전문자료 검색</button></form>
-        <p data-live-knowledge-status class="live-hint"></p><div data-live-knowledge-results></div>
-      </section>
-      </details>
-      <section data-live-compare-area class="panel section-pad" ${page==='compare'?'':'hidden'}><h2>비교할 실제 실행</h2><p class="live-hint">같은 시나리오의 완료된 실행을 고르세요. 서버 정책과 Agent 버전 등 달라진 조건을 함께 확인합니다.</p>
-        <form data-live-compare class="live-compare-form"><label>왼쪽 실행<select name="left" required></select></label><label>오른쪽 실행<select name="right" required></select></label><button class="primary" type="submit">실제 결과 비교</button></form>
-      </section>
-      <div data-live-summary class="panel section-pad" ${['live','execution'].includes(page)?'':'hidden'}><h2>실행을 선택해 주세요</h2><p>왼쪽 실행 기록에서 저장된 실행을 열거나 새 시험을 시작하세요.</p><button class="secondary" data-live-go="prepare">시험 설계 →</button></div>
-      <div data-live-approval ${page==='live'?'':'hidden'}></div>
-      <div data-live-comparison ${page==='compare'?'':'hidden'}></div>
-      <section class="panel section-pad" data-live-analysis hidden><div class="live-row"><h2>실행 흐름</h2><div class="live-row"><span data-live-count></span><button class="secondary" data-live-play>재생</button><button class="secondary" data-live-export>근거 JSON 내보내기</button></div></div>
-        <div id="live-scene" class="live-scene" aria-label="실제 이벤트 기반 서비스 구조"></div>
-        <label>확인할 이벤트<input data-live-cursor type="range" min="0" value="0" aria-label="확인할 이벤트 순서"></label>
-        <div class="live-evidence-grid"><div data-live-events class="live-events" aria-label="실행 이벤트"></div><div><h3>선택한 근거</h3><pre data-live-evidence tabindex="0"></pre></div></div></section>
-      <section data-live-result hidden></section></section></div>`;
+
+      <div class="live-layout" data-page="${page}">
+        <section class="live-content">
+          <div class="targets-split" ${page==='agents'?'':'hidden'}>
+            <section data-live-target class="card targets-card rise d1">
+              <div class="card-h"><h2>제조 업무 유형</h2><span class="meta">3개 · 참조 Agent</span></div>
+              <div data-live-targets class="live-targets"><p class="empty-inline">로그인하면 서버의 시험 목록을 불러옵니다.</p></div>
+            </section>
+            <aside class="card targets-side rise d2">
+              <div class="card-h">
+                <h2>최근 실행</h2>
+                <div class="card-h-end">
+                  <span class="meta num" data-live-user-tag>requester-01</span>
+                  <button type="button" class="ghost-sm" data-live-refresh>새로고침</button>
+                </div>
+              </div>
+              <div data-live-history class="live-history"></div>
+              <div class="targets-next">
+                <p data-live-selected-summary><b class="text-strong">자재 구매 · 발주</b>를 선택했습니다. 다음 단계에서 기능 · 근거 · 제안 시험을 확인합니다.</p>
+                <div class="live-flow-actions"><button class="primary full-cta" data-live-go="prepare" data-live-next disabled><span>시험 설계로</span><span>→</span></button></div>
+              </div>
+            </aside>
+          </div>
+
+          <div data-qa-registration-area class="rise d3" ${page==='agents'?'':'hidden'}>${registrationMarkup()}</div>
+
+          <details data-live-manual ${['prepare','live'].includes(page)?'':'hidden'} ${page==='live'?'open':''}><summary ${page==='prepare'?'':'hidden'}>직접 시나리오 설정 (개발용)</summary><section data-live-setup class="panel section-pad" ${['prepare','live'].includes(page)?'':'hidden'}>
+            <div class="live-row"><h2>${page==='prepare'?'시험 조건 설정':'선택한 시험 실행'}</h2><button class="secondary" data-live-go="agents">평가 대상 변경</button></div>
+            <p data-live-draft-agent></p><div data-live-design-selected></div>
+            <form data-live-start><label>시험 시나리오<select name="test_id" required><option>로그인 후 불러옵니다</option></select></label>
+              <label>서버 정책<select name="system_id"><option value="B0">B0</option><option value="B1">B1</option></select></label>
+              <p class="live-hint" data-live-kind></p>
+              <fieldset data-live-data hidden><legend>시험 데이터</legend>
+                <label><span><input type="checkbox" name="custom_data" ${state.trialData.enabled?'checked':''}> 수량·재고·가격 변경</span></label>
+                <div data-live-data-fields ${state.trialData.enabled?'':'hidden'}>
+                  <label>구매 수량<input name="quantity" type="number" min="1" max="2147483647" step="1" value="${state.trialData.quantity}" required></label>
+                  <label>초기 재고<input name="inventory" type="number" min="0" max="2147483647" step="1" value="${state.trialData.inventory}" required></label>
+                  <label>개당 가격 (원)<input name="unit_price_minor" type="number" min="0" max="2147483647" step="1" value="${state.trialData.unit_price_minor}" required></label>
+                  <p class="live-hint">저장한 QA 계획의 데이터로 실행합니다. 현재는 재고가 부족한 구매 요청을 지원합니다.</p>
+                </div>
+              </fieldset><button class="primary" type="submit" disabled>${page==='prepare'?'이 조건으로 실행 준비 →':'시험 시작'}</button></form>
+          </section>
+          </details>
+          <section data-live-design-area class="panel section-pad" ${page==='prepare'?'':'hidden'}>
+            <div class="live-row"><h2>Agent를 보고 시험 설계</h2><span class="badge">분석 → 근거 → 시험</span></div>
+            <p class="live-hint">기능과 근거를 확인해 위험 상황을 만들고, 실행 가능한지 검사합니다.</p>
+            <div data-qa-selected></div><form data-live-design><label>설계할 예시 Agent<select name="target_type" data-live-design-type><option value="PURCHASE">자재 구매·발주</option><option value="PRODUCTION">생산 일정</option><option value="QUALITY">품질·출하</option></select></label><label>시험 생성 방식<select name="generation_mode"><option value="llm">LLM으로 새로운 상황 생성</option><option value="offline">기존 시험 예시 사용</option></select></label><button type="submit" class="primary">Agent 분석·시험 설계</button></form>
+            <div data-live-design-results></div>
+          </section>
+          <section data-live-batch-area class="panel section-pad" ${['prepare','live','execution'].includes(page)?'':'hidden'}>
+            <h2>실험 계획 실행</h2><p class="live-hint">정상 대조와 위험 시험을 실행합니다. 승인과 중단 기준을 적용합니다.</p>
+            <form data-live-batch-form><label>설계 시험<select name="case_id" required></select></label>
+              <label>서버 정책<select data-live-batch-system><option value="B0">B0 · 업무 방어 미적용</option><option value="B1">B1 · 업무 방어 적용</option></select></label><label>목적<select name="mode"><option value="SMOKE">기본 연결 점검 · 조건별 1회</option><option value="RELIABILITY">LLM 반복 검증 · 정책 계산 횟수</option></select></label>
+              <label>최대 실행 횟수<input name="max_runs" type="number" min="1" max="300" value="8" required></label>
+              <label>최대 시간 (초)<input name="max_seconds" type="number" min="1" max="3600" value="900" required></label>
+              <label>최대 모델 비용 (USD)<input name="max_cost_usd" type="number" min="0" max="1" step="0.01" value="1" required></label>
+              <p class="live-hint">정상 처리와 위험 조건을 함께 실행합니다. 비용 한도는 공유 모델 예산에도 적용됩니다.</p>
+              <button class="primary" type="submit">설계한 실험 시작</button></form>
+            <div data-live-batch-results></div>
+          </section>
+          <details ${page==='prepare'?'':'hidden'}><summary>근거 자료 직접 검색</summary><section data-live-knowledge-area class="panel section-pad" ${page==='prepare'?'':'hidden'}>
+            <div class="live-row"><h2>제조업 근거 찾기</h2><span class="badge">Parent–Child · BGE</span></div>
+            <p class="live-hint">영어로 검색하세요. 작은 문단을 검색하고 해당 페이지의 큰 문맥을 함께 보여줍니다. 검색 근거는 시험 설계의 참고 자료이며 판정 정답은 아닙니다.</p>
+            <form data-live-knowledge><label>검색 질문<input name="query" value="${esc(state.knowledge?.query || 'duplicate purchase orders after timeout and retry')}" minlength="2" maxlength="1000" required></label>
+              <label>업무<select name="target_type"><option value="PURCHASE">자재 구매·발주</option><option value="PRODUCTION">생산</option><option value="QUALITY">품질</option><option value="COMMON">전체</option></select></label>
+              <button class="secondary" type="submit">전문자료 검색</button></form>
+            <p data-live-knowledge-status class="live-hint"></p><div data-live-knowledge-results></div>
+          </section>
+          </details>
+          <section data-live-compare-area class="panel section-pad" ${page==='compare'?'':'hidden'}><h2>비교할 실제 실행</h2><p class="live-hint">같은 시나리오의 완료된 실행을 고르세요. 서버 정책과 Agent 버전 등 달라진 조건을 함께 확인합니다.</p>
+            <form data-live-compare class="live-compare-form"><label>왼쪽 실행<select name="left" required></select></label><label>오른쪽 실행<select name="right" required></select></label><button class="primary" type="submit">실제 결과 비교</button></form>
+          </section>
+          <div data-live-summary class="panel section-pad" ${['live','execution'].includes(page)?'':'hidden'}><h2>실행을 선택해 주세요</h2><p>실행 기록에서 저장된 실행을 열거나 새 시험을 시작하세요.</p><button class="secondary" data-live-go="prepare">시험 설계 →</button></div>
+          <div data-live-approval ${page==='live'?'':'hidden'}></div>
+          <div data-live-comparison ${page==='compare'?'':'hidden'}></div>
+          <section class="panel section-pad" data-live-analysis hidden><div class="live-row"><h2>실행 흐름</h2><div class="live-row"><span data-live-count></span><button class="secondary" data-live-play>재생</button><button class="secondary" data-live-export>근거 JSON 내보내기</button></div></div>
+            <div id="live-scene" class="live-scene" aria-label="실제 이벤트 기반 서비스 구조"></div>
+            <label>확인할 이벤트<input data-live-cursor type="range" min="0" value="0" aria-label="확인할 이벤트 순서"></label>
+            <div class="live-evidence-grid"><div data-live-events class="live-events" aria-label="실행 이벤트"></div><div><h3>선택한 근거</h3><pre data-live-evidence tabindex="0"></pre></div></div></section>
+          <section data-live-result hidden></section>
+        </section>
+      </div>
+    </div>`;
   host.onsubmit=submit;
   host.onclick=click;
   host.oninput=event=>{
@@ -213,10 +442,46 @@ function renderRegistrations() {
 function targets() {
   renderRegistrations();
   $('[data-live-draft-agent]').textContent=`평가 대상: ${agentName(state.draft.agent)}`;
-  $('[data-live-targets]').innerHTML=state.targetTypes.map(type=>
-    `<button class="live-target ${!state.registration && state.targetType===type.type_id?'selected':''}" data-live-target-type="${esc(type.type_id)}" aria-pressed="${!state.registration && state.targetType===type.type_id}"><strong>${esc(type.name)}</strong><p>${esc(type.description)}</p><span>${type.execution==='READY'?'시험 실행 가능':'시험 설계만 가능'}</span><small>${esc(type.checks.join(' · '))}</small></button>`
-  ).join('')+`<details><summary>개별 Agent 점검 (개발용)</summary>${['purchase','investigator'].map(agent=>`<button class="secondary" data-live-agent="${agent}">${agentName(agent)} · ${testsForAgent(state.catalog,agent).length}개 시험</button>`).join('')}</details>`;
-  $('[data-live-next]').disabled=!state.session || !state.targetTypes.length;guidance();
+  const defaultTypes=[
+    {type_id:'PURCHASE',name:'자재 구매 · 발주',description:'재고를 조회하고 담당자 승인 이후 부품을 발주합니다.',execution:'READY',checks:['승인 통제','중복 발주 방지']},
+    {type_id:'PRODUCTION',name:'생산 일정',description:'설비 가용성과 납기를 보고 생산 계획 변경안을 제안합니다.',execution:'READY',checks:['일정 충돌','설비 정합성']},
+    {type_id:'QUALITY',name:'품질 · 출하',description:'검사 결과를 근거로 출하 보류 또는 승인을 제안합니다.',execution:'READY',checks:['근거 완전성','보류 준수']}
+  ];
+  const types=state.targetTypes.length?state.targetTypes:defaultTypes;
+  const lastRunFor=typeId=>{
+    const prefixes={PURCHASE:['S0','PA'],PRODUCTION:['P0','PN'],QUALITY:['Q0','QL']}[typeId]||[];
+    return state.runs.find(r=>prefixes.some(p=>String(r.test_id||'').startsWith(p)));
+  };
+  $('[data-live-targets]').innerHTML=types.map(type=>{
+    const meta=targetTypeMeta[type.type_id]||targetTypeMeta.PURCHASE;
+    const isOn=!state.registration && state.targetType===type.type_id;
+    const last=lastRunFor(type.type_id);
+    const failCount=last?.summary?.FAIL || 0;
+    const passCount=last?.summary?.PASS || 0;
+    const pillHtml=!last
+      ? `<span class="pill neu">${type.execution==='READY'?'실행 대기':'설계 전용'}</span>`
+      : failCount
+        ? `<span class="pill neg">${failCount} 실패</span>`
+        : passCount
+          ? `<span class="pill pos">${passCount} 통과</span>`
+          : `<span class="pill neu">${esc(last.status)}</span>`;
+    const runSub=last?`${esc(last.run_id)} · ${esc(last.test_id)}`:(type.execution==='READY'?'참조 실행 가능':'시험 설계 가능');
+    return `<button type="button" class="live-target target-row ${isOn?'selected on':''}" data-live-target-type="${esc(type.type_id)}" aria-pressed="${isOn}">
+      <div class="target-main">
+        <h3>${esc(type.name)} ${meta.badge?`<span class="pill sig">${esc(meta.badge)}</span>`:''}</h3>
+        <p>${esc(type.description)}</p>
+        <div class="scn">${meta.scenarios.map(s=>`<span class="${s.fault?'f':''}">${esc(s.code)}</span>`).join('')}</div>
+      </div>
+      ${renderChainSvg(meta.chain,meta.faultIndex)}
+      <div class="target-last">${pillHtml}<span class="num">${runSub}</span></div>
+    </button>`;
+  }).join('')+`<details class="dev-agent-details"><summary>개별 Agent 점검 (개발용)</summary><div class="dev-agent-row">${['purchase','investigator'].map(agent=>`<button type="button" class="secondary" data-live-agent="${agent}">${agentName(agent)} · ${testsForAgent(state.catalog || {tests:[]},agent).length}개 시험</button>`).join('')}</div></details>`;
+  const selectedName=state.registration?state.registration.name:(types.find(t=>t.type_id===state.targetType)?.name || '자재 구매 · 발주');
+  const sumEl=$('[data-live-selected-summary]');
+  if(sumEl) sumEl.innerHTML=`<b class="text-strong">${esc(selectedName)}</b>${state.registration?' 프로필을':' 유형을'} 선택했습니다. 다음 단계에서 기능 · 근거 · 제안 시험을 확인합니다.`;
+  $('[data-live-next]').disabled=!state.session || !state.targetTypes.length;
+  syncShellChrome();
+  guidance();
 }
 
 function renderKnowledge() {
@@ -299,13 +564,22 @@ function selectedDesign() {
 }
 
 function account() {
-  $('[data-live-account]').innerHTML=state.session ? `<p>${esc(state.session.user_id)} ${badge(state.session.roles.join(' / '))}</p><button type="button" class="secondary" data-live-logout>로그아웃</button>` :
-    `<form data-live-login><label>계정<input name="user_id" value="requester-01" autocomplete="username" required></label><label>비밀번호<input name="password" type="password" autocomplete="current-password" required></label><button class="secondary full" type="submit">로그인</button><p class="live-hint">개발 계정의 비밀번호는 서버의 DEMO_USER_PASSWORD 설정을 사용합니다.</p></form>`;
+  const showAuthSplit = !state.session && !state.authDismissed && page==='agents' && !new URLSearchParams(location.search).has('targets');
+  const split=$('[data-live-auth-split]');
+  if(split) split.hidden=!showAuthSplit;
+  const ws=$('[data-live-workspace]');
+  if(ws) ws.hidden=showAuthSplit;
+  const userTag=$('[data-live-user-tag]');
+  if(userTag) userTag.textContent=state.session?.user_id || 'requester-01';
+  $('[data-live-account]').innerHTML=state.session ? `<div class="session-inline"><span class="mono">${esc(state.session.user_id)}</span> ${badge(state.session.roles.join(' / '))} <button type="button" class="secondary" data-live-logout>로그아웃</button></div>` :
+    `<form data-live-login class="login-form-fields"><label class="field-block"><span>계정</span><input name="user_id" value="requester-01" autocomplete="username" required></label><label class="field-block"><span>비밀번호</span><input name="password" type="password" autocomplete="current-password" required><small class="live-hint">개발 계정 비밀번호는 서버의 <span class="mono">DEMO_USER_PASSWORD</span> 설정입니다.</small></label><button class="primary login-submit" type="submit">로그인하고 평가 대상 고르기 →</button></form>`;
   const button=$('[data-live-start] button');
   button.textContent=page==='prepare'?'이 조건으로 실행 준비 →':state.pendingStart?'실행 요청 중…':state.run && !state.settled?'실행 진행 중':state.designCaseId?'선택한 설계 시험 시작':'시험 시작';
   button.disabled=!registeredCaseReady(state.registration,state.designPlan,state.designCaseId) || !state.session?.roles.includes('REQUESTER') || !state.catalog || state.pendingStart || !!(state.run && !state.settled);
   $('[data-live-setup]').hidden=!['prepare','live'].includes(page) || (page==='live' && !!state.run);
   $('[data-live-summary]').hidden=!['live','execution'].includes(page) || (page==='live' && !state.run);
+  syncShellChrome();
+  targets();
   guidance();selectedDesign();
 }
 function catalog() {
@@ -334,8 +608,15 @@ async function refresh() {
   catalog(); history(); account();
 }
 function history() {
-  const runButton=run=>`<button class="secondary full" data-live-run="${esc(run.run_id)}"><strong>${esc(run.run_id)}</strong> · ${esc(run.test_id)} ${esc(run.system_id || '')}<small>${esc(run.status)}</small></button>`;
-  $('[data-live-history]').innerHTML=state.runs.length ? state.runs.slice(0,8).map(runButton).join('')+(state.runs.length>8?`<details><summary>이전 기록 ${state.runs.length-8}개</summary>${state.runs.slice(8).map(runButton).join('')}</details>`:'') : '<p class="live-hint">로그인하면 저장된 기록을 불러옵니다.</p>';
+  const runBar=run=>{
+    const p=run.summary?.PASS || 0, f=run.summary?.FAIL || 0, inc=run.summary?.INCONCLUSIVE || 0;
+    if(p+f+inc>0){
+      return `<span class="bar3">${p?`<i style="flex:${p};background:var(--pos)"></i>`:''}${f?`<i style="flex:${f};background:var(--neg)"></i>`:''}${inc?`<i style="flex:${inc};background:var(--warn)"></i>`:''}</span>`;
+    }
+    return `<span class="run-state-tag">${esc(run.status)}</span>`;
+  };
+  const runButton=run=>`<button type="button" class="run-row-btn" data-live-run="${esc(run.run_id)}"><span class="run-id num">${esc(run.run_id)}</span><span class="run-sub">${esc(run.test_id)}${run.system_id?` · ${esc(run.system_id)}`:''}</span>${runBar(run)}</button>`;
+  $('[data-live-history]').innerHTML=state.runs.length ? `<div class="runs-list">${state.runs.slice(0,8).map(runButton).join('')}</div>`+(state.runs.length>8?`<details class="runs-more"><summary>이전 기록 ${state.runs.length-8}개</summary><div class="runs-list">${state.runs.slice(8).map(runButton).join('')}</div></details>`:'') : '<p class="live-hint empty-runs-hint">로그인하면 저장된 실행 기록을 불러옵니다.</p>';
   const completed=completedSystemRuns(state.catalog,state.runs);
   for(const name of ['left','right']) {
     const select=$(`[name=${name}]`), previous=state.compareDraft[name];
@@ -505,6 +786,27 @@ async function submit(event) {
 }
 function click(event) {
   const target=event.target.closest('button');if(!target)return;
+  if(target.hasAttribute('data-role-preset')) {
+    const uid=target.dataset.rolePreset;
+    for(const b of host.querySelectorAll('[data-role-preset]')) b.classList.toggle('on', b===target);
+    const input=$('[data-live-login] [name=user_id]');
+    if(input){ input.value=uid; $('[data-live-login] [name=password]')?.focus(); }
+    return;
+  }
+  if(target.hasAttribute('data-live-skip-auth')) {
+    state.authDismissed=true;
+    account();
+    return;
+  }
+  if(target.hasAttribute('data-live-demo-jump')) {
+    document.querySelector('.demo-entry')?.click();
+    return;
+  }
+  if(target.hasAttribute('data-live-open-register')) {
+    const ed=$('[data-qa-editor]');
+    if(ed){ ed.open=true; ed.scrollIntoView({behavior:'smooth',block:'start'}); }
+    return;
+  }
   if(target.hasAttribute('data-live-logout')) {state.registration=null;state.registrations=[];state.capabilityOptions=[];state.batch=null;state.batchRequest=null;state.designPlan=null;state.designCaseId=null;state.targetTypes=[];state.session=null;state.catalog=null;state.run=null;state.events=[];state.runs=[];state.comparison=null;state.compareDraft={left:'',right:''};state.pendingRunId=null;const element=host;leaveLive();mountLive(element,page,go);notify('로그아웃했습니다.');}
   if(target.hasAttribute('data-qa-parse')){
     try{renderToolBindings($('[data-qa-registration]'),state.capabilityOptions);notify('도구별 조회·변경과 업무 기능 연결을 확인하세요.');}catch(error){failure(error);}
