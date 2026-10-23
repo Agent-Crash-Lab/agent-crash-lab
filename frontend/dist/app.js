@@ -1,5 +1,5 @@
 import {workspaceRoute} from './live-api.js?v=0.15.0';
-import {mountLive,leaveLive} from './live.js?v=0.15.0';
+import {mountLive,leaveLive,isLiveAuthenticated} from './live.js?v=0.15.0';
 import { mountScene, pauseScene } from './scene.js?v=0.15.0';
 import { agents, investigationScenarios, investigationEvents, investigationChecks, validateDemoProfile, restoreProfiles } from './registry.js?v=0.15.0';
 import { frameFor, mapEvents } from './topology.js?v=0.15.0';
@@ -62,7 +62,7 @@ function checksFor(scenario = state.scenario, config = state.config) {
   ];
 }
 function navigate(tab) { stopPlayback(); workspacePage='demo'; state.tab=tab;state.selected=null;history.replaceState(null,'',`#demo-${tab}`);render(); }
-function navigateWorkspace(tab){stopPlayback();workspacePage=tab;history.replaceState(null,'',`#${tab}`);render();const heading=$('#main h1');if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});heading.scrollIntoView({block:'start'});}}
+function navigateWorkspace(tab){if(typeof isLiveAuthenticated==='function'&&!isLiveAuthenticated()){workspacePage='agents';history.replaceState(null,'','#agents');render();return;}stopPlayback();workspacePage=tab;history.replaceState(null,'',`#${tab}`);render();const heading=$('#main h1');if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});heading.scrollIntoView({block:'start'});}}
 function chooseScenario(id) { if(!scenarioMap(state.draft.agentId)[id])return;state.draft.scenario=id;render(); }
 function header(title, description, actions = '') { return `<div class="page-heading"><div><h1>${title}</h1><p>${description}</p></div><div class="heading-actions">${actions}</div></div>`; }
 function divergenceCard(events, checks, isIA) {
@@ -292,6 +292,7 @@ window.updateThemeUI = updateThemeUI;
 $('.brand').addEventListener('click',e=>{e.preventDefault();navigateWorkspace('agents');});
 initRegistration(result=>{state.draft={agentId:result.profile.id,scenario:'CUSTOM',config:'B0'};state.previewMode='spatial';state.previewCursor=0;state.previewNode=null;navigate('structure');toast(result.persisted?'Agent 구조를 이 브라우저에 등록했습니다.':'구조를 등록했습니다. 저장소를 사용할 수 없어 새로고침하면 사라집니다.');});
 function readRoute(){
+ if(!isLiveAuthenticated()){workspacePage='agents';return {page:'agents',show3d:false};}
  const route=workspaceRoute(location.hash);workspacePage=route.page;
  if(route.demoTab)state.tab=route.demoTab;
  if(workspacePage==='demo'&&(state.tab==='execution'||state.tab==='compare')&&!state.run){

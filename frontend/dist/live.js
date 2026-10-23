@@ -48,6 +48,7 @@ function failure(error) {
   notify(error.details?.decision_saved ? '결정은 저장됐지만 실행 재개 전달에 실패했습니다. 같은 결정을 다시 보내 주세요.' : messages[error.code] || error.message, true);
 }
 export function leaveLive() { clearTimeout(timer); clearTimeout(batchTimer); clearInterval(playback); playback=null; generation++; host=null; loading=false; pauseScene(); }
+export function isLiveAuthenticated() { return !!state.session; }
 const pageCopy={
   agents:['평가 대상','어떤 제조 Agent를 시험할지 고르세요. 세 유형 모두 참조 환경과 시험용 MCP로 실행되며 실제 설비는 조작하지 않습니다.'],
   prepare:['시험 설계','Agent 기능과 근거 자료를 확인해 위험 시험을 만듭니다.'],
@@ -278,14 +279,20 @@ function renderLoginTopoSvg() {
   return `<div class="login-art"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" aria-hidden="true">${g}</svg><div class="login-labels">${labelsHtml}</div></div>`;
 }
 function syncShellChrome() {
+  const authed=!!state.session;
   const scopeEl=document.getElementById('header-scope');
   const pageEl=document.getElementById('header-page-label');
   const waitEl=document.getElementById('header-approval-pill');
   const userEl=document.getElementById('header-user');
   const modeEl=document.getElementById('header-mode-label');
+  const stepNav=document.querySelector('.step-nav');
+  const railNav=document.querySelector('.rail-nav');
+  if(stepNav) stepNav.hidden=!authed;
+  if(railNav) railNav.hidden=!authed;
+  document.querySelectorAll('.header-crumb .crumb-sep, #header-scope, #header-page-label').forEach(el=>{el.hidden=!authed;});
   if(scopeEl) scopeEl.textContent=state.registration?.name || ({PURCHASE:'자재 구매 · 발주',PRODUCTION:'생산 일정',QUALITY:'품질 · 출하'}[state.targetType] || '자재 구매 · 발주');
   if(pageEl) pageEl.textContent=state.run && ['live','execution'].includes(page) ? state.run.run_id : (pageCopy[page]?.[0] || '평가 대상');
-  if(waitEl) waitEl.hidden=!(state.run?.status==='WAITING_APPROVAL');
+  if(waitEl) waitEl.hidden=!authed || !(state.run?.status==='WAITING_APPROVAL');
   if(modeEl) modeEl.textContent='API 정상 연결';
   const modeBadge=document.getElementById('header-mode-badge');
   if(modeBadge){
@@ -293,17 +300,16 @@ function syncShellChrome() {
     if(dot) dot.className='pulse-dot';
   }
   const demoBtn=document.querySelector('.header-end .demo-entry');
-  if(demoBtn) demoBtn.textContent='데모 둘러보기';
+  if(demoBtn){
+    demoBtn.hidden=!authed;
+    demoBtn.textContent='데모 둘러보기';
+  }
   if(userEl){
-    userEl.hidden=false;
     if(state.session){
+      userEl.hidden=false;
       userEl.innerHTML=`<span class="user-chip"><span class="mono">${esc(state.session.user_id)}</span><button type="button" class="chip-logout" data-live-shell-logout>로그아웃</button></span>`;
       const btn=userEl.querySelector('[data-live-shell-logout]');
       if(btn) btn.onclick=()=>{host?.querySelector('[data-live-logout]')?.click();};
-    } else if(state.authDismissed || page!=='agents'){
-      userEl.innerHTML=`<button type="button" class="secondary demo-entry" data-live-open-auth>로그인</button>`;
-      const btn=userEl.querySelector('[data-live-open-auth]');
-      if(btn) btn.onclick=()=>{state.authDismissed=false;if(page!=='agents'&&go)go('agents');else account();};
     } else {
       userEl.hidden=true;
     }
@@ -318,9 +324,9 @@ function syncShellChrome() {
   });
 }
 export function mountLive(element, selectedPage='agents', navigate) {
-  host=element; page=selectedPage; go=navigate; generation++; loading=false;
+  host=element; page=state.session?selectedPage:'agents'; go=navigate; generation++; loading=false;
   const [title,description]=pageCopy[page];
-  const showAuthSplit = !state.session && !state.authDismissed && page==='agents' && !new URLSearchParams(location.search).has('targets');
+  const showAuthSplit = !state.session;
   host.innerHTML=`
     <section class="login-split" data-live-auth-split ${showAuthSplit?'':'hidden'}>
       <div class="login-stage">
@@ -353,10 +359,6 @@ export function mountLive(element, selectedPage='agents', navigate) {
           <button type="button" class="role-preset" data-role-preset="approver-01"><strong>승인자</strong><span class="num">approver-01</span></button>
         </div>
         <div data-live-account class="rise d3"></div>
-        <div class="login-alt rise d4">
-          <button type="button" class="link-button" data-live-skip-auth>평가 대상 둘러보기 →</button>
-          <button type="button" class="link-button" data-live-demo-jump>데모 예시 둘러보기</button>
-        </div>
       </div>
     </section>
 
@@ -779,7 +781,7 @@ function selectedDesign() {
 }
 
 function account() {
-  const showAuthSplit = !state.session && !state.authDismissed && page==='agents' && !new URLSearchParams(location.search).has('targets');
+  const showAuthSplit = !state.session;
   const split=$('[data-live-auth-split]');
   if(split) split.hidden=!showAuthSplit;
   const ws=$('[data-live-workspace]');
