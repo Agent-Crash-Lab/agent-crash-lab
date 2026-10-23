@@ -333,10 +333,13 @@ export function mountLive(element, selectedPage='agents', navigate) {
 
               <div data-live-summary class="card section-pad rise d2" ${['live','execution'].includes(page)?'':'hidden'}>
                 <div class="empty-stage-box">
-                  <span class="empty-kicker">READY TO EXECUTE</span>
+                  <span class="empty-kicker">READY TO INSPECT</span>
                   <h2>실행을 선택하거나 새 시험을 시작해 주세요</h2>
-                  <p class="live-hint">우측 조건 설정에서 시험을 시작하거나, 이전 실행 기록을 선택해 상태를 추적합니다.</p>
-                  <button class="secondary" data-live-go="prepare">시험 설계로 돌아가기 →</button>
+                  <p class="live-hint">저장된 실행 기록을 선택해 3D 실행 흐름과 Agent–DB 상태 대조표를 확인하거나, 새 시험을 시작합니다.</p>
+                  <div class="live-flow-actions">
+                    <button class="primary" data-live-go="prepare">시험 설계로 이동 →</button>
+                    <button class="secondary" type="button" data-live-open-3d-demo>◈ S03 응답 유실 3D 데모 바로 보기</button>
+                  </div>
                 </div>
               </div>
 
@@ -427,10 +430,32 @@ export function mountLive(element, selectedPage='agents', navigate) {
             <form data-live-compare class="live-compare-form"><label>왼쪽 실행<select name="left" required></select></label><label>오른쪽 실행<select name="right" required></select></label><button class="primary" type="submit">실제 결과 비교</button></form>
           </section>
           <div data-live-comparison ${page==='compare'?'':'hidden'}></div>
-          <section class="panel section-pad" data-live-analysis hidden><div class="live-row"><h2>실행 흐름</h2><div class="live-row"><span data-live-count></span><button class="secondary" data-live-play>재생</button><button class="secondary" data-live-export>근거 JSON 내보내기</button></div></div>
-            <div id="live-scene" class="live-scene" aria-label="실제 이벤트 기반 서비스 구조"></div>
-            <label>확인할 이벤트<input data-live-cursor type="range" min="0" value="0" aria-label="확인할 이벤트 순서"></label>
-            <div class="live-evidence-grid"><div data-live-events class="live-events" aria-label="실행 이벤트"></div><div><h3>선택한 근거</h3><pre data-live-evidence tabindex="0"></pre></div></div></section>
+          <section class="card section-pad live-analysis-shell" data-live-analysis hidden>
+            <div class="live-row analysis-top-bar">
+              <div>
+                <span class="step-eyebrow">3D TOPOLOGY &amp; EVENT TRACE</span>
+                <h2>실행 흐름</h2>
+              </div>
+              <div class="live-row">
+                <span class="mono dim" data-live-count></span>
+                <button class="secondary" data-live-play>재생</button>
+                <button class="secondary" data-live-export>근거 JSON 내보내기</button>
+              </div>
+            </div>
+            <div class="live-stage-grid">
+              <div class="live-stage-col">
+                <div id="live-scene" class="live-scene" aria-label="실제 이벤트 기반 서비스 구조"></div>
+                <label class="scrubber-wrap">확인할 이벤트 순서<input data-live-cursor type="range" min="0" value="0" aria-label="확인할 이벤트 순서"></label>
+              </div>
+              <aside class="live-inspector-col">
+                <div class="inspector-subhead"><h3>실행 이벤트</h3><span class="meta">클릭하여 시점 이동</span></div>
+                <div data-live-events class="live-events" aria-label="실행 이벤트"></div>
+                <div class="inspector-subhead"><h3>선택한 근거</h3><span class="meta mono">RAW PAYLOAD</span></div>
+                <pre data-live-evidence tabindex="0"></pre>
+              </aside>
+            </div>
+            <div data-live-divergence></div>
+          </section>
           <section data-live-result hidden></section>
         </section>
       </div>
@@ -795,7 +820,8 @@ function renderRun(force=false) {
       </form></section>` : '';
   }
   $('[data-live-analysis]').hidden=page!=='execution';$('[data-live-result]').hidden=page!=='execution';renderEvents();
-  $('[data-live-result]').innerHTML=`<section class="panel section-pad"><div class="live-row"><h2>QA 보고서</h2><button class="secondary" data-live-qa-report ${!state.settled || !run.qa_report?'disabled':''}>이 실험 보고서 저장</button><button class="secondary" data-live-qa-summary>최근 시험 요약 저장</button></div>${qaReportMarkup(run.qa_report)}${state.settled?followupMarkup(run.follow_up):''}
+  const checksGridHtml = run.checks?.length ? `<div class="checks">${run.checks.map(c=>`<div class="chk ${c.verdict==='FAIL'?'f':'p'}"><span class="ic">${c.verdict==='PASS'?'✓':c.verdict==='FAIL'?'×':'…'}</span><div><strong>${esc(ruleTitle(c.rule_id))}</strong><p>${esc(c.reason || c.message || scopeTitle(c.scope))}</p></div><span class="r">${badge(c.verdict)}</span></div>`).join('')}</div>` : '';
+  $('[data-live-result]').innerHTML=`<section class="card section-pad"><div class="live-row"><div><span class="step-eyebrow">ORACLE VERDICT &amp; QA REPORT</span><h2>QA 보고서</h2></div><div class="live-row"><button class="secondary" data-live-qa-report ${!state.settled || !run.qa_report?'disabled':''}>이 실험 보고서 저장</button><button class="secondary" data-live-qa-summary>최근 시험 요약 저장</button></div></div>${checksGridHtml}${qaReportMarkup(run.qa_report)}${state.settled?followupMarkup(run.follow_up):''}
     <details><summary>검사 상세 · ${run.checks?.length || 0}개</summary><h2>검사 결과</h2>${run.checks?.length ? `<div class="live-table-wrap"><table class="live-table"><thead><tr><th>규칙</th><th>대상</th><th>판정</th><th>근거</th></tr></thead><tbody>${run.checks.map(c=>`<tr><td>${esc(ruleTitle(c.rule_id))}</td><td>${esc(scopeTitle(c.scope))}</td><td>${badge(c.verdict)}</td><td>${esc(c.reason || c.message || '')}<details><summary>검사 근거</summary><pre>${json(c)}</pre></details></td></tr>`).join('')}</tbody></table></div>` : '<p>아직 판정이 없습니다.</p>'}</details>
     ${run.investigation?.report?`<details><summary>추가 조사 기록</summary><p class="live-hint">${run.investigation.method==='CODE_EVIDENCE_SUMMARY'?'코드 기반 기록 요약':'조사 Agent 결과 · 사실과 원인 후보 구분'}</p>${reportView(run.investigation.report)}</details>`:''}
     <details><summary>실행 정보</summary><pre>${json({agent:run.agent,manifest:run.manifest,investigation_validation:run.investigation?.validation})}</pre></details></section>`;
@@ -814,6 +840,24 @@ function renderEvents() {
   list.innerHTML=events.map((e,i)=>`<button class="live-event ${i===selected?'selected':''}" data-live-event="${i}"><span class="mono">${e.sequence}</span><span>${esc(e.event_type)}<small>${esc(e.node_id)} · ${esc(e.occurred_at)}</small></span></button>`).join('');
   list.scrollTop=scroll;
   $('[data-live-evidence]').textContent=events[selected] ? JSON.stringify(events[selected],null,2) : '아직 이벤트가 없습니다.';
+  const divArea=$('[data-live-divergence]');
+  if(divArea){
+    const dbEvs=events.filter(e=>['BUSINESS_COMMITTED','IDEMPOTENT_RETURNED','VERDICT_CREATED','STATE_CHANGED'].includes(e.event_type));
+    const agEvs=events.filter(e=>['APPROVAL_DECIDED','FAULT_INJECTED','TOOL_CALLED','AGENT_REPORTED'].includes(e.event_type));
+    const hasFault=events.some(e=>e.event_type==='FAULT_INJECTED');
+    const total=Math.max(events.length,1);
+    const posPct=seq=>Math.min(92,Math.max(8,Math.round((seq/total)*90)));
+    divArea.innerHTML=events.length?`<div class="card div-card live-div-card"><div class="card-h"><h2>Agent가 본 것과 실제 DB</h2><span class="meta">같은 순번에서 두 기록을 대조합니다</span></div>
+      <div class="lanes">
+        <div class="lane"><label>업무 DB<small>실제 상태</small></label><div class="lane-track">
+          ${hasFault?'<div class="gap-zone" style="left:38%;width:34%"></div>':''}
+          ${dbEvs.slice(0,4).map(e=>`<span class="ev ${e.event_type==='BUSINESS_COMMITTED'?'db':'ok'}" style="left:${posPct(e.sequence)}%">#${e.sequence} ${esc(e.event_type)}</span>`).join('')}
+        </div></div>
+        <div class="lane"><label>대상 Agent<small>받은 결과 · 호출</small></label><div class="lane-track">
+          ${agEvs.slice(0,4).map(e=>`<span class="ev ${e.event_type==='FAULT_INJECTED'?'sig':e.event_type==='AGENT_REPORTED'?'bad':''}" style="left:${posPct(e.sequence)}%">#${e.sequence} ${esc(e.event_type)}</span>`).join('')}
+        </div></div>
+      </div></div>`:'';
+  }
   if(page!=='execution'){pauseScene();return;}
   const liveGraph=state.run?.manifest?.state_store?{...graph,nodes:graph.nodes.map(n=>({...n,label:n.id==='agent'?agentName('purchase'):n.id==='mcp'?'제조업 시험 MCP':n.id==='investigator'?'조사 요약':n.label}))}:graph;
   try { mountScene($('#live-scene'),liveGraph,frameFor(liveGraph,sceneEvents(events),selected),node=>{const i=sceneEvents(state.events).findLastIndex(e=>e.node_id===node);if(i>=0){state.selected=i;renderEvents();}}); }
@@ -919,6 +963,10 @@ function click(event) {
   if(target.hasAttribute('data-live-skip-auth')) {
     state.authDismissed=true;
     account();
+    return;
+  }
+  if(target.hasAttribute('data-live-open-3d-demo')) {
+    location.hash='#demo-3d';
     return;
   }
   if(target.hasAttribute('data-live-demo-jump')) {
