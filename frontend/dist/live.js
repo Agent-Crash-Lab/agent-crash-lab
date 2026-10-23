@@ -251,7 +251,14 @@ function syncShellChrome() {
   if(scopeEl) scopeEl.textContent=state.registration?.name || ({PURCHASE:'자재 구매 · 발주',PRODUCTION:'생산 일정',QUALITY:'품질 · 출하'}[state.targetType] || '자재 구매 · 발주');
   if(pageEl) pageEl.textContent=state.run && ['live','execution'].includes(page) ? state.run.run_id : (pageCopy[page]?.[0] || '평가 대상');
   if(waitEl) waitEl.hidden=!(state.run?.status==='WAITING_APPROVAL');
-  if(modeEl) modeEl.textContent='실제 API';
+  if(modeEl) modeEl.textContent='API 정상 연결';
+  const modeBadge=document.getElementById('header-mode-badge');
+  if(modeBadge){
+    const dot=modeBadge.querySelector('.pulse-dot');
+    if(dot) dot.className='pulse-dot';
+  }
+  const demoBtn=document.querySelector('.header-end .demo-entry');
+  if(demoBtn) demoBtn.textContent='데모 둘러보기';
   if(userEl){
     userEl.hidden=false;
     if(state.session){

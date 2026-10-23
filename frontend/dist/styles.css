@@ -603,6 +603,14 @@ a {
   border-color: var(--signal);
 }
 
+.pulse-dot.idle {
+  background: var(--muted);
+}
+
+.pulse-dot.idle::after {
+  display: none;
+}
+
 .wait-pill {
   display: inline-flex;
   align-items: center;
