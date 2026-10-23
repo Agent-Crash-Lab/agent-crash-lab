@@ -461,11 +461,12 @@ class Runner:
         await self._save_checks(run_id, checks)
         await self._set_status(self._run(run_id), "COMPLETED")
 
-    async def _investigate(self, run_id, mode, target_run_id, fixture_id, test=None):
+    async def _investigate(self, run_id, mode, target_run_id, fixture_id, test=None, token=None):
         """Run the investigation Agent; its events go to the Harness run `run_id`.
 
         Returns (validation, REPORT_READY event_id, R10 check). The R10 check is only built for
         the IA unit test (`test`); after a SYSTEM run the usage is recorded but not judged.
+        `token` is a sandbox run's investigation token from MCP_SPEC 3.6.
         """
         run = self._run(run_id)
         run["investigation"]["status"] = "RUNNING"
@@ -478,7 +479,7 @@ class Runner:
             "target_run_id": target_run_id,
         }
         if mode == "mcp":
-            body["agent_token"] = self.tokens.get(run_id, {}).get("investigation_agent")
+            body["agent_token"] = token or self.tokens.get(run_id, {}).get("investigation_agent")
         else:
             body["fixture_id"] = fixture_id
         agent, active, runner_timeout = None, 0.0, False

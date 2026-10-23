@@ -32,7 +32,7 @@ from harness.registrations import (
 from harness.reporting import qa_report
 from harness.runner import Runner, RunnerError
 from harness.scenarios import index_plan
-from harness.simulation import Decision, SimulationError
+from harness.simulation import Decision, SimulationError, investigation_state
 from harness.store import Store
 
 DEV_USER = ("requester-01", ["REQUESTER"])
@@ -700,6 +700,15 @@ def create_app(settings: Settings | None = None, mcp=None, agents=None) -> FastA
         get_run(request, run_id)
         await request.app.state.events.flush(run_id, force=True)
         return {"events": request.app.state.store.list_events(run_id)}
+
+    @app.get("/internal/runs/{run_id}/simulation-state", dependencies=[Depends(internal)])
+    async def internal_simulation_state(run_id: str, request: Request):
+        """MCP_SPEC 4.4: the production/quality sandbox, read by Spring's investigation tools."""
+        get_run(request, run_id)
+        state = request.app.state.store.get_simulation(run_id)
+        if state is None:
+            raise ApiError(404, "SIMULATION_NOT_FOUND", f"run {run_id}")
+        return investigation_state(run_id, state)
 
     return app
 

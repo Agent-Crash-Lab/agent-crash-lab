@@ -51,6 +51,10 @@ class McpClient(_Http):
     async def search_knowledge(self, body: dict) -> dict:
         return await self._send("POST", "/internal/knowledge/search", json=body)
 
+    async def register_investigation(self, body: dict) -> dict:
+        """MCP_SPEC 3.6: an investigation-only token for a production/quality sandbox run."""
+        return await self._send("POST", "/internal/investigation-runs", json=body)
+
     async def initialize(self, body: dict) -> dict:
         return await self._send("POST", "/internal/sandbox/runs", json=body)
 
