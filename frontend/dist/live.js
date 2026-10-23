@@ -7,7 +7,7 @@ import {frameFor} from './topology.js?v=0.15.0';
 const graph = {...purchaseTopology, version:'live-topology-v1', nodes:[...purchaseTopology.nodes,
   {id:'guide',label:'조사 지침',role:'store',layer:3,lane:2},
   {id:'fault',label:'사고 주입',role:'tool',layer:1,lane:3}]};
-const state = {registration:null, registrations:[], capabilityOptions:[], executionRuntimes:[], targetType:'PURCHASE', targetTypes:[], batch:null, batchRequest:null, designPlan:null, designCaseId:null, knowledge:null, knowledgeStatus:null, trialData:{enabled:false,quantity:100,inventory:20,unit_price_minor:12000}, session:null, catalog:null, runs:[], run:null, events:[], selected:null, comparison:null, settled:false, draft:{agent:"purchase",test_id:"S01",system_id:"B0"}, compareDraft:{left:"",right:""}, pendingStart:false, pendingRunId:null};
+const state = {authDismissed:false, registration:null, registrations:[], capabilityOptions:[], executionRuntimes:[], targetType:'PURCHASE', targetTypes:[], batch:null, batchRequest:null, designPlan:null, designCaseId:null, knowledge:null, knowledgeStatus:null, trialData:{enabled:false,quantity:100,inventory:20,unit_price_minor:12000}, session:null, catalog:null, runs:[], run:null, events:[], selected:null, comparison:null, settled:false, draft:{agent:"purchase",test_id:"S01",system_id:"B0"}, compareDraft:{left:"",right:""}, pendingStart:false, pendingRunId:null};
 let host, timer, batchTimer, playback, generation=0, loading=false, page='agents', go;
 const $ = selector => host?.querySelector(selector);
 const json = value => esc(JSON.stringify(value, null, 2));
@@ -48,84 +48,531 @@ function failure(error) {
   notify(error.details?.decision_saved ? '결정은 저장됐지만 실행 재개 전달에 실패했습니다. 같은 결정을 다시 보내 주세요.' : messages[error.code] || error.message, true);
 }
 export function leaveLive() { clearTimeout(timer); clearTimeout(batchTimer); clearInterval(playback); playback=null; generation++; host=null; loading=false; pauseScene(); }
+export function isLiveAuthenticated() { return !!state.session; }
 const pageCopy={
-  agents:['평가 대상','제조업 업무 유형을 선택하고, 해당 Agent에 필요한 시험을 설계합니다.'],
+  agents:['평가 대상','어떤 제조 Agent를 시험할지 고르세요. 세 유형 모두 참조 환경과 시험용 MCP로 실행되며 실제 설비는 조작하지 않습니다.'],
   prepare:['시험 설계','Agent 기능과 근거 자료를 확인해 위험 시험을 만듭니다.'],
   live:['실제 실행','설정한 조건으로 실행하고 담당자 승인·거절을 처리합니다.'],
   execution:['실행 분석','실행 흐름과 QA 보고서를 확인합니다.'],
   compare:['결과 비교','같은 SYSTEM 시나리오의 완료된 실행을 비교합니다.']
 };
 const agentName=agent=>agent==='investigator'?'사고 조사 Agent':state.registration?.name || ({PRODUCTION:'생산 일정 Agent',QUALITY:'품질·출하 Agent'}[state.run?.manifest?.agent_type || state.targetType] || '구매 Agent');
+const targetTypeMeta={
+  PURCHASE:{
+    badge:'사고 시나리오 포함',
+    chain:['Agent','승인','MCP','DB'],
+    faultIndex:2,
+    scenarios:[
+      {code:'S01 정상 발주'},
+      {code:'S02 승인 거절'},
+      {code:'S03 응답 유실',fault:true},
+      {code:'S04 공급 자격'}
+    ]
+  },
+  PRODUCTION:{
+    badge:'',
+    chain:['Agent','계획 도구','MES','DB'],
+    faultIndex:-1,
+    scenarios:[
+      {code:'P01 정상 편성'},
+      {code:'P02 설비 중단'},
+      {code:'P03 중복 편성',fault:true}
+    ]
+  },
+  QUALITY:{
+    badge:'',
+    chain:['Agent','검사 조회','승인','DB'],
+    faultIndex:-1,
+    scenarios:[
+      {code:'Q01 합격 출하'},
+      {code:'Q02 불합격 보류'},
+      {code:'Q03 근거 누락',fault:true}
+    ]
+  }
+};
+function renderChainSvg(chain, faultIndex=-1) {
+  const W=300, step=W/chain.length;
+  let g='';
+  chain.forEach((it,i)=>{
+    const x=step*i+step/2;
+    if(i<chain.length-1){
+      const x2=x+step, fe=i===faultIndex-1;
+      g+=`<line x1="${x+18}" y1="22" x2="${x2-18}" y2="22" stroke="${fe?'var(--signal, #ff6a3d)':'var(--control, #4a4a52)'}" stroke-width="1.6" ${fe?'stroke-dasharray="4 4" class="fault-wire-glitch"':''}/>`;
+      g+=`<circle r="2.8" fill="${fe?'#ff8a5f':'var(--pos, #3fb68b)'}"><animate attributeName="cx" from="${x+18}" to="${x2-18}" dur="${1.5+i*0.28}s" repeatCount="indefinite"/><animate attributeName="cy" values="22;22" dur="1s" repeatCount="indefinite"/></circle>`;
+      g+=`<circle r="1.6" fill="${fe?'#ff6a3d':'#6fd4ab'}" opacity="0.65"><animate attributeName="cx" from="${x+18}" to="${x2-18}" dur="${1.5+i*0.28}s" begin="0.18s" repeatCount="indefinite"/><animate attributeName="cy" values="22;22" dur="1s" repeatCount="indefinite"/></circle>`;
+    }
+    const isf=i===faultIndex;
+    if(isf){
+      g+=`<circle cx="${x}" cy="22" r="18" fill="none" stroke="var(--signal, #ff6a3d)" stroke-width="1" opacity="0.45" class="shock"/>`;
+    }
+    g+=`<rect x="${x-14}" y="8" width="28" height="28" rx="6" fill="${isf?'var(--sig-bg, #2a1610)':'var(--raised-2, #1f1f24)'}" stroke="${isf?'var(--signal, #ff6a3d)':'var(--control, #3a3a42)'}" stroke-width="1.4"/>`;
+    g+=`<circle cx="${x}" cy="22" r="3.2" fill="${isf?'var(--signal, #ff6a3d)':'var(--pos, #3fb68b)'}" opacity="0.85"/>`;
+    g+=`<text x="${x}" y="56" text-anchor="middle" font-size="11" font-weight="500" fill="var(--text-2, #8b8b93)" font-family="Pretendard Variable, Pretendard, sans-serif">${esc(it)}</text>`;
+  });
+  return `<svg class="chain" viewBox="0 0 300 64" aria-hidden="true">${g}</svg>`;
+}
+function renderLoginTopoSvg() {
+  const ICONS={
+    mcp:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2.5" width="12" height="4" rx="1"/><rect x="2" y="9.5" width="12" height="4" rx="1"/><circle cx="4.5" cy="4.5" r="0.8" fill="currentColor"/><circle cx="4.5" cy="11.5" r="0.8" fill="currentColor"/></svg>`,
+    scenario:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9.5 2H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5.5L9.5 2Z"/><path d="M5.5 8h5M5.5 10.8h3.2" stroke-linecap="round"/></svg>`,
+    harness:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1.8 13.5 4v4.2c0 3.2-2.3 5.2-5.5 6-3.2-.8-5.5-2.8-5.5-6V4L8 1.8Z"/><path d="m6 8 1.5 1.5L10.5 6" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+    mfg:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3.5" y="3.5" width="9" height="9" rx="1.8"/><path d="M6.5 6.5h3v3h-3zM8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2" stroke-linecap="round"/></svg>`,
+    rag:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 3.5A1.5 1.5 0 0 1 4 2h8.5v11H4a1.5 1.5 0 0 0-1.5 1.5v-11Z"/><path d="M2.5 13.5A1.5 1.5 0 0 1 4 12h9.5M6 5.5h4.5M6 8h3" stroke-linecap="round"/></svg>`,
+    db:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><ellipse cx="8" cy="3.8" rx="5" ry="2"/><path d="M3 3.8v8.4c0 1.1 2.2 2 5 2s5-.9 5-2V3.8"/><path d="M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/></svg>`,
+    qa:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7.2" cy="7.2" r="4.2"/><path d="m10.5 10.5 3.2 3.2M5.6 7.2h3.2M7.2 5.6v3.2" stroke-linecap="round"/></svg>`
+  };
+  const NODES=[
+    {id:'mcp',label:'MCP Server',sub:'인증·승인·구매 도구',l:0,n:-1,kind:'mcp',ox:-8,oy:-8},
+    {id:'scenario',label:'Scenario Agent',sub:'시험 설계·검토',l:0,n:1,kind:'screen',ox:22,oy:-4},
+    {id:'harness',label:'Harness',sub:'시험 운영·판정',l:1,n:-1,kind:'disc',ox:-6,oy:-18},
+    {id:'mfg',label:'Manufacturing Operation Agent',sub:'시험 대상 · 도구 호출',l:1,n:1,kind:'screen',fault:true,ox:18,oy:6},
+    {id:'rag',label:'Knowledge / RAG',sub:'자료 검색 · 문헌 색인',l:2,n:-1,kind:'rag',ox:-32,oy:6},
+    {id:'db',label:'PostgreSQL',sub:'업무 상태·시험 증거',l:2,n:1,kind:'cyl',ox:-10,oy:4},
+    {id:'qa',label:'QA 조사 · 보고서',sub:'필요시 조사 · QA 보고서',l:3,n:0,kind:'screen',ox:-24,oy:12}
+  ];
+  const EDGES=[
+    ['mcp','harness','done'],
+    ['harness','scenario','done'],
+    ['scenario','rag','done'],
+    ['harness','mfg','done'],
+    ['mfg','mcp','fault'],
+    ['mfg','db','done'],
+    ['mfg','qa','done']
+  ];
+  const W=760, H=440, S=86, cx=W*0.5, cy=H*0.54;
+  const P=(x,y,z=0)=>[+(cx+(x-y)*0.866*S).toFixed(1),+(cy+(x+y)*0.5*S-z*S).toFixed(1)];
+  const pos={}; NODES.forEach(nd=>pos[nd.id]=[nd.n*1.15, nd.l*1.15-1.7]);
+  const poly=(pts,fill,stroke='none',sw=1,extra='')=>`<polygon points="${pts.map(p=>p.join(',')).join(' ')}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" ${extra}/>`;
+  let g=`<defs>
+    <linearGradient id="lg-plat-a" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="var(--iso-plat-grad-hi-1, #1e1e24)"/>
+      <stop offset="100%" stop-color="var(--iso-plat-grad-hi-2, #141418)"/>
+    </linearGradient>
+    <linearGradient id="lg-plat-b" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="var(--iso-plat-grad-1, #1a1a20)"/>
+      <stop offset="100%" stop-color="var(--iso-plat-grad-2, #101014)"/>
+    </linearGradient>
+    <filter id="lg-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>`;
+  // Ambient Isometric Telemetry Sweep & Floating Data Dust
+  const radarCenter=P(0,0.05,-0.08);
+  g+=`<g class="ambient-backdrop" opacity="0.55">
+    <ellipse cx="${radarCenter[0]}" cy="${radarCenter[1]}" rx="250" ry="138" fill="none" stroke="var(--iso-plat-rim, #343444)" stroke-width="1" stroke-dasharray="14 10" class="radar-sweep"/>
+    <ellipse cx="${radarCenter[0]}" cy="${radarCenter[1]}" rx="185" ry="102" fill="none" stroke="var(--signal, #ff6a3d)" stroke-width="0.9" stroke-dasharray="6 18" class="radar-sweep" opacity="0.45"/>
+  </g>`;
+  [[-2.1,-1.6,0.4],[-1.6,1.5,0.6],[2.0,-1.1,0.5],[1.9,1.3,0.7],[-0.9,-1.9,0.4],[1.1,-1.7,0.7]].forEach(([sx,sy,sz],idx)=>{
+    const sp=P(sx,sy,sz);
+    const col=idx%2===0?'var(--signal, #ff6a3d)':'var(--pos, #3fb68b)';
+    g+=`<circle cx="${sp[0]}" cy="${sp[1]}" r="${idx%3===0?2.1:1.4}" fill="${col}" opacity="0.55"><animate attributeName="cy" values="${sp[1]};${(sp[1]-9).toFixed(1)};${sp[1]}" dur="${2.6+idx*0.35}s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.2;0.75;0.2" dur="${2.2+idx*0.3}s" repeatCount="indefinite"/></circle>`;
+  });
+  // Terraced 3D Platforms with Bevels & Coordinate Markers
+  [0,1,2,3].forEach(l=>{
+    const y0=l*1.15-1.7, a=P(-1.85,y0-0.45), b=P(1.85,y0-0.45), c=P(1.85,y0+0.45), d=P(-1.85,y0+0.45), t=0.14;
+    const ad=[a[0],a[1]+t*S], bd=[b[0],b[1]+t*S], cd=[c[0],c[1]+t*S], dd=[d[0],d[1]+t*S];
+    const fillTop=l%2?'url(#lg-plat-a)':'url(#lg-plat-b)';
+    g+=poly([d,c,cd,dd],'var(--iso-plat-front, #0a0a0d)','var(--iso-plat-edge, #141419)',1)+poly([b,c,cd,bd],'var(--iso-plat-side, #060608)','var(--iso-plat-edge, #141419)',1)+poly([a,b,c,d],fillTop,'var(--iso-plat-top-edge, #272732)',1);
+    g+=`<line x1="${d[0]}" y1="${d[1]}" x2="${c[0]}" y2="${c[1]}" stroke="var(--iso-plat-rim, #343444)" stroke-width="1.6"/>`;
+    g+=`<line x1="${c[0]}" y1="${c[1]}" x2="${b[0]}" y2="${b[1]}" stroke="var(--iso-plat-rim-side, #282836)" stroke-width="1.4"/>`;
+    const mA=P(-1.62,y0+0.36), mB=P(1.62,y0-0.36);
+    g+=`<circle cx="${mA[0]}" cy="${mA[1]}" r="1.8" fill="var(--iso-coord-dot, #3a3a4c)"/><circle cx="${mB[0]}" cy="${mB[1]}" r="1.8" fill="var(--iso-coord-dot, #3a3a4c)"/>`;
+  });
+  // Optical Conduits & Energy Packet Trains
+  EDGES.forEach(([s,t,st],i)=>{
+    const [x1,y1]=pos[s],[x2,y2]=pos[t], off=st==='fault'?0.18:0;
+    const pts=[P(x1+off,y1,0.02),P(x1+off,y2,0.02),P(x2+off,y2,0.02)];
+    const d=`M${pts[0]} L${pts[1]} L${pts[2]}`;
+    const groove=st==='fault'?'var(--iso-wire-groove-fault, #4a1e14)':st==='done'?'var(--iso-wire-groove-seen, #2a3a34)':'var(--iso-wire-groove-idle, #1e1e28)';
+    const col=st==='done'?'var(--iso-wire-seen, #50dfb0)':st==='fault'?'#ff6a3d':'var(--iso-wire-idle, #30303e)';
+    g+=`<path d="${d}" fill="none" stroke="var(--iso-track-under, #101015)" stroke-width="4.8" stroke-linecap="round"/>`;
+    g+=`<path d="${d}" fill="none" stroke="${groove}" stroke-width="2.4" stroke-linecap="round"/>`;
+    g+=`<path id="lg-e${i}" d="${d}" fill="none" stroke="${col}" stroke-width="${st==='fault'?2.2:1.8}" ${st==='fault'?'stroke-dasharray="7 5" class="fault-wire-glitch"':''} opacity="${st==='idle'?0.7:0.95}"/>`;
+    if(st==='done'){
+      const dur=`${1.9+i*0.32}s`;
+      g+=`<circle r="3.4" fill="#50dfb0" filter="url(#lg-glow)"><animateMotion dur="${dur}" repeatCount="indefinite" path="${d}"/></circle>`;
+      g+=`<circle r="2.2" fill="#34b38a" opacity="0.75"><animateMotion dur="${dur}" repeatCount="indefinite" path="${d}" begin="0.12s"/></circle>`;
+      g+=`<circle r="1.3" fill="#6fd4ab" opacity="0.45"><animateMotion dur="${dur}" repeatCount="indefinite" path="${d}" begin="0.24s"/></circle>`;
+    } else if(st==='fault'){
+      const m=P(x1+off,(y1+y2)/2,0.02);
+      const half=`M${pts[0]} L${m}`;
+      g+=`<circle r="4" fill="#ff8a5f" filter="url(#lg-glow)"><animateMotion dur="1.35s" repeatCount="indefinite" path="${half}"/></circle>`;
+      g+=`<circle r="2.2" fill="#ff3e14" opacity="0.75"><animateMotion dur="1.35s" repeatCount="indefinite" path="${half}" begin="0.12s"/></circle>`;
+      g+=`<g transform="translate(${m[0]}, ${m[1]})"><g class="hazard-node"><circle r="12" fill="var(--iso-hazard-bg, #200d07)" stroke="#ff6a3d" stroke-width="1.8"/><path d="M-4 -4 4 4M4 -4 -4 4" stroke="#ff6a3d" stroke-width="2" stroke-linecap="round"/><circle r="16" fill="none" stroke="#ff6a3d" stroke-width="1.1" stroke-dasharray="3 3"><animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="4s" repeatCount="indefinite"/></circle></g></g>`;
+    }
+  });
+  let labelsHtml='';
+  const order=[...NODES].sort((a,b)=>(pos[a.id][0]+pos[a.id][1])-(pos[b.id][0]+pos[b.id][1]));
+  order.forEach(nd=>{
+    const [x,y]=pos[nd.id], w=0.28, h=nd.kind==='disc'?0.09:nd.kind==='cyl'?0.44:0.35;
+    const top=nd.fault?'var(--iso-fault-top, #3d2014)':nd.dim?'var(--iso-node-dim-top, #222227)':'var(--iso-node-default-top, #2b2b34)';
+    const left=nd.fault?'var(--iso-fault-left, #2c150c)':nd.dim?'var(--iso-node-dim-left, #17171b)':'var(--iso-node-default-left, #1e1e24)';
+    const right=nd.fault?'var(--iso-fault-right, #200e07)':nd.dim?'var(--iso-node-dim-right, #111114)':'var(--iso-node-default-right, #17171c)';
+    const st=nd.fault?'#ff6a3d':nd.dim?'var(--iso-node-dim-stroke, #2a2a32)':'var(--iso-node-default-stroke, #3e3e4a)';
+    if(nd.fault){
+      const c=P(x,y,0);
+      g+=`<ellipse class="shock s1" cx="${c[0]}" cy="${c[1]}" rx="${(0.92*S).toFixed(1)}" ry="${(0.53*S).toFixed(1)}" fill="none" stroke="#ff6a3d" stroke-width="1.8"/>`;
+      g+=`<ellipse class="shock s2" cx="${c[0]}" cy="${c[1]}" rx="${(0.92*S).toFixed(1)}" ry="${(0.53*S).toFixed(1)}" fill="none" stroke="#ff3e14" stroke-width="1.2"/>`;
+      g+=`<ellipse class="shock s3" cx="${c[0]}" cy="${c[1]}" rx="${(0.92*S).toFixed(1)}" ry="${(0.53*S).toFixed(1)}" fill="none" stroke="#ff8a5f" stroke-width="0.9"/>`;
+    }
+    g+=`<g class="iso-node-group ${nd.fault?'is-fault iso-float':!nd.dim?'iso-float-delayed':''}">`;
+    if(nd.kind==='cyl'){
+      const c0=P(x,y,0), c1=P(x,y,h), rx=+(w*1.22*S).toFixed(1), ry=+(w*0.7*S).toFixed(1);
+      g+=`<ellipse cx="${c0[0]}" cy="${c0[1]}" rx="${rx+3}" ry="${ry+2}" fill="var(--iso-shadow, #08080b)" opacity="0.35"/>`;
+      g+=`<path d="M${c0[0]-rx},${c1[1]} L${c0[0]-rx},${c0[1]} A${rx},${ry} 0 0 0 ${c0[0]+rx},${c0[1]} L${c0[0]+rx},${c1[1]} Z" fill="${left}" stroke="${st}" stroke-width="1.2"/>`;
+      const rib1=(c0[1]*0.65+c1[1]*0.35).toFixed(1), rib2=(c0[1]*0.35+c1[1]*0.65).toFixed(1);
+      g+=`<path d="M${c0[0]-rx},${rib1} A${rx},${ry} 0 0 0 ${c0[0]+rx},${rib1}" fill="none" stroke="${st}" stroke-width="1.3"/>`;
+      g+=`<path d="M${c0[0]-rx},${rib2} A${rx},${ry} 0 0 0 ${c0[0]+rx},${rib2}" fill="none" stroke="${st}" stroke-width="1.3"/>`;
+      g+=`<ellipse cx="${c1[0]}" cy="${c1[1]}" rx="${rx}" ry="${ry}" fill="var(--iso-db-lid, #27333d)" stroke="#34b38a" stroke-width="1.5"/>`;
+      g+=`<ellipse class="dbfill" cx="${c1[0]}" cy="${c1[1]}" rx="${(rx*0.76).toFixed(1)}" ry="${(ry*0.76).toFixed(1)}" fill="#50dfb0" opacity=".42" filter="url(#lg-glow)"><animate attributeName="opacity" values="0.28;0.6;0.28" dur="2.2s" repeatCount="indefinite"/></ellipse>`;
+      g+=`<circle cx="${c1[0]}" cy="${c1[1]}" r="2.8" fill="#50dfb0"/>`;
+    } else {
+      const A=P(x-w,y-w,h), B=P(x+w,y-w,h), C=P(x+w,y+w,h), D=P(x-w,y+w,h), Bd=P(x+w,y-w,0), Cd=P(x+w,y+w,0), Dd=P(x-w,y+w,0);
+      const ShA=P(x-w-0.04,y-w,0), ShB=P(x+w+0.04,y-w,0), ShC=P(x+w+0.04,y+w+0.04,0), ShD=P(x-w-0.04,y+w+0.04,0);
+      g+=poly([ShA,ShB,ShC,ShD],'var(--iso-shadow, #08080b)','none',0,'opacity="0.35"');
+      g+=poly([D,C,Cd,Dd],left,st,1.2)+poly([B,C,Cd,Bd],right,st,1.2)+poly([A,B,C,D],top,st,1.4);
+      if(nd.kind==='mcp'){
+        // Server rack blades & gateway port on top
+        [0.12, 0.23].forEach(zOff=>{
+          const rL=P(x-w*0.7,y+w,zOff), rR=P(x+w*0.7,y+w,zOff);
+          g+=`<line x1="${rL[0]}" y1="${rL[1]}" x2="${rR[0]}" y2="${rR[1]}" stroke="#50dfb0" stroke-width="1.6" opacity="0.8"/>`;
+        });
+        const topC=P(x,y,h+0.02);
+        g+=`<ellipse cx="${topC[0]}" cy="${topC[1]}" rx="10" ry="5.5" fill="none" stroke="#50dfb0" stroke-width="1.3"/>`;
+        g+=`<circle cx="${topC[0]}" cy="${topC[1]}" r="2.4" fill="#50dfb0"/>`;
+      }
+      if(nd.kind==='rag'){
+        // Stacked Knowledge / RAG index plates on top of pedestal
+        [0.06, 0.13].forEach((zOff, idx)=>{
+          const pA=P(x-w*0.68,y-w*0.68,h+zOff), pB=P(x+w*0.68,y-w*0.68,h+zOff), pC=P(x+w*0.68,y+w*0.68,h+zOff), pD=P(x-w*0.68,y+w*0.68,h+zOff);
+          g+=poly([pA,pB,pC,pD],'var(--iso-disc-bg, #16221c)',idx===1?'#50dfb0':'#34b38a',1.3);
+        });
+        const k1=P(x-w*0.4,y,h+0.15), k2=P(x+w*0.4,y,h+0.15);
+        g+=`<line x1="${k1[0]}" y1="${k1[1]}" x2="${k2[0]}" y2="${k2[1]}" stroke="#6fd4ab" stroke-width="1.6" stroke-linecap="round"/>`;
+      }
+      if(nd.kind==='screen'){
+        const s1=P(x-w*0.58,y-w*0.12,h), s2=P(x+w*0.12,y-w*0.12,h), s3=P(x+w*0.12,y-w*0.12,h+0.4), s4=P(x-w*0.58,y-w*0.12,h+0.4);
+        const scrStroke=nd.fault?'#ff6a3d':nd.dim?'var(--iso-node-dim-stroke, #282832)':'var(--iso-terminal-stroke, #4e5464)';
+        g+=poly([s1,s2,s3,s4],'var(--iso-terminal-bg, #0e1014)',scrStroke,1.4);
+        const l1=P(x-w*0.48,y-w*0.12,h+0.29), l2=P(x+w*0.02,y-w*0.12,h+0.29), l3=P(x-w*0.48,y-w*0.12,h+0.19), l4=P(x-w*0.14,y-w*0.12,h+0.19), l5=P(x-w*0.48,y-w*0.12,h+0.10), l6=P(x-w*0.04,y-w*0.12,h+0.10);
+        const c1=nd.fault?'#ff8a5f':'#6fd4ab', c2=nd.fault?'#ff6a3d':'#34b38a', c3=nd.fault?'#cc4420':'#227a5d';
+        g+=`<g filter="url(#lg-glow)"><path d="M${l1}L${l2}" stroke="${c1}" stroke-width="1.8" class="blink"/><path d="M${l3}L${l4}" stroke="${c2}" stroke-width="1.5"/><path d="M${l5}L${l6}" stroke="${c3}" stroke-width="1.5"/></g>`;
+        const haloPos=P(x,y,h+0.55);
+        g+=`<ellipse cx="${haloPos[0]}" cy="${haloPos[1]}" rx="${(w*0.88*S).toFixed(1)}" ry="${(w*0.5*S).toFixed(1)}" fill="none" stroke="${nd.fault?'#ff6a3d':'#50dfb0'}" stroke-width="1.2" stroke-dasharray="9 5" class="halo-orbit" opacity="0.85"/>`;
+      }
+      if(nd.kind==='disc'){
+        const c=P(x,y,h+0.03), rxD=+(w*0.82*S).toFixed(1), ryD=+(w*0.46*S).toFixed(1);
+        g+=`<ellipse cx="${c[0]}" cy="${c[1]}" rx="${rxD}" ry="${ryD}" fill="var(--iso-disc-bg, #16221c)" stroke="#34b38a" stroke-width="1.6"/>`;
+        g+=`<ellipse cx="${c[0]}" cy="${c[1]}" rx="${(rxD*0.64).toFixed(1)}" ry="${(ryD*0.64).toFixed(1)}" fill="none" stroke="#6fd4ab" stroke-width="1.3" stroke-dasharray="7 4" class="halo-orbit-rev"/>`;
+        g+=`<circle cx="${c[0]}" cy="${c[1]}" r="3" fill="#50dfb0" filter="url(#lg-glow)"/>`;
+      }
+      if(nd.fault){
+        const b0=P(x,y,h), b1=P(x,y,h+0.58);
+        g+=`<line x1="${b0[0]}" y1="${b0[1]}" x2="${b1[0]}" y2="${b1[1]}" stroke="#ff6a3d" stroke-width="1.8" stroke-dasharray="4 4" class="uplink-beam"/>`;
+      }
+    }
+    g+=`</g>`;
+    const L=P(x,y,h+(nd.kind==='screen'?0.64:0.48));
+    const lx=L[0]+(nd.ox||0), ly=L[1]+(nd.oy||0);
+    labelsHtml+=`<div class="nlabel ${nd.fault?'fault':''} ${nd.dim?'dim':''}" style="left:${(lx/W*100).toFixed(1)}%;top:${(ly/H*100).toFixed(1)}%"><span class="nlabel-ico">${ICONS[nd.id]||''}</span><span class="nlabel-body">${esc(nd.label)}<small>${esc(nd.sub)}</small></span></div>`;
+  });
+  return `<div class="login-art"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" aria-hidden="true">${g}</svg><div class="login-labels">${labelsHtml}</div></div>`;
+}
+function syncShellChrome() {
+  const authed=!!state.session;
+  const scopeEl=document.getElementById('header-scope');
+  const pageEl=document.getElementById('header-page-label');
+  const waitEl=document.getElementById('header-approval-pill');
+  const userEl=document.getElementById('header-user');
+  const modeEl=document.getElementById('header-mode-label');
+  const stepNav=document.querySelector('.step-nav');
+  const railNav=document.querySelector('.rail-nav');
+  if(stepNav) stepNav.hidden=!authed;
+  if(railNav) railNav.hidden=!authed;
+  document.querySelectorAll('.header-crumb .crumb-sep, #header-scope, #header-page-label').forEach(el=>{el.hidden=!authed;});
+  if(scopeEl) scopeEl.textContent=state.registration?.name || ({PURCHASE:'자재 구매 · 발주',PRODUCTION:'생산 일정',QUALITY:'품질 · 출하'}[state.targetType] || '자재 구매 · 발주');
+  if(pageEl) pageEl.textContent=state.run && ['live','execution'].includes(page) ? state.run.run_id : (pageCopy[page]?.[0] || '평가 대상');
+  if(waitEl) waitEl.hidden=!authed || !(state.run?.status==='WAITING_APPROVAL');
+  if(modeEl) modeEl.textContent='API 정상 연결';
+  const modeBadge=document.getElementById('header-mode-badge');
+  if(modeBadge){
+    const dot=modeBadge.querySelector('.pulse-dot');
+    if(dot) dot.className='pulse-dot';
+  }
+  const demoBtn=document.querySelector('.header-end .demo-entry');
+  if(demoBtn){
+    demoBtn.hidden=!authed;
+    demoBtn.dataset.tab='demo';
+    demoBtn.textContent='튜토리얼 시작하기';
+  }
+  if(userEl){
+    if(state.session){
+      userEl.hidden=false;
+      userEl.innerHTML=`<span class="user-chip"><span class="mono">${esc(state.session.user_id)}</span><button type="button" class="chip-logout" data-live-shell-logout>로그아웃</button></span>`;
+      const btn=userEl.querySelector('[data-live-shell-logout]');
+      if(btn) btn.onclick=()=>{host?.querySelector('[data-live-logout]')?.click();};
+    } else {
+      userEl.hidden=true;
+    }
+  }
+  const order=['agents','prepare','live','execution','compare'];
+  const idx=order.indexOf(page);
+  document.querySelectorAll('.step-nav [data-tab]').forEach((btn,i)=>{
+    const done = state.session && i < idx;
+    btn.classList.toggle('done', done);
+    const k=btn.querySelector('.step-k');
+    if(k) k.textContent = done ? '✓' : String(i+1);
+  });
+}
 export function mountLive(element, selectedPage='agents', navigate) {
-  host=element; page=selectedPage; go=navigate; generation++; loading=false;
+  host=element; page=state.session?selectedPage:'agents'; go=navigate; generation++; loading=false;
   const [title,description]=pageCopy[page];
-  host.innerHTML=`<div class="page-heading"><div><span class="eyebrow">CONNECTED WORKSPACE</span><h1>${title}</h1><p>${description}</p></div>${badge('실제 API')}</div>
-    <p class="live-message" data-live-message role="status" aria-live="polite"></p>
-    <div class="live-layout"><aside class="panel section-pad live-controls">
-      <h2>계정</h2><div data-live-account></div>
-      <hr><div class="live-row"><h3>실행 기록</h3><button type="button" class="secondary" data-live-refresh>새로고침</button></div>
-      <div data-live-history class="live-history"></div>
-    </aside><section class="live-content">
+  const showAuthSplit = !state.session;
+  host.innerHTML=`
+    <section class="login-split" data-live-auth-split ${showAuthSplit?'':'hidden'}>
+      <div class="login-stage">
+        <div class="login-copy">
+          <div class="login-brand">
+            <svg width="26" height="28" viewBox="0 0 26 28" fill="none" aria-hidden="true">
+              <path d="M13 1.5 24.5 8v12L13 26.5 1.5 20V8Z" stroke="currentColor" stroke-width="1.8"/>
+              <path d="M1.5 8 13 14.5 24.5 8M13 14.5v12" stroke="currentColor" stroke-width="1.6"/>
+              <path d="m15.5 4 -3 5 3.2 1.4-2.6 4.6" stroke="#ff6a3d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Crash Lab</span>
+          </div>
+          <h2 class="login-headline rise">QA 워크스페이스</h2>
+          <p class="login-lead rise d1">제조 Agent 장애 주입 및 신뢰성 검증 환경</p>
+        </div>
+        ${renderLoginTopoSvg()}
+        <div class="login-ticker rise d2">
+          <div><b>구매 · 생산 · 품질</b><span>Manufacturing Operation Agent (시험 대상)</span></div>
+          <div><b>Scenario + RAG</b><span>문헌 검색 기반 시험 설계 · 검토</span></div>
+          <div><b>Harness + QA 조사</b><span>장애 주입 · DB 증거 판정 · QA 보고서</span></div>
+        </div>
+      </div>
+      <div class="login-pane">
+        <div class="login-pane-head rise d1">
+          <h2>워크스페이스 로그인</h2>
+          <p class="login-sub">안전한 세션을 위해 브라우저를 새로고침하면 다시 로그인합니다.</p>
+        </div>
+        <div class="role-presets rise d2" role="group" aria-label="개발 계정 빠른 선택">
+          <button type="button" class="role-preset on" data-role-preset="requester-01"><strong>요청자</strong><span class="num">requester-01</span></button>
+          <button type="button" class="role-preset" data-role-preset="approver-01"><strong>승인자</strong><span class="num">approver-01</span></button>
+        </div>
+        <div data-live-account class="rise d3"></div>
+      </div>
+    </section>
+
+    <div class="workspace-canvas" data-live-workspace ${showAuthSplit?'hidden':''}>
+      <div class="page-heading title-row rise">
+        <div>
+          <span class="eyebrow">CONNECTED WORKSPACE</span>
+          <h1>${title}</h1>
+          <p class="finding">${description}</p>
+        </div>
+        <div class="heading-actions">
+          ${page==='agents'?'<button type="button" class="secondary" data-live-open-register>+ Agent 등록</button>':''}
+          ${badge('실제 API')}
+        </div>
+      </div>
+      <p class="live-message" data-live-message role="status" aria-live="polite"></p>
       <section class="live-guidance" data-live-guidance aria-label="현재 단계와 다음 행동"></section>
-      <section data-live-target class="panel section-pad" ${page==='agents'?'':'hidden'}>
-        <h2>준비된 제조업 예시</h2><div data-live-targets class="live-targets"><p>로그인하면 서버의 시험 목록을 불러옵니다.</p></div>
-        <div class="live-flow-actions"><button class="primary" data-live-go="prepare" data-live-next disabled>시험 설계 →</button></div>
-      </section>
-      <div data-qa-registration-area ${page==='agents'?'':'hidden'}>${registrationMarkup()}</div>
-      <details data-live-manual ${['prepare','live'].includes(page)?'':'hidden'} ${page==='live'?'open':''}><summary ${page==='prepare'?'':'hidden'}>직접 시나리오 설정 (개발용)</summary><section data-live-setup class="panel section-pad" ${['prepare','live'].includes(page)?'':'hidden'}>
-        <div class="live-row"><h2>${page==='prepare'?'시험 조건 설정':'선택한 시험 실행'}</h2><button class="secondary" data-live-go="agents">평가 대상 변경</button></div>
-        <p data-live-draft-agent></p><div data-live-design-selected></div>
-        <form data-live-start><label>시험 시나리오<select name="test_id" required><option>로그인 후 불러옵니다</option></select></label>
-          <label>서버 정책<select name="system_id"><option value="B0">B0</option><option value="B1">B1</option></select></label>
-          <p class="live-hint" data-live-kind></p>
-          <fieldset data-live-data hidden><legend>시험 데이터</legend>
-            <label><span><input type="checkbox" name="custom_data" ${state.trialData.enabled?'checked':''}> 수량·재고·가격 변경</span></label>
-            <div data-live-data-fields ${state.trialData.enabled?'':'hidden'}>
-              <label>구매 수량<input name="quantity" type="number" min="1" max="2147483647" step="1" value="${state.trialData.quantity}" required></label>
-              <label>초기 재고<input name="inventory" type="number" min="0" max="2147483647" step="1" value="${state.trialData.inventory}" required></label>
-              <label>개당 가격 (원)<input name="unit_price_minor" type="number" min="0" max="2147483647" step="1" value="${state.trialData.unit_price_minor}" required></label>
-              <p class="live-hint">저장한 QA 계획의 데이터로 실행합니다. 현재는 재고가 부족한 구매 요청을 지원합니다.</p>
+
+      <div class="live-layout" data-page="${page}">
+        <section class="live-content">
+          <div class="targets-split" ${page==='agents'?'':'hidden'}>
+            <section data-live-target class="card targets-card rise d1">
+              <div class="card-h"><h2>제조 업무 유형</h2><span class="meta">3개 · 참조 Agent</span></div>
+              <div data-live-targets class="live-targets"><p class="empty-inline">로그인하면 서버의 시험 목록을 불러옵니다.</p></div>
+            </section>
+            <aside class="card targets-side rise d2">
+              <div class="card-h">
+                <h2>최근 실행</h2>
+                <div class="card-h-end">
+                  <span class="meta num" data-live-user-tag>requester-01</span>
+                  <button type="button" class="ghost-sm" data-live-refresh>새로고침</button>
+                </div>
+              </div>
+              <div data-live-history class="live-history"></div>
+              <div class="targets-next">
+                <p data-live-selected-summary><b class="text-strong">자재 구매 · 발주</b>를 선택했습니다. 다음 단계에서 기능 · 근거 · 제안 시험을 확인합니다.</p>
+                <div class="live-flow-actions"><button class="primary full-cta" data-live-go="prepare" data-live-next disabled><span>시험 설계로</span><span>→</span></button></div>
+              </div>
+            </aside>
+          </div>
+
+          <div data-qa-registration-area class="rise d3" ${page==='agents'?'':'hidden'}>${registrationMarkup()}</div>
+
+          <div class="prepare-work-grid" data-page-mode="${page}" ${['prepare','live','execution'].includes(page)?'':'hidden'}>
+            <div class="prepare-main-col">
+              <section data-live-design-area class="card section-pad rise d1" ${page==='prepare'?'':'hidden'}>
+                <div class="card-head-inline">
+                  <div>
+                    <span class="step-eyebrow">01 / SCENARIO DESIGN</span>
+                    <h2>Agent를 보고 시험 설계</h2>
+                  </div>
+                  <span class="pill sig">분석 → 근거 → 시험</span>
+                </div>
+                <p class="live-hint">기능과 근거를 확인해 위험 상황을 만들고, 실행 가능한지 검사합니다.</p>
+                <div data-qa-selected></div>
+                <form data-live-design class="design-form-grid">
+                  <label>설계할 예시 Agent
+                    <select name="target_type" data-live-design-type>
+                      <option value="PURCHASE">자재 구매·발주</option>
+                      <option value="PRODUCTION">생산 일정</option>
+                      <option value="QUALITY">품질·출하</option>
+                    </select>
+                  </label>
+                  <label>시험 생성 방식
+                    <select name="generation_mode">
+                      <option value="llm">LLM으로 새로운 상황 생성</option>
+                      <option value="offline">기존 시험 예시 사용</option>
+                    </select>
+                  </label>
+                  <button type="submit" class="primary">Agent 분석·시험 설계 →</button>
+                </form>
+                <div data-live-design-results></div>
+              </section>
+
+              <div data-live-approval class="rise d1" ${page==='live'?'':'hidden'}></div>
+
+              <div data-live-summary class="card section-pad rise d2" ${['live','execution'].includes(page)?'':'hidden'}>
+                <div class="empty-stage-box">
+                  <span class="empty-kicker">READY TO INSPECT</span>
+                  <h2>실행을 선택하거나 새 시험을 시작해 주세요</h2>
+                  <p class="live-hint">저장된 실행 기록을 선택해 3D 실행 흐름과 Agent–DB 상태 대조표를 확인하거나, 새 시험을 시작합니다.</p>
+                  <div class="live-flow-actions">
+                    <button class="primary" data-live-go="prepare">시험 설계로 이동 →</button>
+                    <button class="secondary" type="button" data-live-open-3d-demo>◈ S03 응답 유실 3D 데모 바로 보기</button>
+                  </div>
+                </div>
+              </div>
+
+              <details class="card knowledge-drawer rise d2" ${page==='prepare'?'':'hidden'}>
+                <summary class="drawer-summary">
+                  <span>03 / 근거 자료 직접 검색 (Parent–Child · BGE)</span>
+                  <span class="pill neu">RAG Vector Search</span>
+                </summary>
+                <section data-live-knowledge-area class="section-pad" ${page==='prepare'?'':'hidden'}>
+                  <div class="live-row"><h2>제조업 근거 찾기</h2><span class="badge">Parent–Child · BGE</span></div>
+                  <p class="live-hint">영어로 검색하세요. 작은 문단을 검색하고 해당 페이지의 큰 문맥을 함께 보여줍니다. 검색 근거는 시험 설계의 참고 자료이며 판정 정답은 아닙니다.</p>
+                  <form data-live-knowledge class="knowledge-form-grid">
+                    <label class="span-2">검색 질문<input name="query" value="${esc(state.knowledge?.query || 'duplicate purchase orders after timeout and retry')}" minlength="2" maxlength="1000" required></label>
+                    <label>업무<select name="target_type"><option value="PURCHASE">자재 구매·발주</option><option value="PRODUCTION">생산</option><option value="QUALITY">품질</option><option value="COMMON">전체</option></select></label>
+                    <button class="secondary" type="submit">전문자료 검색</button>
+                  </form>
+                  <p data-live-knowledge-status class="live-hint"></p>
+                  <div data-live-knowledge-results></div>
+                </section>
+              </details>
+
+              <details data-live-manual class="card manual-drawer rise d3" ${['prepare','live'].includes(page)?'':'hidden'} ${page==='live'?'open':''}>
+                <summary class="drawer-summary" ${page==='prepare'?'':'hidden'}>
+                  <span>직접 시나리오 설정 (개발용)</span>
+                  <span class="mono dim">S01–S04 · B0/B1</span>
+                </summary>
+                <section data-live-setup class="section-pad" ${['prepare','live'].includes(page)?'':'hidden'}>
+                  <div class="live-row">
+                    <div>
+                      <span class="step-eyebrow">${page==='prepare'?'MANUAL OVERRIDE':'01 / SINGLE TRIAL EXECUTION'}</span>
+                      <h2>${page==='prepare'?'시험 조건 설정':'선택한 시험 실행'}</h2>
+                    </div>
+                    <button class="secondary" data-live-go="agents">평가 대상 변경</button>
+                  </div>
+                  <p data-live-draft-agent class="draft-agent-tag"></p>
+                  <div data-live-design-selected></div>
+                  <form data-live-start>
+                    <div class="form-row-2">
+                      <label>시험 시나리오<select name="test_id" required><option>로그인 후 불러옵니다</option></select></label>
+                      <label>서버 정책<select name="system_id"><option value="B0">B0</option><option value="B1">B1</option></select></label>
+                    </div>
+                    <p class="live-hint" data-live-kind></p>
+                    <fieldset data-live-data hidden>
+                      <legend>시험 데이터</legend>
+                      <label class="checkbox-row"><span><input type="checkbox" name="custom_data" ${state.trialData.enabled?'checked':''}> 수량·재고·가격 변경</span></label>
+                      <div data-live-data-fields class="form-row-3" ${state.trialData.enabled?'':'hidden'}>
+                        <label>구매 수량<input name="quantity" type="number" min="1" max="2147483647" step="1" value="${state.trialData.quantity}" required></label>
+                        <label>초기 재고<input name="inventory" type="number" min="0" max="2147483647" step="1" value="${state.trialData.inventory}" required></label>
+                        <label>개당 가격 (원)<input name="unit_price_minor" type="number" min="0" max="2147483647" step="1" value="${state.trialData.unit_price_minor}" required></label>
+                        <p class="live-hint span-3">저장한 QA 계획의 데이터로 실행합니다. 현재는 재고가 부족한 구매 요청을 지원합니다.</p>
+                      </div>
+                    </fieldset>
+                    <button class="primary full-cta" type="submit" disabled><span>${page==='prepare'?'이 조건으로 실행 준비':'시험 시작'}</span><span>→</span></button>
+                  </form>
+                </section>
+              </details>
             </div>
-          </fieldset><button class="primary" type="submit" disabled>${page==='prepare'?'이 조건으로 실행 준비 →':'시험 시작'}</button></form>
-      </section>
-      </details>
-      <section data-live-design-area class="panel section-pad" ${page==='prepare'?'':'hidden'}>
-        <div class="live-row"><h2>Agent를 보고 시험 설계</h2><span class="badge">분석 → 근거 → 시험</span></div>
-        <p class="live-hint">기능과 근거를 확인해 위험 상황을 만들고, 실행 가능한지 검사합니다.</p>
-        <div data-qa-selected></div><form data-live-design><label>설계할 예시 Agent<select name="target_type" data-live-design-type><option value="PURCHASE">자재 구매·발주</option><option value="PRODUCTION">생산 일정</option><option value="QUALITY">품질·출하</option></select></label><label>시험 생성 방식<select name="generation_mode"><option value="llm">LLM으로 새로운 상황 생성</option><option value="offline">기존 시험 예시 사용</option></select></label><button type="submit" class="primary">Agent 분석·시험 설계</button></form>
-        <div data-live-design-results></div>
-      </section>
-      <section data-live-batch-area class="panel section-pad" ${['prepare','live','execution'].includes(page)?'':'hidden'}>
-        <h2>실험 계획 실행</h2><p class="live-hint">정상 대조와 위험 시험을 실행합니다. 승인과 중단 기준을 적용합니다.</p>
-        <form data-live-batch-form><label>설계 시험<select name="case_id" required></select></label>
-          <label>서버 정책<select data-live-batch-system><option value="B0">B0 · 업무 방어 미적용</option><option value="B1">B1 · 업무 방어 적용</option></select></label><label>목적<select name="mode"><option value="SMOKE">기본 연결 점검 · 조건별 1회</option><option value="RELIABILITY">LLM 반복 검증 · 정책 계산 횟수</option></select></label>
-          <label>최대 실행 횟수<input name="max_runs" type="number" min="1" max="300" value="8" required></label>
-          <label>최대 시간 (초)<input name="max_seconds" type="number" min="1" max="3600" value="900" required></label>
-          <label>최대 모델 비용 (USD)<input name="max_cost_usd" type="number" min="0" max="1" step="0.01" value="1" required></label>
-          <p class="live-hint">정상 처리와 위험 조건을 함께 실행합니다. 비용 한도는 공유 모델 예산에도 적용됩니다.</p>
-          <button class="primary" type="submit">설계한 실험 시작</button></form>
-        <div data-live-batch-results></div>
-      </section>
-      <details ${page==='prepare'?'':'hidden'}><summary>근거 자료 직접 검색</summary><section data-live-knowledge-area class="panel section-pad" ${page==='prepare'?'':'hidden'}>
-        <div class="live-row"><h2>제조업 근거 찾기</h2><span class="badge">Parent–Child · BGE</span></div>
-        <p class="live-hint">영어로 검색하세요. 작은 문단을 검색하고 해당 페이지의 큰 문맥을 함께 보여줍니다. 검색 근거는 시험 설계의 참고 자료이며 판정 정답은 아닙니다.</p>
-        <form data-live-knowledge><label>검색 질문<input name="query" value="${esc(state.knowledge?.query || 'duplicate purchase orders after timeout and retry')}" minlength="2" maxlength="1000" required></label>
-          <label>업무<select name="target_type"><option value="PURCHASE">자재 구매·발주</option><option value="PRODUCTION">생산</option><option value="QUALITY">품질</option><option value="COMMON">전체</option></select></label>
-          <button class="secondary" type="submit">전문자료 검색</button></form>
-        <p data-live-knowledge-status class="live-hint"></p><div data-live-knowledge-results></div>
-      </section>
-      </details>
-      <section data-live-compare-area class="panel section-pad" ${page==='compare'?'':'hidden'}><h2>비교할 실제 실행</h2><p class="live-hint">같은 시나리오의 완료된 실행을 고르세요. 서버 정책과 Agent 버전 등 달라진 조건을 함께 확인합니다.</p>
-        <form data-live-compare class="live-compare-form"><label>왼쪽 실행<select name="left" required></select></label><label>오른쪽 실행<select name="right" required></select></label><button class="primary" type="submit">실제 결과 비교</button></form>
-      </section>
-      <div data-live-summary class="panel section-pad" ${['live','execution'].includes(page)?'':'hidden'}><h2>실행을 선택해 주세요</h2><p>왼쪽 실행 기록에서 저장된 실행을 열거나 새 시험을 시작하세요.</p><button class="secondary" data-live-go="prepare">시험 설계 →</button></div>
-      <div data-live-approval ${page==='live'?'':'hidden'}></div>
-      <div data-live-comparison ${page==='compare'?'':'hidden'}></div>
-      <section class="panel section-pad" data-live-analysis hidden><div class="live-row"><h2>실행 흐름</h2><div class="live-row"><span data-live-count></span><button class="secondary" data-live-play>재생</button><button class="secondary" data-live-export>근거 JSON 내보내기</button></div></div>
-        <div id="live-scene" class="live-scene" aria-label="실제 이벤트 기반 서비스 구조"></div>
-        <label>확인할 이벤트<input data-live-cursor type="range" min="0" value="0" aria-label="확인할 이벤트 순서"></label>
-        <div class="live-evidence-grid"><div data-live-events class="live-events" aria-label="실행 이벤트"></div><div><h3>선택한 근거</h3><pre data-live-evidence tabindex="0"></pre></div></div></section>
-      <section data-live-result hidden></section></section></div>`;
+
+            <aside class="prepare-side-col">
+              <section data-live-batch-area class="card section-pad rise d2" ${['prepare','live','execution'].includes(page)?'':'hidden'}>
+                <div class="card-head-inline">
+                  <div>
+                    <span class="step-eyebrow">02 / BATCH EXPERIMENT</span>
+                    <h2>실험 계획 실행</h2>
+                  </div>
+                  <span class="pill neu">반복 · 예산 통제</span>
+                </div>
+                <p class="live-hint">정상 대조와 위험 시험을 실행합니다. 승인과 중단 기준을 적용합니다.</p>
+                <form data-live-batch-form class="batch-form">
+                  <label>설계 시험<select name="case_id" required></select></label>
+                  <div class="form-row-2">
+                    <label>서버 정책<select data-live-batch-system><option value="B0">B0 · 업무 방어 미적용</option><option value="B1">B1 · 업무 방어 적용</option></select></label>
+                    <label>목적<select name="mode"><option value="SMOKE">기본 연결 점검 · 조건별 1회</option><option value="RELIABILITY">LLM 반복 검증 · 정책 계산 횟수</option></select></label>
+                  </div>
+                  <div class="form-row-3">
+                    <label>최대 횟수<input name="max_runs" type="number" min="1" max="300" value="8" required></label>
+                    <label>최대 시간(초)<input name="max_seconds" type="number" min="1" max="3600" value="900" required></label>
+                    <label>비용 한도($)<input name="max_cost_usd" type="number" min="0" max="1" step="0.01" value="1" required></label>
+                  </div>
+                  <p class="live-hint">정상 처리와 위험 조건을 함께 실행합니다. 비용 한도는 공유 모델 예산에도 적용됩니다.</p>
+                  <button class="primary full-cta" type="submit"><span>설계한 실험 시작</span><span>→</span></button>
+                </form>
+                <div data-live-batch-results></div>
+              </section>
+            </aside>
+          </div>
+          <section data-live-compare-area class="card section-pad rise d1" ${page==='compare'?'':'hidden'}>
+            <div class="card-head-inline">
+              <div>
+                <span class="step-eyebrow">05 / POLICY &amp; RUN COMPARISON</span>
+                <h2>비교할 실제 실행</h2>
+              </div>
+              <button type="button" class="secondary" data-live-open-compare-demo>◈ S03 B0 ↔ B1 비교 데모 바로 보기</button>
+            </div>
+            <p class="live-hint">같은 시나리오의 완료된 실행을 고르세요. 서버 정책과 Agent 버전 등 달라진 조건을 함께 확인합니다.</p>
+            <form data-live-compare class="live-compare-form"><label>왼쪽 실행 (기준)<select name="left" required></select></label><label>오른쪽 실행 (비교)<select name="right" required></select></label><button class="primary" type="submit">실제 결과 비교 →</button></form>
+          </section>
+          <div data-live-comparison class="rise d2" ${page==='compare'?'':'hidden'}></div>
+          <section class="card section-pad live-analysis-shell" data-live-analysis hidden>
+            <div class="live-row analysis-top-bar">
+              <div>
+                <span class="step-eyebrow">3D TOPOLOGY &amp; EVENT TRACE</span>
+                <h2>실행 흐름</h2>
+              </div>
+              <div class="live-row">
+                <span class="mono dim" data-live-count></span>
+                <button class="secondary" data-live-play>재생</button>
+                <button class="secondary" data-live-export>근거 JSON 내보내기</button>
+              </div>
+            </div>
+            <div class="live-stage-grid">
+              <div class="live-stage-col">
+                <div id="live-scene" class="live-scene" aria-label="실제 이벤트 기반 서비스 구조"></div>
+                <label class="scrubber-wrap">확인할 이벤트 순서<input data-live-cursor type="range" min="0" value="0" aria-label="확인할 이벤트 순서"></label>
+              </div>
+              <aside class="live-inspector-col">
+                <div class="inspector-subhead"><h3>실행 이벤트</h3><span class="meta">클릭하여 시점 이동</span></div>
+                <div data-live-events class="live-events" aria-label="실행 이벤트"></div>
+                <div class="inspector-subhead"><h3>선택한 근거</h3><span class="meta mono">RAW PAYLOAD</span></div>
+                <pre data-live-evidence tabindex="0"></pre>
+              </aside>
+            </div>
+            <div data-live-divergence></div>
+          </section>
+          <section data-live-result hidden></section>
+        </section>
+      </div>
+    </div>`;
   host.onsubmit=submit;
   host.onclick=click;
   host.oninput=event=>{
@@ -213,10 +660,46 @@ function renderRegistrations() {
 function targets() {
   renderRegistrations();
   $('[data-live-draft-agent]').textContent=`평가 대상: ${agentName(state.draft.agent)}`;
-  $('[data-live-targets]').innerHTML=state.targetTypes.map(type=>
-    `<button class="live-target ${!state.registration && state.targetType===type.type_id?'selected':''}" data-live-target-type="${esc(type.type_id)}" aria-pressed="${!state.registration && state.targetType===type.type_id}"><strong>${esc(type.name)}</strong><p>${esc(type.description)}</p><span>${type.execution==='READY'?'시험 실행 가능':'시험 설계만 가능'}</span><small>${esc(type.checks.join(' · '))}</small></button>`
-  ).join('')+`<details><summary>개별 Agent 점검 (개발용)</summary>${['purchase','investigator'].map(agent=>`<button class="secondary" data-live-agent="${agent}">${agentName(agent)} · ${testsForAgent(state.catalog,agent).length}개 시험</button>`).join('')}</details>`;
-  $('[data-live-next]').disabled=!state.session || !state.targetTypes.length;guidance();
+  const defaultTypes=[
+    {type_id:'PURCHASE',name:'자재 구매 · 발주',description:'재고를 조회하고 담당자 승인 이후 부품을 발주합니다.',execution:'READY',checks:['승인 통제','중복 발주 방지']},
+    {type_id:'PRODUCTION',name:'생산 일정',description:'설비 가용성과 납기를 보고 생산 계획 변경안을 제안합니다.',execution:'READY',checks:['일정 충돌','설비 정합성']},
+    {type_id:'QUALITY',name:'품질 · 출하',description:'검사 결과를 근거로 출하 보류 또는 승인을 제안합니다.',execution:'READY',checks:['근거 완전성','보류 준수']}
+  ];
+  const types=state.targetTypes.length?state.targetTypes:defaultTypes;
+  const lastRunFor=typeId=>{
+    const prefixes={PURCHASE:['S0','PA'],PRODUCTION:['P0','PN'],QUALITY:['Q0','QL']}[typeId]||[];
+    return state.runs.find(r=>prefixes.some(p=>String(r.test_id||'').startsWith(p)));
+  };
+  $('[data-live-targets]').innerHTML=types.map(type=>{
+    const meta=targetTypeMeta[type.type_id]||targetTypeMeta.PURCHASE;
+    const isOn=!state.registration && state.targetType===type.type_id;
+    const last=lastRunFor(type.type_id);
+    const failCount=last?.summary?.FAIL || 0;
+    const passCount=last?.summary?.PASS || 0;
+    const pillHtml=!last
+      ? `<span class="pill neu">${type.execution==='READY'?'실행 대기':'설계 전용'}</span>`
+      : failCount
+        ? `<span class="pill neg">${failCount} 실패</span>`
+        : passCount
+          ? `<span class="pill pos">${passCount} 통과</span>`
+          : `<span class="pill neu">${esc(last.status)}</span>`;
+    const runSub=last?`${esc(last.run_id)} · ${esc(last.test_id)}`:(type.execution==='READY'?'참조 실행 가능':'시험 설계 가능');
+    return `<button type="button" class="live-target target-row ${isOn?'selected on':''}" data-live-target-type="${esc(type.type_id)}" aria-pressed="${isOn}">
+      <div class="target-main">
+        <h3>${esc(type.name)} ${meta.badge?`<span class="pill sig">${esc(meta.badge)}</span>`:''}</h3>
+        <p>${esc(type.description)}</p>
+        <div class="scn">${meta.scenarios.map(s=>`<span class="${s.fault?'f':''}">${esc(s.code)}</span>`).join('')}</div>
+      </div>
+      ${renderChainSvg(meta.chain,meta.faultIndex)}
+      <div class="target-last">${pillHtml}<span class="num">${runSub}</span></div>
+    </button>`;
+  }).join('')+`<details class="dev-agent-details"><summary>개별 Agent 점검 (개발용)</summary><div class="dev-agent-row">${['purchase','investigator'].map(agent=>`<button type="button" class="secondary" data-live-agent="${agent}">${agentName(agent)} · ${testsForAgent(state.catalog || {tests:[]},agent).length}개 시험</button>`).join('')}</div></details>`;
+  const selectedName=state.registration?state.registration.name:(types.find(t=>t.type_id===state.targetType)?.name || '자재 구매 · 발주');
+  const sumEl=$('[data-live-selected-summary]');
+  if(sumEl) sumEl.innerHTML=`<b class="text-strong">${esc(selectedName)}</b>${state.registration?' 프로필을':' 유형을'} 선택했습니다. 다음 단계에서 기능 · 근거 · 제안 시험을 확인합니다.`;
+  $('[data-live-next]').disabled=!state.session || !state.targetTypes.length;
+  syncShellChrome();
+  guidance();
 }
 
 function renderKnowledge() {
@@ -299,13 +782,22 @@ function selectedDesign() {
 }
 
 function account() {
-  $('[data-live-account]').innerHTML=state.session ? `<p>${esc(state.session.user_id)} ${badge(state.session.roles.join(' / '))}</p><button type="button" class="secondary" data-live-logout>로그아웃</button>` :
-    `<form data-live-login><label>계정<input name="user_id" value="requester-01" autocomplete="username" required></label><label>비밀번호<input name="password" type="password" autocomplete="current-password" required></label><button class="secondary full" type="submit">로그인</button><p class="live-hint">개발 계정의 비밀번호는 서버의 DEMO_USER_PASSWORD 설정을 사용합니다.</p></form>`;
+  const showAuthSplit = !state.session;
+  const split=$('[data-live-auth-split]');
+  if(split) split.hidden=!showAuthSplit;
+  const ws=$('[data-live-workspace]');
+  if(ws) ws.hidden=showAuthSplit;
+  const userTag=$('[data-live-user-tag]');
+  if(userTag) userTag.textContent=state.session?.user_id || 'requester-01';
+  $('[data-live-account]').innerHTML=state.session ? `<div class="session-inline"><span class="mono">${esc(state.session.user_id)}</span> ${badge(state.session.roles.join(' / '))} <button type="button" class="secondary" data-live-logout>로그아웃</button></div>` :
+    `<form data-live-login class="login-form-fields"><label class="field-block"><span>계정</span><input name="user_id" value="requester-01" autocomplete="username" required></label><label class="field-block"><span>비밀번호</span><input name="password" type="password" value="crashlab" autocomplete="current-password" required><small class="live-hint">개발 계정 기본 비밀번호는 서버의 <span class="mono">DEMO_USER_PASSWORD (crashlab)</span>입니다.</small></label><button class="primary login-submit" type="submit">로그인하고 평가 대상 고르기 →</button></form>`;
   const button=$('[data-live-start] button');
   button.textContent=page==='prepare'?'이 조건으로 실행 준비 →':state.pendingStart?'실행 요청 중…':state.run && !state.settled?'실행 진행 중':state.designCaseId?'선택한 설계 시험 시작':'시험 시작';
   button.disabled=!registeredCaseReady(state.registration,state.designPlan,state.designCaseId) || !state.session?.roles.includes('REQUESTER') || !state.catalog || state.pendingStart || !!(state.run && !state.settled);
   $('[data-live-setup]').hidden=!['prepare','live'].includes(page) || (page==='live' && !!state.run);
   $('[data-live-summary]').hidden=!['live','execution'].includes(page) || (page==='live' && !state.run);
+  syncShellChrome();
+  targets();
   guidance();selectedDesign();
 }
 function catalog() {
@@ -334,8 +826,15 @@ async function refresh() {
   catalog(); history(); account();
 }
 function history() {
-  const runButton=run=>`<button class="secondary full" data-live-run="${esc(run.run_id)}"><strong>${esc(run.run_id)}</strong> · ${esc(run.test_id)} ${esc(run.system_id || '')}<small>${esc(run.status)}</small></button>`;
-  $('[data-live-history]').innerHTML=state.runs.length ? state.runs.slice(0,8).map(runButton).join('')+(state.runs.length>8?`<details><summary>이전 기록 ${state.runs.length-8}개</summary>${state.runs.slice(8).map(runButton).join('')}</details>`:'') : '<p class="live-hint">로그인하면 저장된 기록을 불러옵니다.</p>';
+  const runBar=run=>{
+    const p=run.summary?.PASS || 0, f=run.summary?.FAIL || 0, inc=run.summary?.INCONCLUSIVE || 0;
+    if(p+f+inc>0){
+      return `<span class="bar3">${p?`<i style="flex:${p};background:var(--pos)"></i>`:''}${f?`<i style="flex:${f};background:var(--neg)"></i>`:''}${inc?`<i style="flex:${inc};background:var(--warn)"></i>`:''}</span>`;
+    }
+    return `<span class="run-state-tag">${esc(run.status)}</span>`;
+  };
+  const runButton=run=>`<button type="button" class="run-row-btn" data-live-run="${esc(run.run_id)}"><span class="run-id num">${esc(run.run_id)}</span><span class="run-sub">${esc(run.test_id)}${run.system_id?` · ${esc(run.system_id)}`:''}</span>${runBar(run)}</button>`;
+  $('[data-live-history]').innerHTML=state.runs.length ? `<div class="runs-list">${state.runs.slice(0,8).map(runButton).join('')}</div>`+(state.runs.length>8?`<details class="runs-more"><summary>이전 기록 ${state.runs.length-8}개</summary><div class="runs-list">${state.runs.slice(8).map(runButton).join('')}</div></details>`:'') : '<p class="live-hint empty-runs-hint">로그인하면 저장된 실행 기록을 불러옵니다.</p>';
   const completed=completedSystemRuns(state.catalog,state.runs);
   for(const name of ['left','right']) {
     const select=$(`[name=${name}]`), previous=state.compareDraft[name];
@@ -380,18 +879,62 @@ async function poll() {
 function renderRun(force=false) {
   $('[data-live-summary]').hidden=!['live','execution'].includes(page);guidance();
   const run=state.run, summary=run.summary || {}, model=run.manifest?.model || run.investigation?.model_metadata?.model;
-  $('[data-live-summary]').innerHTML=`<div class="live-row"><h2>${esc(run.run_id)} · ${esc(run.test_id)} ${esc(run.system_id || '')}</h2>${badge(run.status)}</div>
-    <p>${esc(run.status_reason || '')}</p><div class="live-metrics">${['PASS','FAIL','INCONCLUSIVE'].map(k=>`<div><span>${k}</span><strong>${esc(summary[k] ?? 0)}</strong></div>`).join('')}<div><span>${run.manifest?.state_store?"업무 변경":"실제 주문"}</span><strong>${(run.observed_change_count ?? run.observed_order_count) == null ? "—" : esc(run.observed_change_count ?? run.observed_order_count)}</strong></div></div>
-    ${run.manifest?.registered_target?`<p><strong>등록 대상: ${esc(run.manifest.registered_target.name)}</strong> · 실제 실행: ${esc(run.manifest.registered_target.execution_binding?.name || run.manifest.target_id)} · ${esc(run.manifest.agent_version || '버전 확인 중')}</p>`:''}${state.settled?'<p class="live-hint">수집 완료 · QA 보고서를 확인하세요.</p>':'<p class="live-hint">실행·근거 수집 중</p>'}<p class="mono">모델: ${esc(model && typeof model==='object' ? JSON.stringify(model) : model || run.investigation?.model_metadata?.model_kind || run.manifest?.model_kind || '미지정')} · 조사: ${esc(run.investigation?.status || '—')}</p><div class="live-flow-actions">${run.status==='WAITING_APPROVAL' && page!=='live'?'<button class="primary" data-live-go="live">승인·거절 처리 →</button>':''}${state.settled?'<button class="secondary" data-live-go="prepare">새 시험 준비 →</button>':''}${page!=='execution'?'<button class="secondary" data-live-go="execution">이 실행 분석 →</button>':run.system_id && state.settled?'<button class="secondary" data-live-go="compare">실제 결과 비교 →</button>':''}</div>`;
+  const failCount=summary.FAIL ?? 0, passCount=summary.PASS ?? 0, incCount=summary.INCONCLUSIVE ?? 0;
+  const changeCount=(run.observed_change_count ?? run.observed_order_count) == null ? "—" : esc(run.observed_change_count ?? run.observed_order_count);
+  $('[data-live-summary]').innerHTML=`
+    <div class="live-row run-summary-head">
+      <div>
+        <span class="step-eyebrow">ACTIVE RUN · ${esc(run.system_id || 'UNIT')}</span>
+        <h2>${esc(run.run_id)} <span class="mono dim">· ${esc(run.test_id)} ${esc(run.system_id || '')}</span></h2>
+      </div>
+      ${badge(run.status)}
+    </div>
+    ${run.status_reason?`<p class="live-hint">${esc(run.status_reason)}</p>`:''}
+    <div class="strip kpi-strip-card">
+      <div class="lead ${failCount?'is-fail':'is-pass'}">
+        <label>검사 판정 요약</label>
+        <div class="v">${failCount?`${failCount}개 실패`:`${passCount}개 통과`}</div>
+        <div class="d">PASS ${passCount} · FAIL ${failCount} · 보류 ${incCount}</div>
+      </div>
+      <div><label>PASS</label><div class="v pos-t">${esc(passCount)}</div><div class="d">통과 규칙</div></div>
+      <div><label>FAIL</label><div class="v ${failCount?'neg-t':''}">${esc(failCount)}</div><div class="d">위반 규칙</div></div>
+      <div><label>INCONCLUSIVE</label><div class="v">${esc(incCount)}</div><div class="d">검토 대기</div></div>
+      <div><label>${run.manifest?.state_store?"업무 변경":"실제 주문"}</label><div class="v">${changeCount}<small>건</small></div><div class="d">DB 관측 상태</div></div>
+    </div>
+    ${run.manifest?.registered_target?`<p><strong>등록 대상: ${esc(run.manifest.registered_target.name)}</strong> · 실제 실행: ${esc(run.manifest.registered_target.execution_binding?.name || run.manifest.target_id)} · ${esc(run.manifest.agent_version || '버전 확인 중')}</p>`:''}
+    <div class="run-meta-bar">
+      <span>${state.settled?'수집 완료 · QA 보고서를 확인하세요.':'실행·근거 수집 중'}</span>
+      <span class="mono">모델: ${esc(model && typeof model==='object' ? JSON.stringify(model) : model || run.investigation?.model_metadata?.model_kind || run.manifest?.model_kind || '미지정')} · 조사: ${esc(run.investigation?.status || '—')}</span>
+    </div>
+    <div class="live-flow-actions">${run.status==='WAITING_APPROVAL' && page!=='live'?'<button class="primary" data-live-go="live">승인·거절 처리 →</button>':''}${state.settled?'<button class="secondary" data-live-go="prepare">새 시험 준비 →</button>':''}${page!=='execution'?'<button class="secondary" data-live-go="execution">이 실행 분석 →</button>':run.system_id && state.settled?'<button class="secondary" data-live-go="compare">실제 결과 비교 →</button>':''}</div>`;
   const approvalKey=JSON.stringify([run.run_id,run.status,run.approval_request,run.approval]);
   const area=$('[data-live-approval]');
   if(force || area.dataset.key!==approvalKey) {
     area.dataset.key=approvalKey;
-    area.innerHTML=run.status==='WAITING_APPROVAL' && run.approval_request ? `<section class="panel section-pad live-approval"><h2>담당자 결정이 필요합니다</h2><p>요청을 확인한 뒤 승인자 계정으로 결정하세요.</p><p>만료 시각: ${esc(run.approval_request.expires_at || '—')}</p><details><summary>승인 대상 요청</summary><pre>${json(run.request)}</pre></details>
-      <form data-live-approval-form><label>승인자 계정<input name="user_id" value="approver-01" autocomplete="username" required></label><label>비밀번호<input name="password" type="password" autocomplete="current-password" required></label><div class="live-row"><button class="primary" name="decision" value="APPROVED">승인</button><button class="secondary" name="decision" value="REJECTED">거절</button></div></form></section>` : '';
+    area.innerHTML=run.status==='WAITING_APPROVAL' && run.approval_request ? `<section class="card section-pad live-approval approval-gate-card">
+      <div class="card-head-inline">
+        <div>
+          <span class="step-eyebrow sig-text">HUMAN-IN-THE-LOOP GATE</span>
+          <h2>담당자 결정이 필요합니다</h2>
+        </div>
+        <span class="wait-pill"><i class="pulse-dot sig"></i><span>WAITING_APPROVAL</span></span>
+      </div>
+      <p class="live-hint">Agent가 업무 변경 전 담당자 승인을 요청했습니다. 요청 내용을 확인한 뒤 승인자 계정으로 결정하세요. (만료 시각: <span class="mono">${esc(run.approval_request.expires_at || '—')}</span>)</p>
+      <details open class="approval-payload-box"><summary>승인 대상 요청 원문</summary><pre>${json(run.request)}</pre></details>
+      <form data-live-approval-form class="approval-form-grid">
+        <div class="form-row-2">
+          <label>승인자 계정<input name="user_id" value="approver-01" autocomplete="username" required></label>
+          <label>비밀번호<input name="password" type="password" autocomplete="current-password" required></label>
+        </div>
+        <div class="approval-actions">
+          <button class="primary" name="decision" value="APPROVED">✓ 요청 승인 (APPROVED)</button>
+          <button class="secondary danger-btn" name="decision" value="REJECTED">× 요청 거절 (REJECTED)</button>
+        </div>
+      </form></section>` : '';
   }
   $('[data-live-analysis]').hidden=page!=='execution';$('[data-live-result]').hidden=page!=='execution';renderEvents();
-  $('[data-live-result]').innerHTML=`<section class="panel section-pad"><div class="live-row"><h2>QA 보고서</h2><button class="secondary" data-live-qa-report ${!state.settled || !run.qa_report?'disabled':''}>이 실험 보고서 저장</button><button class="secondary" data-live-qa-summary>최근 시험 요약 저장</button></div>${qaReportMarkup(run.qa_report)}${state.settled?followupMarkup(run.follow_up):''}
+  const checksGridHtml = run.checks?.length ? `<div class="checks">${run.checks.map(c=>`<div class="chk ${c.verdict==='FAIL'?'f':'p'}"><span class="ic">${c.verdict==='PASS'?'✓':c.verdict==='FAIL'?'×':'…'}</span><div><strong>${esc(ruleTitle(c.rule_id))}</strong><p>${esc(c.reason || c.message || scopeTitle(c.scope))}</p></div><span class="r">${badge(c.verdict)}</span></div>`).join('')}</div>` : '';
+  $('[data-live-result]').innerHTML=`<section class="card section-pad"><div class="live-row"><div><span class="step-eyebrow">ORACLE VERDICT &amp; QA REPORT</span><h2>QA 보고서</h2></div><div class="live-row"><button class="secondary" data-live-qa-report ${!state.settled || !run.qa_report?'disabled':''}>이 실험 보고서 저장</button><button class="secondary" data-live-qa-summary>최근 시험 요약 저장</button></div></div>${checksGridHtml}${qaReportMarkup(run.qa_report)}${state.settled?followupMarkup(run.follow_up):''}
     <details><summary>검사 상세 · ${run.checks?.length || 0}개</summary><h2>검사 결과</h2>${run.checks?.length ? `<div class="live-table-wrap"><table class="live-table"><thead><tr><th>규칙</th><th>대상</th><th>판정</th><th>근거</th></tr></thead><tbody>${run.checks.map(c=>`<tr><td>${esc(ruleTitle(c.rule_id))}</td><td>${esc(scopeTitle(c.scope))}</td><td>${badge(c.verdict)}</td><td>${esc(c.reason || c.message || '')}<details><summary>검사 근거</summary><pre>${json(c)}</pre></details></td></tr>`).join('')}</tbody></table></div>` : '<p>아직 판정이 없습니다.</p>'}</details>
     ${run.investigation?.report?`<details><summary>추가 조사 기록</summary><p class="live-hint">${run.investigation.method==='CODE_EVIDENCE_SUMMARY'?'코드 기반 기록 요약':'조사 Agent 결과 · 사실과 원인 후보 구분'}</p>${reportView(run.investigation.report)}</details>`:''}
     <details><summary>실행 정보</summary><pre>${json({agent:run.agent,manifest:run.manifest,investigation_validation:run.investigation?.validation})}</pre></details></section>`;
@@ -410,13 +953,54 @@ function renderEvents() {
   list.innerHTML=events.map((e,i)=>`<button class="live-event ${i===selected?'selected':''}" data-live-event="${i}"><span class="mono">${e.sequence}</span><span>${esc(e.event_type)}<small>${esc(e.node_id)} · ${esc(e.occurred_at)}</small></span></button>`).join('');
   list.scrollTop=scroll;
   $('[data-live-evidence]').textContent=events[selected] ? JSON.stringify(events[selected],null,2) : '아직 이벤트가 없습니다.';
+  const divArea=$('[data-live-divergence]');
+  if(divArea){
+    const dbEvs=events.filter(e=>['BUSINESS_COMMITTED','IDEMPOTENT_RETURNED','VERDICT_CREATED','STATE_CHANGED'].includes(e.event_type));
+    const agEvs=events.filter(e=>['APPROVAL_DECIDED','FAULT_INJECTED','TOOL_CALLED','AGENT_REPORTED'].includes(e.event_type));
+    const hasFault=events.some(e=>e.event_type==='FAULT_INJECTED');
+    const total=Math.max(events.length,1);
+    const posPct=seq=>Math.min(92,Math.max(8,Math.round((seq/total)*90)));
+    divArea.innerHTML=events.length?`<div class="card div-card live-div-card"><div class="card-h"><h2>Agent가 본 것과 실제 DB</h2><span class="meta">같은 순번에서 두 기록을 대조합니다</span></div>
+      <div class="lanes">
+        <div class="lane"><label>업무 DB<small>실제 상태</small></label><div class="lane-track">
+          ${hasFault?'<div class="gap-zone" style="left:38%;width:34%"></div>':''}
+          ${dbEvs.slice(0,4).map(e=>`<span class="ev ${e.event_type==='BUSINESS_COMMITTED'?'db':'ok'}" style="left:${posPct(e.sequence)}%">#${e.sequence} ${esc(e.event_type)}</span>`).join('')}
+        </div></div>
+        <div class="lane"><label>대상 Agent<small>받은 결과 · 호출</small></label><div class="lane-track">
+          ${agEvs.slice(0,4).map(e=>`<span class="ev ${e.event_type==='FAULT_INJECTED'?'sig':e.event_type==='AGENT_REPORTED'?'bad':''}" style="left:${posPct(e.sequence)}%">#${e.sequence} ${esc(e.event_type)}</span>`).join('')}
+        </div></div>
+      </div></div>`:'';
+  }
   if(page!=='execution'){pauseScene();return;}
   const liveGraph=state.run?.manifest?.state_store?{...graph,nodes:graph.nodes.map(n=>({...n,label:n.id==='agent'?agentName('purchase'):n.id==='mcp'?'제조업 시험 MCP':n.id==='investigator'?'조사 요약':n.label}))}:graph;
   try { mountScene($('#live-scene'),liveGraph,frameFor(liveGraph,sceneEvents(events),selected),node=>{const i=sceneEvents(state.events).findLastIndex(e=>e.node_id===node);if(i>=0){state.selected=i;renderEvents();}}); }
   catch { $('#live-scene').textContent='이 브라우저에서는 3D를 표시할 수 없습니다. 아래 이벤트와 근거를 확인하세요.'; }
 }
 function comparisonView(data) {
-  return `<section class="panel section-pad"><div class="live-row"><h2>실제 실행 비교</h2><button class="secondary" data-live-close-comparison>닫기</button></div><p>${esc(data.left.run_id)} (${esc(data.left.system_id)}) ↔ ${esc(data.right.run_id)} (${esc(data.right.system_id)})</p><p>업무 변경 수: <strong>${esc(data.actual.left.change_count ?? data.actual.left.order_count)} → ${esc(data.actual.right.change_count ?? data.actual.right.order_count)}</strong></p><div class="live-table-wrap"><table class="live-table"><thead><tr><th>규칙</th><th>대상</th><th>왼쪽</th><th>오른쪽</th></tr></thead><tbody>${data.checks.map(c=>`<tr><td>${esc(ruleTitle(c.rule_id))}</td><td>${esc(scopeTitle(c.scope))}</td><td>${esc(c.left)}</td><td>${esc(c.right)}</td></tr>`).join('')}</tbody></table></div><details><summary>고정 조건과 변경 조건</summary><pre>${json({fixed_conditions:data.fixed_conditions,changed:data.changed})}</pre></details></section>`;
+  const lCount = data.actual.left.change_count ?? data.actual.left.order_count ?? 0;
+  const rCount = data.actual.right.change_count ?? data.actual.right.order_count ?? 0;
+  const lFail = (data.checks || []).filter(c => c.left === 'FAIL').length;
+  const rFail = (data.checks || []).filter(c => c.right === 'FAIL').length;
+  const lPass = (data.checks || []).filter(c => c.left === 'PASS').length;
+  const rPass = (data.checks || []).filter(c => c.right === 'PASS').length;
+  return `<div class="vs">
+    <section class="card pol">
+      <div class="pol-h"><h2><span class="num">${esc(data.left.system_id || 'LEFT')}</span>${esc(data.left.run_id)}</h2><span class="pill ${lFail?'neg':'pos'}">${lFail?`${lFail} 실패`:`${lPass} 통과`}</span></div>
+      <div class="big"><b class="num ${lCount>1?'neg-t':''}">${esc(lCount)}</b><span>건 업무 변경 저장</span></div>
+      <p class="cap">기준 실행 (${esc(data.left.system_id || '—')})의 최종 DB 변경 건수입니다.</p>
+    </section>
+    <section class="card pol">
+      <div class="pol-h"><h2><span class="num">${esc(data.right.system_id || 'RIGHT')}</span>${esc(data.right.run_id)}</h2><span class="pill ${rFail?'neg':'pos'}">${rFail?`${rFail} 실패`:`${rPass} 통과`}</span></div>
+      <div class="big"><b class="num">${esc(rCount)}</b><span>건 업무 변경 저장</span></div>
+      <p class="cap">비교 실행 (${esc(data.right.system_id || '—')})의 최종 DB 변경 건수입니다.</p>
+    </section>
+  </div>
+  <section class="card">
+    <div class="card-h"><h2>실제 실행 검사별 비교</h2><div class="live-row"><span class="meta">${esc(data.left.run_id)} ↔ ${esc(data.right.run_id)}</span><button class="secondary" data-live-close-comparison>닫기</button></div></div>
+    <div class="live-table-wrap"><table class="mx"><thead><tr><th>규칙</th><th>대상</th><th class="c">${esc(data.left.system_id || '왼쪽')}</th><th class="c">${esc(data.right.system_id || '오른쪽')}</th></tr></thead><tbody>${data.checks.map(c=>`<tr><td><strong>${esc(ruleTitle(c.rule_id))}</strong></td><td class="mono mx-evi">${esc(scopeTitle(c.scope))}</td><td class="c">${badge(c.left)}</td><td class="c">${badge(c.right)}</td></tr>`).join('')}</tbody></table></div>
+    <div class="note"><b>해석 주의</b><span>서버 정책 및 변경 조건의 차이를 함께 확인하세요.</span></div>
+    <details class="section-pad"><summary>고정 조건과 변경 조건</summary><pre>${json({fixed_conditions:data.fixed_conditions,changed:data.changed})}</pre></details>
+  </section>`;
 }
 async function submit(event) {
   event.preventDefault();notify('');const form=event.target, values=Object.fromEntries(new FormData(form)),button=event.submitter;
@@ -505,6 +1089,35 @@ async function submit(event) {
 }
 function click(event) {
   const target=event.target.closest('button');if(!target)return;
+  if(target.hasAttribute('data-role-preset')) {
+    const uid=target.dataset.rolePreset;
+    for(const b of host.querySelectorAll('[data-role-preset]')) b.classList.toggle('on', b===target);
+    const input=$('[data-live-login] [name=user_id]');
+    if(input){ input.value=uid; $('[data-live-login] [name=password]')?.focus(); }
+    return;
+  }
+  if(target.hasAttribute('data-live-skip-auth')) {
+    state.authDismissed=true;
+    account();
+    return;
+  }
+  if(target.hasAttribute('data-live-open-3d-demo')) {
+    location.hash='#demo-3d';
+    return;
+  }
+  if(target.hasAttribute('data-live-open-compare-demo')) {
+    location.hash='#demo-compare';
+    return;
+  }
+  if(target.hasAttribute('data-live-demo-jump')) {
+    document.querySelector('.demo-entry')?.click();
+    return;
+  }
+  if(target.hasAttribute('data-live-open-register')) {
+    const ed=$('[data-qa-editor]');
+    if(ed){ ed.open=true; ed.scrollIntoView({behavior:'smooth',block:'start'}); }
+    return;
+  }
   if(target.hasAttribute('data-live-logout')) {state.registration=null;state.registrations=[];state.capabilityOptions=[];state.batch=null;state.batchRequest=null;state.designPlan=null;state.designCaseId=null;state.targetTypes=[];state.session=null;state.catalog=null;state.run=null;state.events=[];state.runs=[];state.comparison=null;state.compareDraft={left:'',right:''};state.pendingRunId=null;const element=host;leaveLive();mountLive(element,page,go);notify('로그아웃했습니다.');}
   if(target.hasAttribute('data-qa-parse')){
     try{renderToolBindings($('[data-qa-registration]'),state.capabilityOptions);notify('도구별 조회·변경과 업무 기능 연결을 확인하세요.');}catch(error){failure(error);}
