@@ -2087,8 +2087,34 @@ input[type=range] {
 
 .prepare-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-columns: minmax(0, 1fr) 340px;
   gap: 20px;
+  align-items: start;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.section-title > span {
+  font: 600 12px var(--mono);
+  color: var(--signal);
+}
+
+.section-divider {
+  border-top: 1px solid var(--border);
+  margin: 24px 0;
+}
+
+.section-description {
+  font-size: 13px;
+  color: var(--text-2);
+  margin-bottom: 14px;
 }
 
 .scenario-options {
@@ -2107,6 +2133,10 @@ input[type=range] {
   gap: 16px;
 }
 
+.scenario-option:hover {
+  background: var(--raised-2);
+}
+
 .scenario-option.selected {
   border-color: var(--signal);
   background: #1d1410;
@@ -2117,6 +2147,32 @@ input[type=range] {
   color: var(--signal);
 }
 
+.scenario-option strong {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.scenario-option p {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.radio-mark {
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--control);
+  border-radius: 50%;
+  margin-left: auto;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.selected .radio-mark {
+  border: 5px solid var(--signal);
+}
+
 .config-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2124,6 +2180,7 @@ input[type=range] {
 }
 
 .config-card {
+  position: relative;
   padding: 18px;
   border: 1px solid var(--border);
   border-radius: var(--r);
@@ -2131,21 +2188,326 @@ input[type=range] {
   text-align: left;
 }
 
+.config-card:hover {
+  background: var(--raised-2);
+}
+
 .config-card.selected {
   border-color: var(--signal);
   background: #1d1410;
+}
+
+.config-card > strong {
+  display: block;
+  font: 600 24px var(--mono);
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.config-card > span {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.config-card > p {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+.config-card .radio-mark {
+  position: absolute;
+  top: 18px;
+  right: 18px;
 }
 
 .fixture-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 12px;
+  margin-bottom: 12px;
 }
 
 .fixture-grid > div {
   padding: 14px;
   background: var(--raised);
+  border: 1px solid var(--border);
   border-radius: 6px;
+}
+
+.fixture-grid label {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.fixture-grid strong {
+  font: 600 14px var(--mono);
+  color: var(--text);
+}
+
+.prepare-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.summary-agent {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 8px 0 4px;
+}
+
+.prepare-aside .primary {
+  width: 100%;
+  margin-top: 14px;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PAGE 2 & 3: SCENARIO DESIGN (#prepare) & LIVE EXECUTION (#live)
+   ═══════════════════════════════════════════════════════════════ */
+.prepare-work-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(380px, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.prepare-work-grid[data-page-mode="execution"] {
+  grid-template-columns: minmax(0, 1.5fr) minmax(340px, 0.9fr);
+}
+
+.prepare-main-col,
+.prepare-side-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.card-head-inline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.step-eyebrow {
+  display: block;
+  font: 600 11px var(--mono);
+  color: var(--signal);
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.sig-text {
+  color: var(--signal);
+}
+
+.design-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+  margin: 14px 0 8px;
+}
+
+.design-form-grid label {
+  margin: 0 !important;
+}
+
+.design-form-grid button[type="submit"] {
+  height: 40px;
+}
+
+.knowledge-drawer,
+.manual-drawer {
+  margin: 0 !important;
+}
+
+.drawer-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 22px !important;
+  font-weight: 600;
+  color: var(--text) !important;
+  list-style: none;
+}
+
+.drawer-summary::-webkit-details-marker {
+  display: none;
+}
+
+.knowledge-drawer[open] .drawer-summary,
+.manual-drawer[open] .drawer-summary {
+  border-bottom: 1px solid var(--border);
+}
+
+.knowledge-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 180px auto;
+  gap: 12px;
+  align-items: end;
+  margin: 14px 0;
+}
+
+.knowledge-form-grid label {
+  margin: 0 !important;
+}
+
+.knowledge-form-grid button {
+  height: 40px;
+}
+
+.form-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.form-row-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.span-3 {
+  grid-column: 1 / -1;
+}
+
+.batch-form label {
+  margin: 10px 0 !important;
+}
+
+.draft-agent-tag {
+  font: 500 12px var(--mono);
+  color: var(--signal);
+  margin: 8px 0 4px;
+}
+
+.empty-stage-box {
+  padding: 20px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.empty-kicker {
+  font: 600 11px var(--mono);
+  color: var(--muted);
+  letter-spacing: 0.05em;
+}
+
+/* KPI Strip (Concept Match) */
+.strip {
+  display: grid;
+  grid-template-columns: 1.3fr repeat(4, 1fr);
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  margin: 16px 0;
+  overflow: hidden;
+}
+
+.strip > div {
+  padding: 15px 18px;
+  border-left: 1px solid var(--border);
+}
+
+.strip > div:first-child {
+  border-left: 0;
+}
+
+.strip label {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.strip .v {
+  font: 600 22px var(--mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.strip .v small {
+  font: 500 12px var(--font);
+  color: var(--muted);
+  margin-left: 4px;
+}
+
+.strip .d {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.strip .lead.is-fail .v {
+  color: var(--neg);
+}
+
+.strip .lead.is-pass .v {
+  color: var(--pos);
+}
+
+.run-meta-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  background: var(--raised);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-2);
+  margin-bottom: 14px;
+}
+
+/* Human Approval Gate Card */
+.approval-gate-card {
+  border-color: #ff6a3d88;
+  background: linear-gradient(180deg, #1d1410 0%, var(--surface) 100%);
+  box-shadow: 0 12px 36px #00000066;
+}
+
+.approval-payload-box {
+  background: var(--ground);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 14px;
+  margin: 12px 0;
+}
+
+.approval-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.approval-actions button {
+  height: 42px;
+}
+
+.danger-btn:hover:not(:disabled) {
+  border-color: #f0566f88;
+  color: #ff8a9c;
+  background: var(--neg-bg);
+}
+
+.qa-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
 }
 
 .compare-summary {

@@ -298,54 +298,134 @@ export function mountLive(element, selectedPage='agents', navigate) {
 
           <div data-qa-registration-area class="rise d3" ${page==='agents'?'':'hidden'}>${registrationMarkup()}</div>
 
-          <details data-live-manual ${['prepare','live'].includes(page)?'':'hidden'} ${page==='live'?'open':''}><summary ${page==='prepare'?'':'hidden'}>직접 시나리오 설정 (개발용)</summary><section data-live-setup class="panel section-pad" ${['prepare','live'].includes(page)?'':'hidden'}>
-            <div class="live-row"><h2>${page==='prepare'?'시험 조건 설정':'선택한 시험 실행'}</h2><button class="secondary" data-live-go="agents">평가 대상 변경</button></div>
-            <p data-live-draft-agent></p><div data-live-design-selected></div>
-            <form data-live-start><label>시험 시나리오<select name="test_id" required><option>로그인 후 불러옵니다</option></select></label>
-              <label>서버 정책<select name="system_id"><option value="B0">B0</option><option value="B1">B1</option></select></label>
-              <p class="live-hint" data-live-kind></p>
-              <fieldset data-live-data hidden><legend>시험 데이터</legend>
-                <label><span><input type="checkbox" name="custom_data" ${state.trialData.enabled?'checked':''}> 수량·재고·가격 변경</span></label>
-                <div data-live-data-fields ${state.trialData.enabled?'':'hidden'}>
-                  <label>구매 수량<input name="quantity" type="number" min="1" max="2147483647" step="1" value="${state.trialData.quantity}" required></label>
-                  <label>초기 재고<input name="inventory" type="number" min="0" max="2147483647" step="1" value="${state.trialData.inventory}" required></label>
-                  <label>개당 가격 (원)<input name="unit_price_minor" type="number" min="0" max="2147483647" step="1" value="${state.trialData.unit_price_minor}" required></label>
-                  <p class="live-hint">저장한 QA 계획의 데이터로 실행합니다. 현재는 재고가 부족한 구매 요청을 지원합니다.</p>
+          <div class="prepare-work-grid" data-page-mode="${page}" ${['prepare','live','execution'].includes(page)?'':'hidden'}>
+            <div class="prepare-main-col">
+              <section data-live-design-area class="card section-pad rise d1" ${page==='prepare'?'':'hidden'}>
+                <div class="card-head-inline">
+                  <div>
+                    <span class="step-eyebrow">01 / SCENARIO DESIGN</span>
+                    <h2>Agent를 보고 시험 설계</h2>
+                  </div>
+                  <span class="pill sig">분석 → 근거 → 시험</span>
                 </div>
-              </fieldset><button class="primary" type="submit" disabled>${page==='prepare'?'이 조건으로 실행 준비 →':'시험 시작'}</button></form>
-          </section>
-          </details>
-          <section data-live-design-area class="panel section-pad" ${page==='prepare'?'':'hidden'}>
-            <div class="live-row"><h2>Agent를 보고 시험 설계</h2><span class="badge">분석 → 근거 → 시험</span></div>
-            <p class="live-hint">기능과 근거를 확인해 위험 상황을 만들고, 실행 가능한지 검사합니다.</p>
-            <div data-qa-selected></div><form data-live-design><label>설계할 예시 Agent<select name="target_type" data-live-design-type><option value="PURCHASE">자재 구매·발주</option><option value="PRODUCTION">생산 일정</option><option value="QUALITY">품질·출하</option></select></label><label>시험 생성 방식<select name="generation_mode"><option value="llm">LLM으로 새로운 상황 생성</option><option value="offline">기존 시험 예시 사용</option></select></label><button type="submit" class="primary">Agent 분석·시험 설계</button></form>
-            <div data-live-design-results></div>
-          </section>
-          <section data-live-batch-area class="panel section-pad" ${['prepare','live','execution'].includes(page)?'':'hidden'}>
-            <h2>실험 계획 실행</h2><p class="live-hint">정상 대조와 위험 시험을 실행합니다. 승인과 중단 기준을 적용합니다.</p>
-            <form data-live-batch-form><label>설계 시험<select name="case_id" required></select></label>
-              <label>서버 정책<select data-live-batch-system><option value="B0">B0 · 업무 방어 미적용</option><option value="B1">B1 · 업무 방어 적용</option></select></label><label>목적<select name="mode"><option value="SMOKE">기본 연결 점검 · 조건별 1회</option><option value="RELIABILITY">LLM 반복 검증 · 정책 계산 횟수</option></select></label>
-              <label>최대 실행 횟수<input name="max_runs" type="number" min="1" max="300" value="8" required></label>
-              <label>최대 시간 (초)<input name="max_seconds" type="number" min="1" max="3600" value="900" required></label>
-              <label>최대 모델 비용 (USD)<input name="max_cost_usd" type="number" min="0" max="1" step="0.01" value="1" required></label>
-              <p class="live-hint">정상 처리와 위험 조건을 함께 실행합니다. 비용 한도는 공유 모델 예산에도 적용됩니다.</p>
-              <button class="primary" type="submit">설계한 실험 시작</button></form>
-            <div data-live-batch-results></div>
-          </section>
-          <details ${page==='prepare'?'':'hidden'}><summary>근거 자료 직접 검색</summary><section data-live-knowledge-area class="panel section-pad" ${page==='prepare'?'':'hidden'}>
-            <div class="live-row"><h2>제조업 근거 찾기</h2><span class="badge">Parent–Child · BGE</span></div>
-            <p class="live-hint">영어로 검색하세요. 작은 문단을 검색하고 해당 페이지의 큰 문맥을 함께 보여줍니다. 검색 근거는 시험 설계의 참고 자료이며 판정 정답은 아닙니다.</p>
-            <form data-live-knowledge><label>검색 질문<input name="query" value="${esc(state.knowledge?.query || 'duplicate purchase orders after timeout and retry')}" minlength="2" maxlength="1000" required></label>
-              <label>업무<select name="target_type"><option value="PURCHASE">자재 구매·발주</option><option value="PRODUCTION">생산</option><option value="QUALITY">품질</option><option value="COMMON">전체</option></select></label>
-              <button class="secondary" type="submit">전문자료 검색</button></form>
-            <p data-live-knowledge-status class="live-hint"></p><div data-live-knowledge-results></div>
-          </section>
-          </details>
-          <section data-live-compare-area class="panel section-pad" ${page==='compare'?'':'hidden'}><h2>비교할 실제 실행</h2><p class="live-hint">같은 시나리오의 완료된 실행을 고르세요. 서버 정책과 Agent 버전 등 달라진 조건을 함께 확인합니다.</p>
+                <p class="live-hint">기능과 근거를 확인해 위험 상황을 만들고, 실행 가능한지 검사합니다.</p>
+                <div data-qa-selected></div>
+                <form data-live-design class="design-form-grid">
+                  <label>설계할 예시 Agent
+                    <select name="target_type" data-live-design-type>
+                      <option value="PURCHASE">자재 구매·발주</option>
+                      <option value="PRODUCTION">생산 일정</option>
+                      <option value="QUALITY">품질·출하</option>
+                    </select>
+                  </label>
+                  <label>시험 생성 방식
+                    <select name="generation_mode">
+                      <option value="llm">LLM으로 새로운 상황 생성</option>
+                      <option value="offline">기존 시험 예시 사용</option>
+                    </select>
+                  </label>
+                  <button type="submit" class="primary">Agent 분석·시험 설계 →</button>
+                </form>
+                <div data-live-design-results></div>
+              </section>
+
+              <div data-live-approval class="rise d1" ${page==='live'?'':'hidden'}></div>
+
+              <div data-live-summary class="card section-pad rise d2" ${['live','execution'].includes(page)?'':'hidden'}>
+                <div class="empty-stage-box">
+                  <span class="empty-kicker">READY TO EXECUTE</span>
+                  <h2>실행을 선택하거나 새 시험을 시작해 주세요</h2>
+                  <p class="live-hint">우측 조건 설정에서 시험을 시작하거나, 이전 실행 기록을 선택해 상태를 추적합니다.</p>
+                  <button class="secondary" data-live-go="prepare">시험 설계로 돌아가기 →</button>
+                </div>
+              </div>
+
+              <details class="card knowledge-drawer rise d2" ${page==='prepare'?'':'hidden'}>
+                <summary class="drawer-summary">
+                  <span>03 / 근거 자료 직접 검색 (Parent–Child · BGE)</span>
+                  <span class="pill neu">RAG Vector Search</span>
+                </summary>
+                <section data-live-knowledge-area class="section-pad" ${page==='prepare'?'':'hidden'}>
+                  <div class="live-row"><h2>제조업 근거 찾기</h2><span class="badge">Parent–Child · BGE</span></div>
+                  <p class="live-hint">영어로 검색하세요. 작은 문단을 검색하고 해당 페이지의 큰 문맥을 함께 보여줍니다. 검색 근거는 시험 설계의 참고 자료이며 판정 정답은 아닙니다.</p>
+                  <form data-live-knowledge class="knowledge-form-grid">
+                    <label class="span-2">검색 질문<input name="query" value="${esc(state.knowledge?.query || 'duplicate purchase orders after timeout and retry')}" minlength="2" maxlength="1000" required></label>
+                    <label>업무<select name="target_type"><option value="PURCHASE">자재 구매·발주</option><option value="PRODUCTION">생산</option><option value="QUALITY">품질</option><option value="COMMON">전체</option></select></label>
+                    <button class="secondary" type="submit">전문자료 검색</button>
+                  </form>
+                  <p data-live-knowledge-status class="live-hint"></p>
+                  <div data-live-knowledge-results></div>
+                </section>
+              </details>
+
+              <details data-live-manual class="card manual-drawer rise d3" ${['prepare','live'].includes(page)?'':'hidden'} ${page==='live'?'open':''}>
+                <summary class="drawer-summary" ${page==='prepare'?'':'hidden'}>
+                  <span>직접 시나리오 설정 (개발용)</span>
+                  <span class="mono dim">S01–S04 · B0/B1</span>
+                </summary>
+                <section data-live-setup class="section-pad" ${['prepare','live'].includes(page)?'':'hidden'}>
+                  <div class="live-row">
+                    <div>
+                      <span class="step-eyebrow">${page==='prepare'?'MANUAL OVERRIDE':'01 / SINGLE TRIAL EXECUTION'}</span>
+                      <h2>${page==='prepare'?'시험 조건 설정':'선택한 시험 실행'}</h2>
+                    </div>
+                    <button class="secondary" data-live-go="agents">평가 대상 변경</button>
+                  </div>
+                  <p data-live-draft-agent class="draft-agent-tag"></p>
+                  <div data-live-design-selected></div>
+                  <form data-live-start>
+                    <div class="form-row-2">
+                      <label>시험 시나리오<select name="test_id" required><option>로그인 후 불러옵니다</option></select></label>
+                      <label>서버 정책<select name="system_id"><option value="B0">B0</option><option value="B1">B1</option></select></label>
+                    </div>
+                    <p class="live-hint" data-live-kind></p>
+                    <fieldset data-live-data hidden>
+                      <legend>시험 데이터</legend>
+                      <label class="checkbox-row"><span><input type="checkbox" name="custom_data" ${state.trialData.enabled?'checked':''}> 수량·재고·가격 변경</span></label>
+                      <div data-live-data-fields class="form-row-3" ${state.trialData.enabled?'':'hidden'}>
+                        <label>구매 수량<input name="quantity" type="number" min="1" max="2147483647" step="1" value="${state.trialData.quantity}" required></label>
+                        <label>초기 재고<input name="inventory" type="number" min="0" max="2147483647" step="1" value="${state.trialData.inventory}" required></label>
+                        <label>개당 가격 (원)<input name="unit_price_minor" type="number" min="0" max="2147483647" step="1" value="${state.trialData.unit_price_minor}" required></label>
+                        <p class="live-hint span-3">저장한 QA 계획의 데이터로 실행합니다. 현재는 재고가 부족한 구매 요청을 지원합니다.</p>
+                      </div>
+                    </fieldset>
+                    <button class="primary full-cta" type="submit" disabled><span>${page==='prepare'?'이 조건으로 실행 준비':'시험 시작'}</span><span>→</span></button>
+                  </form>
+                </section>
+              </details>
+            </div>
+
+            <aside class="prepare-side-col">
+              <section data-live-batch-area class="card section-pad rise d2" ${['prepare','live','execution'].includes(page)?'':'hidden'}>
+                <div class="card-head-inline">
+                  <div>
+                    <span class="step-eyebrow">02 / BATCH EXPERIMENT</span>
+                    <h2>실험 계획 실행</h2>
+                  </div>
+                  <span class="pill neu">반복 · 예산 통제</span>
+                </div>
+                <p class="live-hint">정상 대조와 위험 시험을 실행합니다. 승인과 중단 기준을 적용합니다.</p>
+                <form data-live-batch-form class="batch-form">
+                  <label>설계 시험<select name="case_id" required></select></label>
+                  <div class="form-row-2">
+                    <label>서버 정책<select data-live-batch-system><option value="B0">B0 · 업무 방어 미적용</option><option value="B1">B1 · 업무 방어 적용</option></select></label>
+                    <label>목적<select name="mode"><option value="SMOKE">기본 연결 점검 · 조건별 1회</option><option value="RELIABILITY">LLM 반복 검증 · 정책 계산 횟수</option></select></label>
+                  </div>
+                  <div class="form-row-3">
+                    <label>최대 횟수<input name="max_runs" type="number" min="1" max="300" value="8" required></label>
+                    <label>최대 시간(초)<input name="max_seconds" type="number" min="1" max="3600" value="900" required></label>
+                    <label>비용 한도($)<input name="max_cost_usd" type="number" min="0" max="1" step="0.01" value="1" required></label>
+                  </div>
+                  <p class="live-hint">정상 처리와 위험 조건을 함께 실행합니다. 비용 한도는 공유 모델 예산에도 적용됩니다.</p>
+                  <button class="primary full-cta" type="submit"><span>설계한 실험 시작</span><span>→</span></button>
+                </form>
+                <div data-live-batch-results></div>
+              </section>
+            </aside>
+          </div>
+          <section data-live-compare-area class="card section-pad" ${page==='compare'?'':'hidden'}><h2>비교할 실제 실행</h2><p class="live-hint">같은 시나리오의 완료된 실행을 고르세요. 서버 정책과 Agent 버전 등 달라진 조건을 함께 확인합니다.</p>
             <form data-live-compare class="live-compare-form"><label>왼쪽 실행<select name="left" required></select></label><label>오른쪽 실행<select name="right" required></select></label><button class="primary" type="submit">실제 결과 비교</button></form>
           </section>
-          <div data-live-summary class="panel section-pad" ${['live','execution'].includes(page)?'':'hidden'}><h2>실행을 선택해 주세요</h2><p>실행 기록에서 저장된 실행을 열거나 새 시험을 시작하세요.</p><button class="secondary" data-live-go="prepare">시험 설계 →</button></div>
-          <div data-live-approval ${page==='live'?'':'hidden'}></div>
           <div data-live-comparison ${page==='compare'?'':'hidden'}></div>
           <section class="panel section-pad" data-live-analysis hidden><div class="live-row"><h2>실행 흐름</h2><div class="live-row"><span data-live-count></span><button class="secondary" data-live-play>재생</button><button class="secondary" data-live-export>근거 JSON 내보내기</button></div></div>
             <div id="live-scene" class="live-scene" aria-label="실제 이벤트 기반 서비스 구조"></div>
@@ -661,15 +741,58 @@ async function poll() {
 function renderRun(force=false) {
   $('[data-live-summary]').hidden=!['live','execution'].includes(page);guidance();
   const run=state.run, summary=run.summary || {}, model=run.manifest?.model || run.investigation?.model_metadata?.model;
-  $('[data-live-summary]').innerHTML=`<div class="live-row"><h2>${esc(run.run_id)} · ${esc(run.test_id)} ${esc(run.system_id || '')}</h2>${badge(run.status)}</div>
-    <p>${esc(run.status_reason || '')}</p><div class="live-metrics">${['PASS','FAIL','INCONCLUSIVE'].map(k=>`<div><span>${k}</span><strong>${esc(summary[k] ?? 0)}</strong></div>`).join('')}<div><span>${run.manifest?.state_store?"업무 변경":"실제 주문"}</span><strong>${(run.observed_change_count ?? run.observed_order_count) == null ? "—" : esc(run.observed_change_count ?? run.observed_order_count)}</strong></div></div>
-    ${run.manifest?.registered_target?`<p><strong>등록 대상: ${esc(run.manifest.registered_target.name)}</strong> · 실제 실행: ${esc(run.manifest.registered_target.execution_binding?.name || run.manifest.target_id)} · ${esc(run.manifest.agent_version || '버전 확인 중')}</p>`:''}${state.settled?'<p class="live-hint">수집 완료 · QA 보고서를 확인하세요.</p>':'<p class="live-hint">실행·근거 수집 중</p>'}<p class="mono">모델: ${esc(model && typeof model==='object' ? JSON.stringify(model) : model || run.investigation?.model_metadata?.model_kind || run.manifest?.model_kind || '미지정')} · 조사: ${esc(run.investigation?.status || '—')}</p><div class="live-flow-actions">${run.status==='WAITING_APPROVAL' && page!=='live'?'<button class="primary" data-live-go="live">승인·거절 처리 →</button>':''}${state.settled?'<button class="secondary" data-live-go="prepare">새 시험 준비 →</button>':''}${page!=='execution'?'<button class="secondary" data-live-go="execution">이 실행 분석 →</button>':run.system_id && state.settled?'<button class="secondary" data-live-go="compare">실제 결과 비교 →</button>':''}</div>`;
+  const failCount=summary.FAIL ?? 0, passCount=summary.PASS ?? 0, incCount=summary.INCONCLUSIVE ?? 0;
+  const changeCount=(run.observed_change_count ?? run.observed_order_count) == null ? "—" : esc(run.observed_change_count ?? run.observed_order_count);
+  $('[data-live-summary]').innerHTML=`
+    <div class="live-row run-summary-head">
+      <div>
+        <span class="step-eyebrow">ACTIVE RUN · ${esc(run.system_id || 'UNIT')}</span>
+        <h2>${esc(run.run_id)} <span class="mono dim">· ${esc(run.test_id)} ${esc(run.system_id || '')}</span></h2>
+      </div>
+      ${badge(run.status)}
+    </div>
+    ${run.status_reason?`<p class="live-hint">${esc(run.status_reason)}</p>`:''}
+    <div class="strip kpi-strip-card">
+      <div class="lead ${failCount?'is-fail':'is-pass'}">
+        <label>검사 판정 요약</label>
+        <div class="v">${failCount?`${failCount}개 실패`:`${passCount}개 통과`}</div>
+        <div class="d">PASS ${passCount} · FAIL ${failCount} · 보류 ${incCount}</div>
+      </div>
+      <div><label>PASS</label><div class="v pos-t">${esc(passCount)}</div><div class="d">통과 규칙</div></div>
+      <div><label>FAIL</label><div class="v ${failCount?'neg-t':''}">${esc(failCount)}</div><div class="d">위반 규칙</div></div>
+      <div><label>INCONCLUSIVE</label><div class="v">${esc(incCount)}</div><div class="d">검토 대기</div></div>
+      <div><label>${run.manifest?.state_store?"업무 변경":"실제 주문"}</label><div class="v">${changeCount}<small>건</small></div><div class="d">DB 관측 상태</div></div>
+    </div>
+    ${run.manifest?.registered_target?`<p><strong>등록 대상: ${esc(run.manifest.registered_target.name)}</strong> · 실제 실행: ${esc(run.manifest.registered_target.execution_binding?.name || run.manifest.target_id)} · ${esc(run.manifest.agent_version || '버전 확인 중')}</p>`:''}
+    <div class="run-meta-bar">
+      <span>${state.settled?'수집 완료 · QA 보고서를 확인하세요.':'실행·근거 수집 중'}</span>
+      <span class="mono">모델: ${esc(model && typeof model==='object' ? JSON.stringify(model) : model || run.investigation?.model_metadata?.model_kind || run.manifest?.model_kind || '미지정')} · 조사: ${esc(run.investigation?.status || '—')}</span>
+    </div>
+    <div class="live-flow-actions">${run.status==='WAITING_APPROVAL' && page!=='live'?'<button class="primary" data-live-go="live">승인·거절 처리 →</button>':''}${state.settled?'<button class="secondary" data-live-go="prepare">새 시험 준비 →</button>':''}${page!=='execution'?'<button class="secondary" data-live-go="execution">이 실행 분석 →</button>':run.system_id && state.settled?'<button class="secondary" data-live-go="compare">실제 결과 비교 →</button>':''}</div>`;
   const approvalKey=JSON.stringify([run.run_id,run.status,run.approval_request,run.approval]);
   const area=$('[data-live-approval]');
   if(force || area.dataset.key!==approvalKey) {
     area.dataset.key=approvalKey;
-    area.innerHTML=run.status==='WAITING_APPROVAL' && run.approval_request ? `<section class="panel section-pad live-approval"><h2>담당자 결정이 필요합니다</h2><p>요청을 확인한 뒤 승인자 계정으로 결정하세요.</p><p>만료 시각: ${esc(run.approval_request.expires_at || '—')}</p><details><summary>승인 대상 요청</summary><pre>${json(run.request)}</pre></details>
-      <form data-live-approval-form><label>승인자 계정<input name="user_id" value="approver-01" autocomplete="username" required></label><label>비밀번호<input name="password" type="password" autocomplete="current-password" required></label><div class="live-row"><button class="primary" name="decision" value="APPROVED">승인</button><button class="secondary" name="decision" value="REJECTED">거절</button></div></form></section>` : '';
+    area.innerHTML=run.status==='WAITING_APPROVAL' && run.approval_request ? `<section class="card section-pad live-approval approval-gate-card">
+      <div class="card-head-inline">
+        <div>
+          <span class="step-eyebrow sig-text">HUMAN-IN-THE-LOOP GATE</span>
+          <h2>담당자 결정이 필요합니다</h2>
+        </div>
+        <span class="wait-pill"><i class="pulse-dot sig"></i><span>WAITING_APPROVAL</span></span>
+      </div>
+      <p class="live-hint">Agent가 업무 변경 전 담당자 승인을 요청했습니다. 요청 내용을 확인한 뒤 승인자 계정으로 결정하세요. (만료 시각: <span class="mono">${esc(run.approval_request.expires_at || '—')}</span>)</p>
+      <details open class="approval-payload-box"><summary>승인 대상 요청 원문</summary><pre>${json(run.request)}</pre></details>
+      <form data-live-approval-form class="approval-form-grid">
+        <div class="form-row-2">
+          <label>승인자 계정<input name="user_id" value="approver-01" autocomplete="username" required></label>
+          <label>비밀번호<input name="password" type="password" autocomplete="current-password" required></label>
+        </div>
+        <div class="approval-actions">
+          <button class="primary" name="decision" value="APPROVED">✓ 요청 승인 (APPROVED)</button>
+          <button class="secondary danger-btn" name="decision" value="REJECTED">× 요청 거절 (REJECTED)</button>
+        </div>
+      </form></section>` : '';
   }
   $('[data-live-analysis]').hidden=page!=='execution';$('[data-live-result]').hidden=page!=='execution';renderEvents();
   $('[data-live-result]').innerHTML=`<section class="panel section-pad"><div class="live-row"><h2>QA 보고서</h2><button class="secondary" data-live-qa-report ${!state.settled || !run.qa_report?'disabled':''}>이 실험 보고서 저장</button><button class="secondary" data-live-qa-summary>최근 시험 요약 저장</button></div>${qaReportMarkup(run.qa_report)}${state.settled?followupMarkup(run.follow_up):''}
