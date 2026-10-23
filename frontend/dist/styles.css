@@ -4263,38 +4263,36 @@ table.mx tr:last-child td {
   line-height: 1.5;
 }
 
-.coachmark-bubble-footer {
+.coachmark-bubble-prompt {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 4px;
-}
-
-.coachmark-bubble-hint {
-  font-size: 11px;
-  color: #a7f3d0;
-  font-weight: 500;
-}
-
-.coachmark-bubble-action {
-  width: 100%;
-  background: #ffffff;
-  color: #065f46;
-  border: none;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 8px;
-  padding: 9px 14px;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  transition: all 0.18s ease;
-  text-align: center;
+  padding: 8px 12px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #ffffff;
+  line-height: 1.4;
 }
 
-.coachmark-bubble-action:hover {
-  background: #f0fdf4;
-  color: #047857;
-  transform: translateY(-1px);
+.coachmark-bubble-prompt strong {
+  color: #a7f3d0;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.coachmark-prompt-icon {
+  font-size: 15px;
+  flex-shrink: 0;
+  animation: promptNudge 1.5s infinite ease-in-out;
+}
+
+@keyframes promptNudge {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
 }
 
 @media (max-width: 900px) {
