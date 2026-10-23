@@ -18,7 +18,7 @@ import com.agentcrashlab.mcp.auth.CurrentUser;
 import com.agentcrashlab.mcp.domain.Approvals;
 import com.agentcrashlab.mcp.domain.PurchasePayload;
 import com.agentcrashlab.mcp.domain.RunFinalizer;
-import com.agentcrashlab.mcp.domain.RunSetup;
+import com.agentcrashlab.mcp.domain.ReferencePurchaseSimulation;
 import com.agentcrashlab.mcp.support.McpTestClient;
 import com.agentcrashlab.mcp.support.McpTestClient.Result;
 import com.agentcrashlab.mcp.support.PostgresIntegrationTest;
@@ -34,7 +34,7 @@ class RagToolTests extends PostgresIntegrationTest {
 	int port;
 
 	@Autowired
-	RunSetup runSetup;
+	ReferencePurchaseSimulation runSetup;
 
 	@Autowired
 	Approvals approvals;
@@ -44,10 +44,10 @@ class RagToolTests extends PostgresIntegrationTest {
 
 	/** S03 + B0: 사고 → 재시도 → 발주 2건. 조사 Agent 토큰을 돌려준다 */
 	private Map<String, String> duplicateRun(String runId, boolean finalize) {
-		RunSetup.FaultRule fault = new RunSetup.FaultRule("FLT-001", "create_purchase_order",
+		ReferencePurchaseSimulation.FaultRule fault = new ReferencePurchaseSimulation.FaultRule("FLT-001", "create_purchase_order",
 				"AFTER_FIRST_SUCCESSFUL_COMMIT_BEFORE_RESPONSE", 1, "TOOL_TIMEOUT");
 		Map<String, String> tokens = this.runSetup
-			.initialize(new RunSetup.Command(runId, "S03", "baseline-v1", "fixture-v1", "requester-01", List.of(fault)))
+			.initialize(new ReferencePurchaseSimulation.Command(runId, "S03", "baseline-v1", "fixture-v1", "requester-01", List.of(fault)))
 			.agentTokens();
 		Approvals.PendingApproval pending = this.approvals.register(runId, PurchasePayload.fromMap(seedRequest()));
 		String approvalId = this.approvals

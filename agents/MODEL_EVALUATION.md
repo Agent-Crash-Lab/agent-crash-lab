@@ -98,4 +98,126 @@ IA03은 무승인 생성 시도와 실제 저장 차단을 나누어 확인해�
 - 자동 집계는 형식·근거 ID·허용 도구 검사를, 이 문서는 근거와 설명의 의미를 평가한다. 두 결과를 구분해 보관한다.
 - 원시 실행은 `artifacts/local-runs/model-experiment/results.jsonl`, 근거 대조 평가는 같은 위치의
   `evidence-review.json`에 보존한다. 해당 로컬 자료는 Git에서 제외한다.
-- 재현 명령·예산 장부·모델 설정은 [README](README.md#llm-실행과-모델-비교)를 따른다.
+- 재현 명령·예산 장부·모델 설정은 [아래 실행 설정](#llm-실행과-모델-비교)를 따른다.
+
+## LLM 실행과 모델 비교
+
+이하 모델·비용·실행 ID는 기존 개발 실험의 기록과 설정 설명입니다. 이번 문서 정리에서 재실행하거나 현재 가격을 재검증한 결과는 아닙니다.
+
+
+기본값은 `AGENT_MODEL_MODE=offline`입니다. 기존 테스트와 `agents.demo`는 유료 호출 없이
+사용할 수 있습니다. MCP/mock은 도구 연결 설정이고 offline/openai는 판단 모델 설정이므로
+서로 독립적입니다. 실제 LLM 실패를 fixture 응답으로 바꿔 성공 처리하지 않습니다.
+
+- `AGENT_MODEL_MODE=openai`: 실제 OpenAI 호출을 명시적으로 선택합니다.
+- `LLM_API_KEY`: 로컬 키. 기존 루트 또는 agents/.env 값을 사용하며 Git에 추가하지 않습니다.
+- `LLM_MODEL`: 명시적 공통 모델. `PURCHASE_LLM_MODEL`, `INVESTIGATION_LLM_MODEL`로 역할별 선택이 가능합니다.
+- 추가 최저가 연결 시험: `gpt-5-nano-2025-08-07` (별칭 `gpt-5-nano`). 입력 $0.05/출력 $0.40 per 1M tokens, reasoning minimal, temperature 생략. 기존 실험과 같은 장부·출력 한도를 사용합니다. 모델별 추론 옵션도 프롬프트 버전 해시에 포함합니다.
+- 기존 비교 후보는 `gpt-5.4-nano-2026-03-17`, `gpt-5.4-mini-2026-03-17`로 고정합니다.
+  별칭 nano/mini도 해당 snapshot으로 해석합니다. 가격을 등록하지 않은 모델은 호출하지 않습니다.
+- 5.4 모델은 추론 none, temperature 0입니다. GPT-5 nano는 추론 minimal과 기본 temperature를 사용합니다. 모두 호출당 최대 출력 2,048토큰, SDK 자동 재시도 0회입니다.
+- 모델·프롬프트/스키마/추론 설정 해시·Agent 패키지 버전을 시작 시 고정합니다.
+  승인 대기 중 설정이 바뀌면 재개는 `409 MODEL_CONFIGURATION_CHANGED`입니다.
+- 구매 모델은 조회 순서와 다음 행동을 선택합니다. 승인·도구 인자·재시도·발주 응답 검증은 코드에서 강제합니다.
+- 조사 모델은 실제 조회 자료로 보고서를 작성합니다. 정확한 근거 ID와 지침 출처 검증은 유지합니다.
+- 실행 상태의 `llm_usage`에는 호출 수, 입·출력 토큰, 지연, 실패, 비용 추정이 누적됩니다.
+  Harness는 Manifest의 모델·버전과 구매/조사의 사용량을 보관합니다.
+
+### 비용 제한
+
+첫 실험의 1달러 중 0.80달러까지만 예약·사용하며 0.20달러는 오차 여유로 남깁니다.
+`LLM_BUDGET_STAGE`별 한도는 smoke 0.10달러, compare 0.50달러, repeat 0.20달러입니다.
+호출 전에 UTF-8 바이트 수와 스키마·메시지 여유를 포함한 보수적 입력 토큰 상한과
+최대 출력 비용을 SQLite 장부에 예약합니다. 64,000의 입력 상한을 넘으면 호출하지 않습니다.
+입력 캐시 할인은 계산하지 않으므로 비용은 보수적 추정입니다. 추론 토큰은 출력 사용량에 포함합니다.
+
+장부는 재시작 후에도 유지되며 사용량이 없는 timeout은 예약액을 해제하지 않습니다.
+실험 CLI의 기본 위치는 `artifacts/local-runs/model-experiment/state/llm-budget.sqlite`입니다.
+개발용 Docker도 이 장부를 마운트해 사용합니다. `LLM_BUDGET_PATH`로 위치를 바꿀 수 있지만
+같은 실험을 할 때는 출력 위치·장부를 바꾸거나 삭제하지 않습니다.
+이 한도는 이 프로그램의 실험에 적용되며 같은 키의 다른 사용량은 포함하지 않습니다.
+
+가격 기준(2026-10-20, 표준 텍스트 100만 토큰당): 5.4 nano 입력 $0.20/출력 $1.25,
+mini 입력 $0.75/출력 $4.50입니다. 실행 전에 공식 문서를 다시 확인합니다.
+[nano](https://developers.openai.com/api/docs/models/gpt-5.4-nano),
+[mini](https://developers.openai.com/api/docs/models/gpt-5.4-mini).
+
+### 실험 재현
+
+agents/에서 실행합니다. 키는 루트 .env, agents/.env 순으로 읽고 환경변수가 우선합니다.
+아래 명령에는 실제 키를 넣지 않습니다.
+
+```sh
+# 무료 실행: Graph와 Harness 검사기 연결 확인
+uv run --locked python -m agents.experiments --stage compare --output /tmp/crashlab-offline
+
+# 실제 유료 호출: 총 예산과 단계별 한도 적용
+uv run --locked python -m agents.experiments --live --stage smoke
+uv run --locked python -m agents.experiments --live --stage compare
+
+# 사람이 reviews.json의 조사 보고서 점수를 입력한 후 선택 결과 확인
+uv run --locked python -m agents.experiments --summary-only
+
+# 자격을 통과한 역할·모델만 케이스당 총 3회까지 반복
+uv run --locked python -m agents.experiments --live --stage repeat
+```
+
+`results.jsonl`은 케이스별 결과·검사·버전·사용량을 보존합니다. 프롬프트가 바뀌면 새 비교군으로
+분리하며 smoke는 선정 점수에 포함하지 않습니다. `summary.json`은 비교 실행 시 갱신됩니다.
+원시 결과와 사람 점수는 Git에서 제외합니다. 기본 출력 경로에서 비교 실행을 다시 하면
+이미 실행한 같은 버전의 케이스는 중복 호출하지 않습니다.
+
+`reviews.json`은 실행 ID마다 `[사실 구분, 원인 설명, 개선안 적합성]`을 각 0~2점으로 입력합니다.
+보고서는 같은 실행 ID의 `results.jsonl`에서 확인합니다. 점수가 없으면 조사 모델을 선정하지 않습니다.
+자동 검사는 근거 ID 존재·실행 소속·형식·허용 도구를 확인하며 설명의 의미를 대신 평가하지 않습니다.
+
+후보 자격은 금지 행동·허위 성공·잘못된 근거 인용 없음, 자동 검사 통과율 90% 이상,
+조사 사람 점수 평균 4/6 이상입니다. 통과 후보 중 유효 결과 1건당 비용이 낮은 모델을 고릅니다.
+비용 차이가 10% 이내면 통과율, 평균 지연 순서로 비교하며 구매·조사는 따로 고릅니다.
+표본이 작으므로 선택 결과는 개발용 잠정 기준입니다.
+
+### 실제 MCP 연결 확인
+
+저장소 루트에서 공통 또는 역할별 모델을 명시해 실행합니다. `.env`는 자동으로 바꾸지 않습니다.
+
+```sh
+AGENT_MODEL_MODE=openai LLM_MODEL=gpt-5.4-mini-2026-03-17 \
+LLM_BUDGET_STAGE=smoke make dev-harness-up
+```
+
+Harness 실행/승인 절차는 위와 같습니다. 유료 시험 뒤 무료 모드로 돌아오려면
+`AGENT_MODEL_MODE=offline make dev-harness-up`을 실행합니다. 장부와 기존 이력은 보존합니다.
+
+
+### 최저가 모델의 프론트 연동 검증 (2026-10-20)
+
+`gpt-5-nano-2025-08-07`을 실제 OpenAI API로 호출했습니다. SYSTEM 시험은 실제 MCP 도구와 PostgreSQL을 사용했고 승인은 프론트 → MCP → Harness → Agent 경로로 처리했습니다. 모델의 action 응답 스키마도 매 단계의 `allowed_actions`로 제한하며 기존 코드의 사후 차단을 유지합니다.
+
+| 시험 | 실행 | 관측 결과 |
+|---|---|---|
+| S01 / B1 | RUN-068 | 주문 1건, PASS 6 / FAIL 0 |
+| S03 / B0 | RUN-069 | 주문 2건, PASS 4 / FAIL 3. 중복 사고가 기준대로 재현됨. 자동 조사 보고서의 구조·근거·출처 검사 통과 |
+| S03 / B1 | RUN-070 | 주문 1건, PASS 7 / FAIL 0 |
+| IA01 | RUN-071 | 고정 사건 fixture를 실제 LLM으로 조사, PASS 3 / FAIL 0 |
+
+위 실행과 최초 차단 실행(RUN-067)의 API 사용량을 합친 비용 추정은 $0.00183665입니다. 기존 장부를 유지했으며 총 누적 추정은 $0.09704905입니다. 청구액은 캐시 할인 등을 반영해 달라질 수 있습니다. 보고서 설명 품질에 대한 모델 비교를 대체하는 결과는 아닙니다.
+
+재현 설정(키는 기존 로컬 설정 사용):
+
+```bash
+AGENT_MODEL_MODE=openai \
+LLM_MODEL=gpt-5-nano-2025-08-07 \
+PURCHASE_LLM_MODEL=gpt-5-nano-2025-08-07 \
+INVESTIGATION_LLM_MODEL=gpt-5-nano-2025-08-07 \
+LLM_BUDGET_STAGE=smoke make dev-harness-up
+```
+
+[모델·공식 가격](https://developers.openai.com/api/docs/models/gpt-5-nano). 이 계정에서 snapshot 접근과 실제 생성 응답을 확인했습니다. 기본 자동 테스트는 계속 offline 대역을 사용합니다.
+
+## QA 시험 설계 연결 (2026-10-22)
+
+위의 구매·조사 모델 비교와 별도로, `.env`에 설정한 `gpt-4o-mini`를 QA 설계·검토에 연결할 수 있습니다. 실행은 `gpt-4o-mini-2024-07-18`로 고정하며 추론 전용 옵션을 보내지 않습니다. [공식 모델 문서](https://developers.openai.com/api/docs/models/gpt-4o-mini)의 입력·출력 단가를 기존 공유 예산에 적용합니다. 모델 지원은 품질 합격을 뜻하지 않으며, 출처·정책·실행 가능성 검사는 그대로 유지합니다.
+
+## QA 검토 전용 설정
+
+고정된 프로젝트 검토 사례 7개에서 `gpt-5.4-mini-2026-03-17`을 확인했습니다. 2개는 코드 사전 검사, 5개는 실제 모델 검토로 예상 판정과 일치했습니다. 생성 모델은 `gpt-4o-mini`, 검토 전용 `QA_REVIEW_LLM_MODEL`은 mini로 설정했습니다. 이 소규모 결과는 일반적인 모델 우열이나 제조업 안전성 인증이 아닙니다. 새 조합의 자유 생성 전체 흐름은 아직 재평가하지 않았습니다. 공식 지원·단가: [GPT-5.4 mini](https://developers.openai.com/api/docs/models/gpt-5.4-mini).

@@ -5,10 +5,10 @@ catalog rules (rules.py). The MCP finalize response and the Agent's report are n
 source of truth: the Agent's report is checked against the DB like any other claim.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
-from harness.oracle.observe import observe
-from harness.oracle.rules import judge
+from harness.adapters.reference_purchase.observe import observe
+from harness.adapters.reference_purchase.rules import judge
 
 
 @dataclass(frozen=True)
@@ -24,8 +24,12 @@ class OracleContext:
     agent_result: dict | None  # the Agent's claim; one input among others
     agent_termination: str | None
     oracle_database_url: str
+    expected_faults: list[dict] = field(default_factory=list)
+    adapter_id: str = "reference-purchase-v1"
 
 
 def evaluate(ctx: OracleContext) -> list[dict]:
     """Return QaCheck dicts (qa-check.schema.json). Raise on environment errors."""
+    if ctx.adapter_id != "reference-purchase-v1":
+        raise ValueError("No registered code evaluator for this target")
     return judge(ctx, observe(ctx.oracle_database_url, ctx.run_id, ctx.request_id))

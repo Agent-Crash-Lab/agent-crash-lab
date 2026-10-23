@@ -35,17 +35,18 @@ class RunGatewayController {
         this.internalToken = properties.internalApiToken();
         JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(
                 HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build());
-        factory.setReadTimeout(Duration.ofSeconds(10));
+        // Initial design plus one bounded repair may make four sequential model calls.
+        factory.setReadTimeout(Duration.ofSeconds(180));
         this.rest = RestClient.builder().baseUrl(properties.harnessUrl()).requestFactory(factory).build();
     }
 
-    @GetMapping({"/api/scenarios", "/api/runs", "/api/runs/{runId}", "/api/runs/{runId}/events", "/api/comparisons"})
+    @GetMapping({"/api/scenarios", "/api/runs", "/api/runs/{runId}", "/api/runs/{runId}/events", "/api/comparisons", "/api/qa/target", "/api/qa/targets", "/api/qa/plans/{planId}", "/api/qa/batches", "/api/qa/batches/{batchId}", "/api/qa/registrations", "/api/qa/registrations/{profileId}"})
     ResponseEntity<byte[]> read(HttpServletRequest request,
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization) {
         return forward(request, authorization, null);
     }
 
-    @PostMapping("/api/runs")
+    @PostMapping({"/api/runs", "/api/qa/plans", "/api/qa/design", "/api/qa/batches", "/api/qa/batches/{batchId}/stop", "/api/qa/registrations", "/api/qa/registrations/{profileId}/design", "/api/qa/runs/{runId}/approval", "/api/qa/runs/{runId}/follow-up"})
     ResponseEntity<byte[]> start(HttpServletRequest request,
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @RequestBody String body) {
@@ -54,7 +55,7 @@ class RunGatewayController {
 
     private ResponseEntity<byte[]> forward(HttpServletRequest request, String authorization, String body) {
         CurrentUser user = this.sessions.require(authorization);
-        if ("POST".equals(request.getMethod()) && !user.hasRole(CurrentUser.REQUESTER)) {
+        if ("POST".equals(request.getMethod()) && !(request.getRequestURI().matches("/api/qa/runs/[^/]+/approval") ? user.hasRole("APPROVER") : user.hasRole(CurrentUser.REQUESTER))) {
             throw ApiException.forbidden("REQUESTER role required");
         }
         if (this.internalToken == null || this.internalToken.isBlank()) {

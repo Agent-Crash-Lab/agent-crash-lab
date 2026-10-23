@@ -1,6 +1,11 @@
 """B0/B1 comparison of two completed SYSTEM runs (HARNESS_SPEC 1.7)."""
 
 FIXED_FIELDS_ORDER = (
+    "qa_plan_id",
+    "qa_case_id",
+    "target_id",
+    "target_hash",
+    "data_hash",
     "test_id",
     "test_version",
     "fixture_id",
@@ -46,6 +51,9 @@ def compare(left: dict, right: dict) -> dict:
         fault = run.get("fault") or {}
         return {
             "order_count": len(observation.get("orders", [])) if observation else None,
+            "change_count": len(observation.get("changes", observation.get("orders", [])))
+            if observation
+            else None,
             "fault_status": fault.get("status"),
         }
 

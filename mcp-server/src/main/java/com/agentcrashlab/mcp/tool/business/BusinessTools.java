@@ -44,6 +44,11 @@ class BusinessTools {
 		}), tool("get_supplier", call -> {
 			ToolArgs.requireKeys(call.arguments(), Set.of("supplier_id"));
 			return queries.supplier(call.principal().runId(), ToolArgs.text(call.arguments(), "supplier_id"));
+		}), tool("get_supplier_eligibility", call -> {
+			ToolArgs.requireKeys(call.arguments(), Set.of("part_id", "supplier_id", "plant_id", "purchasing_org_id"));
+			return queries.eligibility(call.principal().runId(), ToolArgs.text(call.arguments(), "part_id"),
+				ToolArgs.text(call.arguments(), "supplier_id"), ToolArgs.text(call.arguments(), "plant_id"),
+				ToolArgs.text(call.arguments(), "purchasing_org_id"));
 		}), tool("create_purchase_order", call -> {
 			ToolArgs.requireKeys(call.arguments(), Set.of("request", "approval_id"));
 			PurchasePayload request = PurchasePayload.fromMap(call.arguments().get("request"));

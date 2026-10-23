@@ -16,7 +16,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.TestPropertySource;
 
-import com.agentcrashlab.mcp.domain.RunSetup;
+import com.agentcrashlab.mcp.domain.ReferencePurchaseSimulation;
 import com.agentcrashlab.mcp.support.McpTestClient;
 import com.agentcrashlab.mcp.support.PostgresIntegrationTest;
 
@@ -34,7 +34,7 @@ class EventDeliveryTests extends PostgresIntegrationTest {
 	int port;
 
 	@Autowired
-	RunSetup runSetup;
+	ReferencePurchaseSimulation runSetup;
 
 	@Test
 	void slowHarnessDoesNotDelayToolResponse() {

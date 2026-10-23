@@ -34,11 +34,11 @@ async def demo(scenario):
             else:
                 seed = json.loads(
                     (
-                        settings.agent_project_root
-                        / "fixtures/drafts/manufacturing-qa/purchase-seed.json"
+                        settings.agent_project_root / "qa/examples/targets/agents.json"
                     ).read_text()
                 )
-                request = PurchaseRequest.model_validate(seed["seed"]["request"])
+                profile = seed["agents"]["PURCHASE"]
+                request = PurchaseRequest.model_validate(profile["sample_data"]["business_input"])
                 fixture = (
                     "purchase-" + scenario if scenario.startswith("timeout") else "purchase-normal"
                 )

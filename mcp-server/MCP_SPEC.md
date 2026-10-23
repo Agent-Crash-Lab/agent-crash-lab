@@ -1,5 +1,7 @@
 # MCP 파트 연동 명세 (Agent · Harness)
 
+> 구매 참조 연동의 상세 초안입니다. 제품 전체·확장 계획은 [설계 안내](../docs/architecture.md)를 먼저 확인하세요. 미정 항목과 예시는 구현 완료 증거가 아니며 실제 코드·JSON 계약과 다르면 이 명세를 갱신합니다.
+
 초안 v0.4 · 2026-10-19 · 작성: 문관영
 
 mcp-server가 **Agent**, **Harness**와 주고받는 데이터 형식과 공개 API 전달 규칙을 정리한다. `(회의 확정 필요)`는 추천안으로 채운 미정 항목이다.
@@ -8,14 +10,14 @@ mcp-server가 **Agent**, **Harness**와 주고받는 데이터 형식과 공개 
 
 | 내용 | 파일 |
 |---|---|
-| 구매 도구 인자·오류 | `contracts/drafts/manufacturing-qa/purchase-tools.json` |
-| 조사 도구 | `contracts/drafts/manufacturing-qa/investigation-tools.json` |
-| 이벤트·UI 노드 | `contracts/drafts/manufacturing-qa/event.schema.json`, `event-ui-mapping.json` |
-| 관측 row (승인·발주) | `contracts/drafts/manufacturing-qa/oracle-observation.schema.json` |
-| 검사 결과 | `contracts/drafts/manufacturing-qa/qa-check.schema.json` |
-| 한도·승인·사고·해시 기준 | `config/development-baseline.json` |
-| seed | `fixtures/drafts/manufacturing-qa/purchase-seed.json` |
-| 지침 목록 | `fixtures/drafts/manufacturing-qa/guides/index.json` |
+| 구매 도구 인자·오류 | `qa/examples/purchase/tools.json` |
+| 조사 도구 | `qa/contracts/investigation-tools.json` |
+| 이벤트·UI 노드 | `qa/contracts/event.schema.json`, `event-ui-mapping.json` |
+| 관측 row (승인·발주) | `qa/examples/purchase/observation.schema.json` |
+| 검사 결과 | `qa/contracts/check-result.schema.json` |
+| 한도·승인 / 사고·해시 기준 | `config/qa-runtime.json` / `qa/examples/purchase/simulation.json` |
+| seed | `qa/examples/targets/agents.json` |
+| 지침 목록 | `qa/knowledge/guides/index.json` |
 | Harness 연동 | `harness/HARNESS_SPEC.md` (Harness 명세 v0.3) |
 
 ## 0. 개요
@@ -103,7 +105,7 @@ hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False, separator
 
 ### 1.3 구매 도구 (business-mcp)
 
-인자는 `purchase-tools.json`과 같다. drafts에는 출력 필드 이름만 있으므로 출력의 타입·의미는 추천안이다 (회의 확정 필요).
+인자는 `tools.json`과 같다. drafts에는 출력 필드 이름만 있으므로 출력의 타입·의미는 추천안이다 (회의 확정 필요).
 
 | 도구 | 효과 | 입력 | 출력 |
 |---|---|---|---|
@@ -155,6 +157,8 @@ hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False, separator
 - Resource: `guide://{document_id}/{version}` → 지침 원문 Markdown (`guides/index.json`의 `document_id`, `version`)
 - `search_failure_guides`는 모델 없이 키워드 일치 점수로 검색한다(제목 3점, 본문 1점). 같은 질문에는 항상 같은 결과가 나온다. 결과는 최대 3건이고, `location`은 가장 많이 일치한 문단(`문단 N`), `snippet`은 그 문단의 앞부분이다.
 - `get_failed_checks`, `get_run_trace`는 Harness 조회(4.3)가 실패하면 `INTERNAL_ERROR`(retryable)를 돌려준다.
+- 생산·품질 실행(3.6으로 등록)은 업무 상태와 대상 Agent의 도구 호출이 Harness 모의 환경에 있다. `get_business_state`와 `get_run_trace`의 `tool_calls[]`는 Harness 조회(4.4)로 채운다. 실패하면 `INTERNAL_ERROR`(retryable)다.
+- `search_manufacturing_knowledge`의 검색 범위는 토큰에 묶인 실행의 업무 유형(`PURCHASE`/`PRODUCTION`/`QUALITY`)이다. 공통 문서는 항상 포함된다. 도구 입력은 바뀌지 않는다.
 - 프론트 데모의 `get_run_evidence`, `retrieve_guide`는 별칭일 뿐이다. MCP는 위 4개 이름만 제공한다.
 
 `tool_calls[]` 항목:
@@ -165,7 +169,7 @@ hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False, separator
 
 ### 1.5 오류 계약
 
-PA03 개별 시험과 S03 통합 시험이 이 계약을 공유한다. 코드 목록은 `purchase-tools.json`의 `tool_errors`와 같다.
+PA03 개별 시험과 S03 통합 시험이 이 계약을 공유한다. 코드 목록은 `tools.json`의 `tool_errors`와 같다.
 
 | 코드 | 의미 | retryable |
 |---|---|---|
@@ -283,6 +287,8 @@ Harness     Agent 재개, approval_id와 결정 전달
 
 ### 3.1 실행 초기화 `POST /internal/sandbox/runs`
 
+선택 필드 `initial_state`는 QA가 준비한 구매 초기 데이터다. MCP는 수량·가격·재고와 요청 일치, 등록된 업체·조직·권한·빈 초기 거래를 검증한 뒤 적재한다. 생략하면 기존 fixture를 사용한다. 검증 실패는 `400 INVALID_QA_DATA`이며 적재 전에 거절한다.
+
 run_id 단위로 seed를 적재하고, 서버 정책과 사고 규칙을 등록하고, Agent 토큰을 발급한다. Harness에 업무 DB 쓰기 권한을 주지 않기 위해 초기화도 이 경로로만 한다.
 
 ```jsonc
@@ -374,7 +380,7 @@ Oracle 판정 직전에 호출한다. 응답은 `oracle-observation.schema.json`
 
 Harness는 `wait_ms: 5000`으로 호출한다. Oracle은 `oracle_ro`로 업무 DB를 직접 조회하므로 Harness는 이 응답을 확정 신호로만 쓴다. 관측 형식 응답은 `get_business_state`와 디버깅에 쓴다.
 
-### 3.5 사고 주입 (`config/development-baseline.json`의 `fault`)
+### 3.5 사고 주입 (`qa/examples/purchase/simulation.json`의 `fault`)
 
 ```json
 {
@@ -391,6 +397,22 @@ Harness는 `wait_ms: 5000`으로 호출한다. Oracle은 `oracle_ro`로 업무 D
 - 적용하면 `FAULT_INJECTED`(근거 `EV-FAULT-*`, 연결된 commit 근거 포함)를 기록하고 `TOOL_TIMEOUT`을 반환한다.
 - commit 여부를 Agent에 알리지 않는다 (`expose_commit_status_to_target: false`). 사고 설정은 도구 설명·응답·오류 메시지 어디에도 노출하지 않는다.
 - 주입 처리 중 예외가 나면 `INJECTION_ERROR`. 실행은 ERROR이고 Agent 결함과 별도로 집계한다.
+
+### 3.6 생산·품질 실행 조사 등록 `POST /internal/investigation-runs`
+
+Harness 모의 환경에서 실행한 생산·품질 시험을 조사할 때, 조사 Agent를 시작하기 전에 호출한다.
+
+```jsonc
+// 요청
+{ "run_id": "RUN-101", "agent_type": "PRODUCTION", "scenario_id": "PN01", "requested_by": "requester-01" }
+// 201
+{ "run_id": "RUN-101", "agent_type": "PRODUCTION", "agent_tokens": { "investigation_agent": "…" } }
+```
+
+- `agent_type`은 `PRODUCTION` / `QUALITY`만 받는다. 구매 실행은 3.1로 초기화하고 그때 조사 토큰을 받는다.
+- `run_context`에 조사 전용 행(`server_policy_version`, `fixture_id` = `harness-sandbox`)을 만든다. 업무 데이터는 만들지 않는다.
+- 같은 실행을 다시 등록하면 이전 조사 토큰을 폐기하고 새로 발급한다. 다른 `agent_type`으로 등록하면 409.
+- 조사 Agent 토큰으로는 구매 업무 도구를 쓸 수 없다. 조사 도구 호출 기록은 이 실행 ID로 남는다.
 
 ---
 
@@ -444,6 +466,28 @@ Harness가 제공하고 MCP가 호출한다.
 ```
 
 `scope`: `agent_behavior` / `server_control` / `business_state` / `task_completion` / `report_truthfulness` / `qa_evidence`
+
+### 4.4 생산·품질 모의 환경 상태 `GET /internal/runs/{run_id}/simulation-state`
+
+3.6으로 등록한 실행에만 호출한다. Harness가 제공해야 하는 응답 형식이다.
+
+```json
+{
+  "run_id": "RUN-101",
+  "agent_type": "PRODUCTION",
+  "snapshot_complete": true,
+  "snapshot_evidence_ids": ["SNAP-RUN-101"],
+  "current_state": {},
+  "changes": [],
+  "approval": null,
+  "tool_calls": [
+    { "tool": "assign_operation", "arguments": {}, "effect": "WRITE", "evidence_ids": ["EV-CALL-1"], "is_error": false, "error_code": null }
+  ]
+}
+```
+
+- `get_business_state`는 `tool_calls`를 뺀 나머지를 돌려준다. `tool_calls`는 `get_run_trace`가 돌려준다.
+- `agent_type`은 조사 Agent가 생산·품질을 구분하는 데 쓴다. 모든 근거 ID는 이 실행의 것이어야 한다.
 
 ---
 
@@ -529,6 +573,18 @@ Harness가 제공하고 MCP가 호출한다.
 | `HARNESS_URL` | Harness 주소 (`http://harness:8000`). 재개(4.1), 이벤트 제출(4.2), 조사 조회(4.3), 공개 API 전달(5.2) |
 | `DEMO_USER_PASSWORD` | seed 사용자 개발용 비밀번호 (기본값 `crashlab`) |
 | `MCP_PUBLIC_URL` | 3.1 응답의 `mcp_url` (기본값 `http://mcp-server:8081/mcp`) |
-| `CRASHLAB_FIXTURES_DIR` | 저장소 `fixtures/` 위치. 컨테이너에서는 Dockerfile이 `/fixtures`로 지정하고 compose가 마운트한다 |
+| `CRASHLAB_QA_DIR` | 저장소 `qa/` 위치. 컨테이너에서는 Dockerfile이 `/qa`로 지정하고 compose가 마운트한다. 기존 환경변수 `CRASHLAB_FIXTURES_DIR`는 대체 입력으로 허용한다 |
 
 Compose에서 mcp-server에 `depends_on: harness`를 넣지 않는다. harness가 이미 mcp-server를 기다리므로 순환이 생긴다. mcp-server는 Harness가 필요할 때만 호출한다.
+
+
+## 공급 자격 조회와 서버 차단 (S04)
+
+`get_supplier_eligibility(part_id, supplier_id, plant_id, purchasing_org_id)`는 실행의 공급원 표를 정확한 네 키로 조회합니다. `allowed`, `policy_found`, `policy_version`과 조회 범위를 반환합니다. 레코드가 없으면 false/false/0입니다.
+`create_purchase_order`는 승인 확인 후 같은 트랜잭션에서 업체 활성 여부와 해당 공급 자격을 재확인합니다. 미승인·누락은 재시도 불가 `SUPPLIER_NOT_QUALIFIED`로 차단하며 주문을 저장하지 않습니다.
+시험 초기 상태는 선택된 공급원의 allowed만 변경할 수 있습니다. 다른 공급원 식별자·권한·정책 버전 변경은 허용하지 않습니다. 조사 snapshot에는 suppliers와 supply_sources가 포함됩니다.
+
+
+## 후속 개발 연결 (2026-10-22)
+
+공동 입력·출력·담당 경계는 [팀별 개발 계약](../docs/architecture.md#팀별-개발-계약), 저장 양식은 [데이터·스키마](../docs/data-guide.md#보완과-추가-실험-데이터)를 기준으로 맞춥니다. 시험안은 보류된 안만 1회 보완하며, 추가 실험은 원래 계획의 정상 대조·위험 조건을 기존 배치·승인 경로로 실행합니다.

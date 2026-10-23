@@ -48,6 +48,9 @@ class _Http:
 class McpClient(_Http):
     service = "mcp-server"
 
+    async def search_knowledge(self, body: dict) -> dict:
+        return await self._send("POST", "/internal/knowledge/search", json=body)
+
     async def initialize(self, body: dict) -> dict:
         return await self._send("POST", "/internal/sandbox/runs", json=body)
 
@@ -71,6 +74,15 @@ class McpClient(_Http):
 
 class AgentClient(_Http):
     service = "agents"
+
+    async def execution_profile(self):
+        return await self._send("GET", "/internal/qa/execution-profile")
+
+    async def analyze(self, body: dict) -> dict:
+        return await self._send("POST", "/internal/qa/analyze", json=body)
+
+    async def design(self, body: dict) -> dict:
+        return await self._send("POST", "/internal/qa/design", json=body, timeout=85)
 
     async def start(self, body: dict) -> dict:
         return await self._send("POST", "/internal/agent-runs", json=body)

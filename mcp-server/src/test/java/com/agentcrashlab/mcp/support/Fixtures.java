@@ -7,7 +7,7 @@ import java.util.Map;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 import com.agentcrashlab.mcp.domain.PurchasePayload;
-import com.agentcrashlab.mcp.domain.RunSetup;
+import com.agentcrashlab.mcp.domain.ReferencePurchaseSimulation;
 
 /** 테스트 데이터 도우미 */
 public final class Fixtures {
@@ -30,9 +30,9 @@ public final class Fixtures {
 		return request;
 	}
 
-	public static RunSetup.Result initRun(RunSetup runSetup, String runId, String policy) {
+	public static ReferencePurchaseSimulation.Result initRun(ReferencePurchaseSimulation runSetup, String runId, String policy) {
 		return runSetup
-			.initialize(new RunSetup.Command(runId, "S01", policy, "fixture-v1", "requester-01", List.of()));
+			.initialize(new ReferencePurchaseSimulation.Command(runId, "S01", policy, "fixture-v1", "requester-01", List.of()));
 	}
 
 	/**

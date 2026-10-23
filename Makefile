@@ -48,3 +48,20 @@ dev-logs:
 
 agent-demo: ## 예: make agent-demo scenario=timeout-once
 	$(COMPOSE_DEV) run --rm --no-deps agents uv run --no-sync python -m agents.demo --scenario $(or $(scenario),approved)
+
+
+.PHONY: dev-rag-up knowledge-index
+dev-rag-up: dev-check ## PostgreSQL 유지 → pgvector 준비 → 실제 BGE 색인 → 전체 개발 서비스
+	python3 scripts/prepare_knowledge.py
+	$(COMPOSE_DEV) up -d --build --wait postgres
+	$(COMPOSE_DEV) exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"' < infra/postgres/knowledge.sql
+	$(COMPOSE_DEV) build knowledge
+	$(COMPOSE_DEV) run --rm --no-deps knowledge python -m knowledge.index
+	$(COMPOSE_DEV) up -d --build --wait --wait-timeout 240 postgres knowledge mcp-server agents harness frontend
+
+knowledge-index: ## 자료 변경 후 재색인. 동일 데이터·모델은 건너뜀
+	$(COMPOSE_DEV) run --rm --no-deps knowledge python -m knowledge.index
+
+.PHONY: knowledge-add
+knowledge-add: ## 예: make knowledge-add record=/tmp/reviewed-source.json
+	python3 scripts/prepare_knowledge.py --record "$(record)"

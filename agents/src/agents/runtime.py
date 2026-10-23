@@ -13,19 +13,19 @@ from langgraph.types import Command
 
 from agents.config import redact
 from agents.execution import Context, ExecutionLimit
-from agents.graph.investigation import PROMPT as INVESTIGATION_PROMPT
-from agents.graph.investigation import FixtureReportModel, build_investigation_graph
-from agents.graph.purchase import build_purchase_graph
-from agents.graph.purchase_model import PROMPT as PURCHASE_PROMPT
 from agents.llm import (
     ModelError,
-    PurchaseChoice,
     StructuredModel,
     inference_signature,
     resolve_model,
 )
 from agents.models import ApprovalDecision, InvestigationReport, PurchaseRequest
+from agents.qa.investigation import PROMPT as INVESTIGATION_PROMPT
+from agents.qa.investigation import FixtureReportModel, build_investigation_graph
 from agents.store import Store
+from agents.targets.reference_purchase import build_reference_target_graph
+from agents.targets.reference_purchase_model import PROMPT as PURCHASE_PROMPT
+from agents.targets.reference_purchase_model import PurchaseChoice
 from agents.tools.mcp import McpTools
 from agents.tools.mock import MockTools
 
@@ -42,16 +42,14 @@ class Runtime:
         self.settings = settings
         self.model = model or FixtureReportModel()
         root = settings.agent_project_root
-        config = json.loads((root / "config/development-baseline.json").read_text())
+        config = json.loads((root / "config/qa-runtime.json").read_text())
         self.policy = {
             **config["execution"],
             **config["approval"],
         }
         self.schemas = {}
-        for file in ["purchase-tools.json", "investigation-tools.json"]:
-            for tool in json.loads((root / "contracts/drafts/manufacturing-qa" / file).read_text())[
-                "tools"
-            ]:
+        for reference in ["tool_contracts", "investigation_tools"]:
+            for tool in json.loads((root / config["references"][reference]).read_text())["tools"]:
                 self.schemas[tool["name"]] = tool["input_schema"]
         self.lock = asyncio.Lock()
         self.tasks = set()
@@ -266,7 +264,7 @@ class Runtime:
                         PurchaseChoice if purchase else InvestigationReport,
                     )
                 if purchase:
-                    graph = build_purchase_graph(ctx, self.saver, model)
+                    graph = build_reference_target_graph(ctx, self.saver, model)
                     inputs = Command(resume=approval) if approval else {"request": run["request"]}
                 else:
                     graph = build_investigation_graph(ctx, self.saver, model or self.model)

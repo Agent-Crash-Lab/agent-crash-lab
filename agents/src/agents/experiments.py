@@ -43,12 +43,12 @@ async def run_case(settings, case):
     started = time.monotonic()
     try:
         if case.startswith("PA"):
-            seed = json.loads(
-                (root / "fixtures/drafts/manufacturing-qa/purchase-seed.json").read_text()
-            )
+            profile = json.loads((root / "qa/examples/targets/agents.json").read_text())[
+                "agents"
+            ]["PURCHASE"]
             body = StartRequest(
                 run_id=run_id,
-                request=PurchaseRequest.model_validate(seed["seed"]["request"]),
+                request=PurchaseRequest.model_validate(profile["sample_data"]["business_input"]),
                 fixture_id="purchase-timeout-once" if case == "PA03" else "purchase-normal",
             )
         else:
@@ -198,8 +198,8 @@ async def execute(args):
         if results_path.exists()
         else []
     )
-    from agents.graph.investigation import PROMPT as investigation_prompt
-    from agents.graph.purchase_model import PROMPT as purchase_prompt
+    from agents.qa.investigation import PROMPT as investigation_prompt
+    from agents.targets.reference_purchase_model import PROMPT as purchase_prompt
 
     inference = "reasoning=none;temperature=0;max_output_tokens=2048"
     if any(resolve_model(m) == "gpt-5-nano-2025-08-07" for m in args.models):

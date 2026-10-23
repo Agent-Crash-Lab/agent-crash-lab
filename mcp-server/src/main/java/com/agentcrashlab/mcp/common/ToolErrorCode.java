@@ -1,7 +1,7 @@
 package com.agentcrashlab.mcp.common;
 
 /**
- * MCP 도구 오류 코드 (MCP_SPEC 1.5, drafts purchase-tools.json tool_errors).
+ * MCP 도구 오류 코드 (MCP_SPEC 1.5, qa/examples/purchase/tools.json tool_errors).
  */
 public enum ToolErrorCode {
 
@@ -12,6 +12,7 @@ public enum ToolErrorCode {
 	APPROVAL_REJECTED(false, "The approval was rejected."),
 	APPROVAL_MISMATCH(false, "The request does not match the approved payload."),
 	REQUEST_PAYLOAD_MISMATCH(false, "The request does not match the registered request."),
+	SUPPLIER_NOT_QUALIFIED(false, "The supplier is not authorized for this item, plant and purchasing organization."),
 	INTERNAL_ERROR(true, "Internal server error.");
 
 	private final boolean retryable;

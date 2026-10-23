@@ -58,6 +58,14 @@ class RestHarnessClient implements HarnessClient {
 				"events");
 	}
 
+	@Override
+	@SuppressWarnings("unchecked")
+	public Map<String, Object> simulationState(String runId) {
+		return this.json.readValue(
+				this.rest.get().uri("/internal/runs/{runId}/simulation-state", runId).retrieve().body(String.class),
+				Map.class);
+	}
+
 	@SuppressWarnings("unchecked")
 	private List<Map<String, Object>> list(String body, String field) {
 		Object items = this.json.readValue(body, Map.class).get(field);

@@ -28,7 +28,7 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 import com.agentcrashlab.mcp.auth.CurrentUser;
 import com.agentcrashlab.mcp.common.ApiException;
 import com.agentcrashlab.mcp.domain.Approvals;
-import com.agentcrashlab.mcp.domain.RunSetup;
+import com.agentcrashlab.mcp.domain.ReferencePurchaseSimulation;
 import com.agentcrashlab.mcp.support.PostgresIntegrationTest;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -42,7 +42,7 @@ class ApprovalFlowTests extends PostgresIntegrationTest {
 	MockMvcTester mvc;
 
 	@Autowired
-	RunSetup runSetup;
+	ReferencePurchaseSimulation runSetup;
 
 	@Autowired
 	JdbcClient jdbc;

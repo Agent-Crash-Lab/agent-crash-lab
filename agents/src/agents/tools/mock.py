@@ -3,7 +3,7 @@
 import json
 from copy import deepcopy
 
-from agents.tools.business import ToolError
+from agents.tools.errors import ToolError
 
 
 class MockTools:
@@ -11,11 +11,13 @@ class MockTools:
         self.root, self.fixture_id, self.target_run_id = root, fixture_id, target_run_id
         self.create_count = 0
         self.calls = []
+        profiles = json.loads((root / "qa/examples/targets/agents.json").read_text())["agents"]
+        self.purchase_state = deepcopy(profiles["PURCHASE"]["sample_data"]["initial_state"])
 
     def investigation_evidence(self):
-        cases = json.loads(
-            (self.root / "fixtures/drafts/manufacturing-qa/investigation-cases.json").read_text()
-        )["cases"]
+        cases = json.loads((self.root / "qa/examples/investigation/cases.json").read_text())[
+            "cases"
+        ]
         case = next(item for item in cases if item["fixture_id"] == self.fixture_id)
 
         def scope(value):
@@ -30,16 +32,57 @@ class MockTools:
 
     async def call(self, name, arguments):
         self.calls.append({"tool": name, "arguments": deepcopy(arguments)})
-        if name == "get_inventory":
-            return {**arguments, "available_quantity": 20, "unit": "EA", "inventory_version": 1}
-        if name == "get_supplier":
+        if name == "get_supplier_eligibility":
+            seed = self.purchase_state
+            source = next(
+                (
+                    s
+                    for s in seed["approved_supply_sources"]
+                    if all(
+                        s[k] == arguments[k]
+                        for k in ("part_id", "supplier_id", "plant_id", "purchasing_org_id")
+                    )
+                ),
+                None,
+            )
             return {
                 **arguments,
-                "status": "ACTIVE",
-                "unit_price_minor": 12000,
-                "currency": "KRW",
-                "supplier_version": 1,
+                "policy_found": source is not None,
+                "allowed": bool(source and source["allowed"]),
+                "policy_version": source["policy_version"] if source else 0,
             }
+        if name in {"get_inventory", "get_supplier"}:
+            seed = self.purchase_state
+            if name == "get_inventory":
+                part = next(
+                    (
+                        part
+                        for part in seed["parts"]
+                        if part["part_id"] == arguments["part_id"]
+                        and part["plant_id"] == arguments["plant_id"]
+                    ),
+                    None,
+                )
+                if part is None:
+                    raise ToolError("VALIDATION_ERROR")
+                return {
+                    "part_id": part["part_id"],
+                    "plant_id": part["plant_id"],
+                    "available_quantity": part["inventory"],
+                    "unit": part["unit"],
+                    "inventory_version": 1,
+                }
+            supplier = next(
+                (
+                    supplier
+                    for supplier in seed["suppliers"]
+                    if supplier["supplier_id"] == arguments["supplier_id"]
+                ),
+                None,
+            )
+            if supplier is None:
+                raise ToolError("VALIDATION_ERROR")
+            return {**supplier, "supplier_version": 1}
         if name == "create_purchase_order":
             self.create_count += 1
             if self.fixture_id == "purchase-timeout-always" or (
@@ -126,14 +169,10 @@ class MockTools:
         raise ToolError("PERMISSION_DENIED")
 
     def guides(self):
-        return json.loads(
-            (self.root / "fixtures/drafts/manufacturing-qa/guides/index.json").read_text()
-        )["documents"]
+        return json.loads((self.root / "qa/knowledge/guides/index.json").read_text())["documents"]
 
     async def resource(self, uri):
         for guide in self.guides():
             if uri == f"guide://{guide['document_id']}/{guide['version']}":
-                return (
-                    self.root / "fixtures/drafts/manufacturing-qa/guides" / guide["body_path"]
-                ).read_text()
+                return (self.root / "qa/knowledge/guides" / guide["body_path"]).read_text()
         raise ToolError("PERMISSION_DENIED")

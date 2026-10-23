@@ -22,4 +22,7 @@ public interface HarnessClient {
 	/** 4.3 조사용: 저장된 이벤트 목록 (sequence 순) */
 	List<Map<String, Object>> runEvents(String runId);
 
+	/** 4.4 조사용: 생산·품질 모의 환경의 업무 상태와 도구 호출 (Harness가 원본) */
+	Map<String, Object> simulationState(String runId);
+
 }

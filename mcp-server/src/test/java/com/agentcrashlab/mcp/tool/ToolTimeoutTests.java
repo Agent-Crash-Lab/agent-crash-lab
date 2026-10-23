@@ -20,7 +20,7 @@ import org.springframework.test.context.TestPropertySource;
 
 import com.agentcrashlab.mcp.auth.AgentKind;
 import com.agentcrashlab.mcp.domain.RunFinalizer;
-import com.agentcrashlab.mcp.domain.RunSetup;
+import com.agentcrashlab.mcp.domain.ReferencePurchaseSimulation;
 import com.agentcrashlab.mcp.support.McpTestClient;
 import com.agentcrashlab.mcp.support.PostgresIntegrationTest;
 
@@ -38,7 +38,7 @@ class ToolTimeoutTests extends PostgresIntegrationTest {
 	int port;
 
 	@Autowired
-	RunSetup runSetup;
+	ReferencePurchaseSimulation runSetup;
 
 	@Autowired
 	RunFinalizer finalizer;

@@ -7,7 +7,7 @@ from conftest import approval, purchase, settled
 
 import agents.runtime as runtime_module
 from agents.models import StartRequest
-from agents.tools.business import ToolError
+from agents.tools.errors import ToolError
 from agents.tools.mock import MockTools
 
 
@@ -46,7 +46,7 @@ async def test_timeout_preserves_request_on_retry(runtime, monkeypatch, timeout_
     await runtime.start(body)
     waiting = await settled(runtime, body.run_id)
     assert waiting["status"] == "WAITING_APPROVAL"
-    assert waiting["tool_calls"] == 2
+    assert waiting["tool_calls"] == 3
     await runtime.resume(body.run_id, approval(body, agent_token="test-token"))
     done = await settled(runtime, body.run_id)
     assert done["result"]["outcome"] == "SUCCEEDED"

@@ -22,7 +22,7 @@ import com.agentcrashlab.mcp.common.ApiException;
 import com.agentcrashlab.mcp.domain.Approvals;
 import com.agentcrashlab.mcp.domain.PurchasePayload;
 import com.agentcrashlab.mcp.domain.RunFinalizer;
-import com.agentcrashlab.mcp.domain.RunSetup;
+import com.agentcrashlab.mcp.domain.ReferencePurchaseSimulation;
 import com.agentcrashlab.mcp.support.PostgresIntegrationTest;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -38,7 +38,7 @@ class FinalizedRunTests extends PostgresIntegrationTest {
 	MockMvcTester mvc;
 
 	@Autowired
-	RunSetup runSetup;
+	ReferencePurchaseSimulation runSetup;
 
 	@Autowired
 	Approvals approvals;

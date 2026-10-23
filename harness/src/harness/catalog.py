@@ -4,9 +4,10 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-QA = "manufacturing-qa"
+from harness.adapters.manufacturing import CONDITIONS, RULES
+from harness.planning import QaPlanner
 
-# Titles for agent unit tests follow README §6; the scenario files carry none.
+# Titles for agent unit tests follow docs/evaluation.md; the scenario files carry none.
 PURCHASE_TESTS = {
     "PA01": ("정상 응답·승인", "purchase-normal", "APPROVED"),
     "PA02": ("승인 거절", "purchase-normal", "REJECTED"),
@@ -35,19 +36,24 @@ class TestSpec:
 class Catalog:
     def __init__(self, root: Path):
         self.root = root
-        self.config = self._json("config/development-baseline.json")
-        self.seed = self._json(f"fixtures/drafts/{QA}/purchase-seed.json")
-        self.cases = {
-            case["test_id"]: case
-            for case in self._json(f"fixtures/drafts/{QA}/investigation-cases.json")["cases"]
+        self.planner = QaPlanner(root)
+        self.config = self.planner.config
+        refs = self.config["references"]
+        purchase = self._json(refs["target_profiles"])["agents"]["PURCHASE"]
+        self.seed = {
+            "fixture_id": purchase["fixture_id"],
+            "seed": purchase["sample_data"]["initial_state"],
         }
-        scenarios = self._json(f"scenarios/drafts/{QA}/catalog.json")
+        self.cases = {
+            case["test_id"]: case for case in self._json(refs["investigation_cases"])["cases"]
+        }
+        scenarios = self._json(refs["scenarios"])
         self.rules = {rule["rule_id"]: rule for rule in scenarios["base_rules"]}
-        # Rules judged from Harness records (R10), not by the Oracle (HARNESS_SPEC 2.8).
+        self.event_schema = self._json(refs["event_schema"])
+        self.qa_plan = self.planner.build()
         self.harness_rules = {
             rule_id for rule_id, rule in self.rules.items() if rule.get("judged_by") == "harness"
         }
-        self.event_schema = self._json(f"contracts/drafts/{QA}/event.schema.json")
         self.tests: dict[str, TestSpec] = {}
 
         enabled = set(self.config["enabled_scenarios"])
@@ -63,6 +69,17 @@ class Catalog:
                 expected_approval=_expected_approval(runner_only["interventions"]),
                 rule_ids=list(runner_only["oracle_rule_ids"]),
             )
+        for conditions in CONDITIONS.values():
+            for risk, (test_id, title) in conditions.items():
+                self.tests[test_id] = TestSpec(
+                    test_id,
+                    "SYSTEM",
+                    title,
+                    "0.1.0",
+                    expected_approval="REJECTED" if risk == "APPROVAL_DENIED" else None,
+                    rule_ids=list(RULES),
+                )
+        self.rules.update({key: {"name": name} for key, (name, _) in RULES.items()})
         for test_id, (title, fixture_id, decision) in PURCHASE_TESTS.items():
             self.tests[test_id] = TestSpec(
                 test_id=test_id,
@@ -98,7 +115,11 @@ class Catalog:
         return dict(self.seed["seed"]["request"])
 
     def rule_scopes(self, rule_id: str) -> list[str]:
-        return list(self.config["evaluation"]["rule_check_scopes"].get(rule_id, []))
+        return (
+            RULES[rule_id][1]
+            if rule_id in RULES
+            else list(self.config["evaluation"]["rule_check_scopes"].get(rule_id, []))
+        )
 
     def scenarios_response(self) -> dict:
         return {
@@ -129,23 +150,24 @@ class Catalog:
             ],
         }
 
-    def manifest(self, test: TestSpec, system_id: str | None) -> dict:
+    def manifest(self, test: TestSpec, system_id: str | None, plan=None, case=None) -> dict:
         execution = self.config["execution"]
         system = self.systems[system_id] if system_id else None
         faults = []
-        if test.test_id in self.config["fault"]["enabled_in_scenarios"]:
-            fault = self.config["fault"]
-            faults.append(
-                {
-                    "fault_id": "FLT-001",
-                    "tool_name": fault["tool_name"],
-                    "trigger": fault["trigger"],
-                    "max_applied_count": fault["max_applied_count"],
-                    "target_error_code": fault["target_error_code"],
-                }
-            )
         system_test = test.test_kind == "SYSTEM"
+        plan = plan or self.qa_plan
+        case = case or (self.planned_case(test.test_id) if system_test else None)
+        if case and case["simulation"]["fault"]:
+            faults.append({"fault_id": "FLT-001", **case["simulation"]["fault"]})
         return {
+            "qa_plan_id": plan["plan_id"] if system_test else None,
+            "qa_case_id": case["case_id"] if case else None,
+            "target_id": plan["target_id"] if system_test else None,
+            "target_hash": plan["target_hash"] if system_test else None,
+            "data_hash": case.get("data_hash", plan["data_hash"]) if case else None,
+            "registered_target": plan.get("design", {}).get("registration")
+            if system_test
+            else None,
             "test_id": test.test_id,
             "test_version": test.version,
             "system_id": system_id,
@@ -180,6 +202,17 @@ class Catalog:
             "rule_version": self.config["evaluation"]["rule_version"],
             "config_version": self.config["config_version"],
         }
+
+    def planned_case(self, test_id):
+        return next(
+            (
+                case
+                for case in self.qa_plan["cases"]
+                if case["execution"]["registered_test_id"] == test_id
+                and case["execution"]["status"] == "READY"
+            ),
+            None,
+        )
 
 
 def _expected_approval(interventions) -> str | None:

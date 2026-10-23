@@ -4,14 +4,16 @@ import json
 import sqlite3
 import time
 from pathlib import Path
-from typing import Literal
 from uuid import uuid4
 
 from openai import AsyncOpenAI
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import ValidationError
 
 # Standard text pricing per million tokens, checked 2026-10-20 against OpenAI model docs.
+# GPT-4o mini: official model page checked 2026-10-22.
+# https://developers.openai.com/api/docs/models/gpt-4o-mini
 PRICES = {
+    "gpt-4o-mini-2024-07-18": (0.15, 0.60),
     "gpt-5-nano-2025-08-07": (0.05, 0.40),
     "gpt-5.4-nano-2026-03-17": (0.20, 1.25),
     "gpt-5.4-mini-2026-03-17": (0.75, 4.50),
@@ -25,16 +27,6 @@ class ModelError(Exception):
     """Only fixed, credential-free codes may leave the model boundary."""
 
 
-class PurchaseChoice(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    action: Literal[
-        "get_inventory", "get_supplier", "request_approval", "create_purchase_order", "finish"
-    ]
-    outcome: Literal["SUCCEEDED", "REJECTED", "FAILED", "NEEDS_INPUT", "UNKNOWN"] | None
-    order_id: str | None
-    message: str
-
-
 def resolve_model(name):
     aliases = {model.rsplit("-", 3)[0]: model for model in PRICES}
     model = aliases.get(name, name)
@@ -44,6 +36,8 @@ def resolve_model(name):
 
 
 def inference_options(model):
+    if model == "gpt-4o-mini-2024-07-18":
+        return {"temperature": 0}
     if model == "gpt-5-nano-2025-08-07":
         return {"reasoning": {"effort": "minimal"}}
     return {"reasoning": {"effort": "none"}, "temperature": 0}
@@ -51,7 +45,11 @@ def inference_options(model):
 
 def inference_signature(model):
     effort = (
-        "minimal;temperature=default" if model == "gpt-5-nano-2025-08-07" else "none;temperature=0"
+        "unsupported;temperature=0"
+        if model == "gpt-4o-mini-2024-07-18"
+        else "minimal;temperature=default"
+        if model == "gpt-5-nano-2025-08-07"
+        else "none;temperature=0"
     )
     return f"reasoning={effort};max_output_tokens={MAX_OUTPUT}"
 
@@ -68,9 +66,9 @@ class Budget:
     def connect(self):
         return sqlite3.connect(self.path, timeout=5)
 
-    def reserve(self, stage, model, input_bound):
+    def reserve(self, stage, model, input_bound, max_output_tokens=MAX_OUTPUT):
         incoming, outgoing = PRICES[model]
-        amount = (input_bound * incoming + MAX_OUTPUT * outgoing) / 1_000_000
+        amount = (input_bound * incoming + max_output_tokens * outgoing) / 1_000_000
         call_id = uuid4().hex
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
@@ -108,8 +106,11 @@ class Budget:
 
 
 class StructuredModel:
-    def __init__(self, settings, ctx, model, schema):
+    def __init__(self, settings, ctx, model, schema, max_output_tokens=MAX_OUTPUT):
         self.settings, self.ctx, self.model, self.schema = settings, ctx, model, schema
+        if max_output_tokens not in {1024, 2048, 4096}:
+            raise ModelError("INVALID_OUTPUT_BUDGET")
+        self.max_output_tokens = max_output_tokens
         self.budget = Budget(
             settings.llm_budget_path or settings.agent_state_dir / "llm-budget.sqlite"
         )
@@ -118,15 +119,67 @@ class StructuredModel:
         # Byte count is a conservative token bound, including schema and message overhead.
         data = json.dumps(context, ensure_ascii=False, sort_keys=True)
         response_schema = self.schema.model_json_schema()
-        if self.schema is PurchaseChoice and "allowed_actions" in context:
+        if "allowed_actions" in context and "action" in response_schema.get("properties", {}):
             # Constrain decoding as well as validating the chosen action in application code.
             response_schema["properties"]["action"]["enum"] = context["allowed_actions"]
+        # Restrict design decoding to declared tools and retrieved citation IDs.
+        # Application and Harness checks still validate each selected risk and policy.
+        if "proposals" in response_schema.get("properties", {}):
+            if context.get("repair_proposal_ids"):
+                count = len(context["repair_proposal_ids"])
+                response_schema["properties"]["proposals"].update(minItems=count, maxItems=count)
+            tools = context.get("analysis", {}).get("write_tools", [])
+            risks = [risk["risk_key"] for risk in context.get("selected_risks", [])]
+            citations = [source["document_id"] for source in context.get("sources", [])]
+            for definition in response_schema.get("$defs", {}).values():
+                fields = definition.get("properties", {})
+                if {"tool_name", "risk_key", "evidence_ids"} <= fields.keys():
+                    if context.get("generation_contract", {}).get("structured_data_output"):
+                        fields["test_data_json"] = context["generation_contract"]["scenario_schema"]
+                    if context.get("repair_proposal_ids"):
+                        fields["proposal_id"]["enum"] = context["repair_proposal_ids"]
+                    if tools:
+                        fields["tool_name"]["enum"] = tools
+                    if risks:
+                        fields["risk_key"]["enum"] = risks
+                    if citations:
+                        fields["evidence_ids"]["items"]["enum"] = citations
+                    if "morphology_id" in fields:
+                        fields["morphology_id"]["enum"] = [
+                            c["candidate_id"]
+                            for c in context.get("morphology", {}).get("candidates", [])
+                        ]
+                    if "exception_ids" in fields:
+                        fields["exception_ids"]["items"]["enum"] = [
+                            e["exception_id"]
+                            for e in context.get("morphology", {}).get("exception_catalog", [])
+                            if e["risk_key"] in risks
+                        ]
+        if "reviews" in response_schema.get("properties", {}):
+            proposal_ids = [proposal["proposal_id"] for proposal in context.get("proposals", [])]
+            if proposal_ids:
+                response_schema["properties"]["reviews"].update(
+                    minItems=len(proposal_ids), maxItems=len(proposal_ids)
+                )
+            for definition in response_schema.get("$defs", {}).values():
+                fields = definition.get("properties", {})
+                if proposal_ids and {"proposal_id", "policy_alignment"} <= fields.keys():
+                    fields["proposal_id"]["enum"] = proposal_ids
+                    if "evidence_ids" in fields and context.get("review_stage"):
+                        fields["evidence_ids"]["items"]["enum"] = [
+                            source["document_id"]
+                            for source in context.get("sources", [])
+                            if context["review_stage"] in source.get("evidence_domains", [])
+                        ]
         schema = json.dumps(response_schema, ensure_ascii=False)
         bound = len((prompt + data + schema).encode("utf-8")) + 1024
         if bound > 64000:
             raise ModelError("LLM_INPUT_LIMIT")
         call_id, reserved = self.budget.reserve(
-            self.ctx.store.get(self.ctx.run_id)["budget_stage"], self.model, bound
+            self.ctx.store.get(self.ctx.run_id)["budget_stage"],
+            self.model,
+            bound,
+            self.max_output_tokens,
         )
         started, completed = time.monotonic(), False
         usage = {
@@ -151,7 +204,7 @@ class StructuredModel:
                     store=False,
                     service_tier="default",
                     **inference_options(self.model),
-                    max_output_tokens=MAX_OUTPUT,
+                    max_output_tokens=self.max_output_tokens,
                     text={
                         "format": {
                             "type": "json_schema",
@@ -178,7 +231,7 @@ class StructuredModel:
                     estimated_cost_usd=cost,
                     unknown_reserved_usd=0,
                 )
-                if tokens_in > bound or tokens_out > MAX_OUTPUT:
+                if tokens_in > bound or tokens_out > self.max_output_tokens:
                     raise ModelError("LLM_USAGE_EXCEEDED_RESERVATION")
             if response.status != "completed":
                 raise ModelError("LLM_INCOMPLETE")
@@ -191,7 +244,14 @@ class StructuredModel:
                 for part in item.content
             ):
                 raise ModelError("LLM_REFUSED")
-            result = self.schema.model_validate_json(response.output_text)
+            output = json.loads(response.output_text)
+            if context.get("generation_contract", {}).get("structured_data_output"):
+                for proposal in output.get("proposals", []):
+                    if isinstance(proposal.get("test_data_json"), dict):
+                        proposal["test_data_json"] = json.dumps(
+                            proposal["test_data_json"], ensure_ascii=False
+                        )
+            result = self.schema.model_validate(output)
             encoded = result.model_dump_json()
             if any(secret and secret in encoded for secret in self.ctx.secrets):
                 raise ModelError("LLM_CREDENTIAL_IN_OUTPUT")

@@ -18,6 +18,9 @@ TOKEN = "test-internal-token-not-a-real-secret"
 def offline_test_environment(monkeypatch):
     # A developer's exported live settings must never make the ordinary suite billable.
     monkeypatch.setenv("AGENT_MODEL_MODE", "offline")
+    monkeypatch.setenv("QA_DESIGN_MODEL_MODE", "offline")
+    monkeypatch.setenv("QA_DESIGN_LLM_MODEL", "")
+    monkeypatch.setenv("QA_REVIEW_LLM_MODEL", "")
     monkeypatch.setenv("LLM_API_KEY", "")
     monkeypatch.setenv("LLM_MODEL", "")
     monkeypatch.setenv("PURCHASE_LLM_MODEL", "")
@@ -41,9 +44,9 @@ async def runtime(settings):
 
 
 def purchase(run_id="RUN-TEST", fixture_id="purchase-normal", **changes):
-    data = json.loads((ROOT / "fixtures/drafts/manufacturing-qa/purchase-seed.json").read_text())[
-        "seed"
-    ]["request"]
+    data = json.loads((ROOT / "qa/examples/targets/agents.json").read_text())["agents"][
+        "PURCHASE"
+    ]["sample_data"]["business_input"]
     return StartRequest(
         run_id=run_id, fixture_id=fixture_id, request=PurchaseRequest(**{**data, **changes})
     )

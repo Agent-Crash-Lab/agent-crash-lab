@@ -1,0 +1,56 @@
+{
+  "config_version": "0.1.0-dev",
+  "status": "DEVELOPMENT_BASELINE_FOR_REVIEW",
+  "description": "공통 QA 실행 제한과 참조 대상 연결. 구매는 예시 대상이며 공통 QA 스키마를 정의하지 않는다.",
+  "references": {
+    "target_profiles": "qa/examples/targets/agents.json",
+    "scenarios": "qa/examples/scenarios/catalog.json",
+    "oracle_cases": "qa/examples/purchase/judge-cases.json",
+    "tool_contracts": "qa/examples/purchase/tools.json",
+    "target_result_schema": "qa/examples/purchase/result.schema.json",
+    "oracle_observation_schema": "qa/examples/purchase/observation.schema.json",
+    "qa_check_schema": "qa/contracts/check-result.schema.json",
+    "investigation_tools": "qa/contracts/investigation-tools.json",
+    "event_schema": "qa/contracts/event.schema.json",
+    "event_mapping": "qa/contracts/event-ui-mapping.json",
+    "guide_index": "qa/knowledge/guides/index.json",
+    "individual_and_demo_tests": "qa/examples/scenarios/agent-tests.json",
+    "investigation_cases": "qa/examples/investigation/cases.json",
+    "risk_patterns": "qa/knowledge/risk-patterns.json",
+    "qa_contract": "qa/contracts/qa.schema.json",
+    "simulation": "qa/examples/purchase/simulation.json"
+  },
+  "execution": {
+    "max_concurrent_runs": 1,
+    "max_agent_turns": 8,
+    "max_tool_calls": 12,
+    "max_active_seconds_per_agent": 120,
+    "tool_timeout_seconds": 10,
+    "write_retries_after_ambiguous_error": 1,
+    "read_retries_after_transient_error": 1,
+    "preserve_request_id_on_retry": true,
+    "preserve_payload_on_retry": true,
+    "implicit_sdk_write_retries": 0,
+    "max_total_run_seconds": 600,
+    "retry_counting": "한도에 재시도 호출도 포함. 최대 생성 호출 수는 첫 호출+재시도=2."
+  },
+  "approval": {
+    "mode": "MANUAL",
+    "wait_timeout_seconds": 300,
+    "count_wait_as_active_time": false,
+    "on_timeout_execution_status": "ERROR",
+    "on_timeout_reason": "APPROVAL_WAIT_EXPIRED",
+    "auto_approve": false,
+    "convert_timeout_to_rejection": false,
+    "approval_record_source": "mcp-server의 권한 검사·업무 저장 경로",
+    "manual_decision_mismatch": "예: S02에서 실제 승인이 들어오면 거절 시험 미성립. 해당 시험 결과를 PASS로 기록하지 않음."
+  },
+  "llm": {
+    "api_key_environment": "LLM_API_KEY",
+    "model_environment": "LLM_MODEL",
+    "require_explicit_model_for_live_run": true,
+    "record_resolved_model_in_manifest": true,
+    "api_key_required_for_data_preparation": false,
+    "note": "모델·실제 키는 팀 환경에서 정한다. 준비 스크립트는 모델을 호출하지 않는다."
+  }
+}

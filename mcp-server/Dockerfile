@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /app/build/libs/*.jar app.jar
-# compose가 저장소의 fixtures/를 /fixtures에 마운트한다
-ENV CRASHLAB_FIXTURES_DIR=/fixtures
+# compose가 저장소의 qa/를 /qa에 마운트한다
+ENV CRASHLAB_QA_DIR=/qa
 EXPOSE 8081
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
