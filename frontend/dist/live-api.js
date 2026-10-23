@@ -37,6 +37,23 @@ export function sceneEvents(events) {
 }
 export const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
+export function caseReadinessLabel(execution) {
+  if(execution.status==='READY')return '실행 가능';
+  const missing=execution.missing_capabilities || [];
+  if(missing.includes('generated_data_validation'))return '시험 데이터 보완 필요';
+  if(missing.some(x=>['design_prerequisites','design_review'].includes(x)))return '시험 조건 보완 필요';
+  if(missing.some(x=>['supporting_evidence','research_evidence','adopted_business_policy'].includes(x)))return '근거·정책 보완 필요';
+  return '실행 기능 연결 필요';
+}
+
+export function caseBlockerMarkup(execution) {
+  if(execution.status==='READY')return '';
+  const reason=execution.reason==='Requires a registered target/data adapter and code evaluator'
+    ? '이 시험을 재현할 실행기·시험 데이터와 결과 판정 기능이 연결되지 않았습니다.'
+    : execution.reason || '구체적인 보류 사유가 제공되지 않았습니다. 상세 조건의 필요 항목을 확인하세요.';
+  return `<div class="case-blocker"><p><strong>실행 보류 사유:</strong> ${escapeHtml(reason)}</p><p class="live-hint">아래 상세 조건에서 필요한 보완 항목을 확인하세요. 다른 실행 가능한 시험을 선택할 수 있습니다.</p></div>`;
+}
+
 
 export const agentForTest = test => test.test_kind === 'INVESTIGATION_AGENT' ? 'investigator' : 'purchase';
 export function testsForAgent(catalog, agent) {
@@ -57,8 +74,12 @@ export function startPayload(catalog, draft) {
 }
 
 
+// Temporarily hide real-run comparison; keep its implementation for reactivation.
+export const LIVE_COMPARISON_ENABLED = false;
+
 export function workspaceRoute(hash) {
   const value=hash.replace(/^#/, '') || 'agents';
+  if(value==='compare' && !LIVE_COMPARISON_ENABLED)return {page:'execution'};
   if(['agents','prepare','live','execution','compare'].includes(value))return {page:value};
   if(value==='demo' || value.startsWith('demo-')) {
     const tab=value.slice(5);
