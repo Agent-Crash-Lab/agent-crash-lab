@@ -131,17 +131,47 @@ function prepareView() {
 function compareView() {
  if(state.agentId==='investigator')return investigationComparisonView();
  const left=checksFor(state.scenario,'B0'),right=checksFor(state.scenario,'B1');
- return `${header('구성별 결과 비교', '서버 정책의 변화가 실제 업무 상태에 미치는 영향을 비교합니다.', `<span class="sample-note">${state.scenario} · 동일 시나리오</span>`)}
- ${targetContext()}<div class="summary-strip"><div class="summary-cell"><span class="small-label">시나리오</span><div class="value">${state.scenario} · ${scenarioMap()[state.scenario].subtitle}</div></div><div class="summary-cell"><span class="small-label">Agent · 프롬프트</span><div class="value mono">동일 · v1</div></div><div class="summary-cell"><span class="small-label">데이터 · 판정 규칙</span><div class="value mono">동일 · v1 / v1</div></div><div class="summary-cell"><span class="small-label">변경 요소</span><div class="value">서버 중복 방지 정책</div></div></div>
- <div class="compare-summary">${['B0','B1'].map((c,i)=>`${i?'<div class="compare-arrow">→</div>':''}<section class="comparison-card ${c.toLowerCase()}"><div class="comparison-title"><strong>${c} <span style="color:var(--muted);font-size:18px">/ ${i?'IMPROVED':'BASELINE'}</span>${badge('데모','neutral')}</div><h3>${i?'요청 키 기반 중복 방지':'중복 방지 미구현 모의 서버'}</h3><p class="mono">${i?'idempotent-v1':'baseline-v1'}</p><div class="comparison-metrics"><div><strong style="color:${!i&&state.scenario==='S03'?'var(--orange)':'var(--green)'}">${state.scenario==='S02'?0:!i&&state.scenario==='S03'?2:1}<span> 건</span></strong><span>실제 발주 수</span></div><div><strong>${state.scenario==='S03'?1:0}<span> 회</span></strong><span>사고 주입</span></div><div><strong>${(i?right:left).filter(x=>x.result==='PASS').length}<span> / 4</span></strong><span>개별 검사 PASS</span></div></div></section>`).join('')}</div>
- <section class="panel"><div class="panel-header"><span class="panel-title"><span class="index">01</span> 검사별 비교</span><span class="eyebrow">동일 입력 · 동일 검사 기준</span></div><div class="table-wrap"><table><thead><tr><th>검사 항목</th><th>B0 / BASELINE</th><th>B1 / IMPROVED</th><th>관측 결과</th></tr></thead><tbody>${left.map((c,i)=>`<tr><td>${c.name}</td><td>${badge(c.result,c.result.toLowerCase())}</td><td>${badge(right[i].result,right[i].result.toLowerCase())}</td><td>${c.result!==right[i].result?`${c.detail} → ${right[i].detail}`:'동일 기준 충족'}</td></tr>`).join('')}</tbody></table></div><div class="comparison-footnote">${state.scenario==='S03'?'S03 예시에서는 서버 중복 방지 정책만 변경했습니다. Agent·모델·프롬프트·승인 입력은 동일합니다.':'선택한 예시에서는 두 구성의 검사 결과가 동일합니다.'}<br>데모 fixture 비교이며 실제 재시험 결과가 아닙니다. 서버 개선을 Agent 지능 향상으로 해석하지 않습니다.</div></section><div class="run-insight"><span class="insight-mark">↳</span><p><strong>판정 뒤에는 근거가 있습니다.</strong> 각 구성의 실행 경로에서 commit 기록과 요청 ID를 직접 확인하세요.</p><button data-action="inspect-b0">B0 근거 ↗</button><button data-action="inspect-b1">B1 근거 ↗</button></div>`;
+ const isS03=state.scenario==='S03', isS02=state.scenario==='S02';
+ const b0Orders=isS02?0:isS03?2:1, b1Orders=isS02?0:1;
+ const b0Fail=left.filter(x=>x.result==='FAIL').length, b0Pass=left.filter(x=>x.result==='PASS').length;
+ const b1Fail=right.filter(x=>x.result==='FAIL').length, b1Pass=right.filter(x=>x.result==='PASS').length;
+ const b0Lane=isS03?`<div class="row"><span class="num">06</span><span class="t">성공 응답 유실 · timeout 전달</span><span class="pill sig">사고</span></div><div class="row"><span class="num">07</span><span class="t">같은 REQ-001로 1회 재시도</span><span></span></div><div class="row hl"><span class="num">08</span><span class="t">두 번째 발주 저장 PO-002</span><span class="pill neg">중복</span></div>`:eventsFor(state.scenario,'B0').slice(-3).map(e=>`<div class="row"><span class="num">${String(e.sequence).padStart(2,'0')}</span><span class="t">${esc(e.title)}</span><span class="pill neu">${esc(e.type)}</span></div>`).join('');
+ const b1Lane=isS03?`<div class="row"><span class="num">06</span><span class="t">성공 응답 유실 · timeout 전달</span><span class="pill sig">사고</span></div><div class="row"><span class="num">07</span><span class="t">같은 REQ-001로 1회 재시도</span><span></span></div><div class="row hl"><span class="num">08</span><span class="t">기존 발주 PO-001 반환</span><span class="pill pos">재사용</span></div>`:eventsFor(state.scenario,'B1').slice(-3).map(e=>`<div class="row"><span class="num">${String(e.sequence).padStart(2,'0')}</span><span class="t">${esc(e.title)}</span><span class="pill neu">${esc(e.type)}</span></div>`).join('');
+ const b0OrderCards=isS02?`<div class="po ghost" style="animation-delay:.2s"><span class="po-ghost-title">발주 없음</span><small>승인 거절됨</small></div>`:`<div class="po" style="animation-delay:.2s"><span class="num">PO-001</span><small>CMT-001 · 순번 05</small></div>${isS03?'<div class="po dup" style="animation-delay:.5s"><span class="num">PO-002</span><small>CMT-002 · 순번 08</small></div>':''}`;
+ const b1OrderCards=isS02?`<div class="po ghost" style="animation-delay:.2s"><span class="po-ghost-title">발주 없음</span><small>승인 거절됨</small></div>`:`<div class="po" style="animation-delay:.2s"><span class="num">PO-001</span><small>CMT-001 · 순번 05</small></div>${isS03?'<div class="po ghost" style="animation-delay:.5s"><span class="po-ghost-title">새 commit 없음</span><small>deduplicated</small></div>':''}`;
+ const checkEvidenceMap={approval_valid:'APR-001',approval_match:'PART-A · 100',duplicate_order:'orders(REQ-001)',report_consistency:'report.order_id'};
+ return `${header(`결과 비교 · ${state.scenario} ${scenarioMap()[state.scenario].title}`, isS03?'입력 · Agent · 모델 · 프롬프트는 같고 서버 중복 방지 정책만 다릅니다. B1은 같은 요청 키를 알아보고 새 발주 없이 PO-001을 돌려줬습니다.':'서버 정책의 변화가 실제 업무 상태에 미치는 영향을 비교합니다.', `<button class="secondary" data-action="prepare">실행 조건 바꾸기</button><button class="primary" data-action="export">비교 보고서 JSON ↓</button>`)}
+ ${targetContext()}
+ <div class="vs">
+   <section class="card pol">
+     <div class="pol-h"><h2><span class="num">B0</span>기본 서버 정책</h2><span class="pill ${b0Fail?'neg':'pos'}">${b0Fail?`${b0Fail} 실패`:`${b0Pass} 통과`}</span></div>
+     <div class="big"><b class="num ${b0Orders>1?'neg-t':''}">${b0Orders}</b><span>건 발주 저장</span></div>
+     <p class="cap">${isS03?'재시도가 새 발주로 저장됐습니다. 기대는 1건입니다.':isS02?'승인이 거절되어 발주가 생성되지 않았습니다.':'기대한 발주 1건이 정상 저장됐습니다.'}</p>
+     <div class="orders">${b0OrderCards}</div>
+     <div class="mini-lane">${b0Lane}</div>
+     <div class="pol-foot"><button class="secondary" data-action="inspect-b0">B0 실행 근거 3D 보기 ↗</button></div>
+   </section>
+   <section class="card pol">
+     <div class="pol-h"><h2><span class="num">B1</span>요청 키 중복 방지</h2><span class="pill ${b1Fail?'neg':'pos'}">${b1Fail?`${b1Fail} 실패`:`${b1Pass} 통과`}</span></div>
+     <div class="big"><b class="num">${b1Orders}</b><span>건 발주 저장</span></div>
+     <p class="cap">${isS03?'서버가 REQ-001을 확인하고 기존 결과를 반환했습니다.':isS02?'승인이 거절되어 발주가 생성되지 않았습니다.':'기대한 발주 1건이 정상 저장됐습니다.'}</p>
+     <div class="orders">${b1OrderCards}</div>
+     <div class="mini-lane">${b1Lane}</div>
+     <div class="pol-foot"><button class="secondary" data-action="inspect-b1">B1 실행 근거 3D 보기 ↗</button></div>
+   </section>
+ </div>
+ <section class="card">
+   <div class="card-h"><h2>검사별 판정</h2><span class="meta">oracle-v1 · 고정 snapshot · 동일 입력</span></div>
+   <div class="table-wrap"><table class="mx"><thead><tr><th>검사</th><th>근거</th><th class="c">B0</th><th class="c">B1</th><th>관측 결과</th></tr></thead><tbody>${left.map((c,i)=>`<tr><td><strong>${esc(c.name)}</strong></td><td class="mono mx-evi">${esc(checkEvidenceMap[c.field]||c.field)}</td><td class="c"><span class="pill ${c.result==='PASS'?'pos':'neg'}">${c.result==='PASS'?'✓ PASS':'× FAIL'}</span></td><td class="c"><span class="pill ${right[i].result==='PASS'?'pos':'neg'}">${right[i].result==='PASS'?'✓ PASS':'× FAIL'}</span></td><td class="mx-diff">${c.result!==right[i].result?`${esc(c.detail)} → <strong>${esc(right[i].detail)}</strong>`:esc(c.detail)}</td></tr>`).join('')}</tbody></table></div>
+   <div class="note"><b>해석 주의</b><span>${isS03?'서버 방어 효과입니다. Agent 지능이 좋아졌다는 뜻으로 읽지 않습니다.':'선택한 예시에서는 두 구성의 검사 결과가 동일합니다.'} 데모 fixture 비교이며 실제 재시험 결과가 아닙니다.</span></div>
+ </section>`;
 }
 function selectAgent(id){if(!agents[id])return;state.draft={agentId:id,scenario:agents[id].defaultScenario,config:'B0'};render();}
 function verifyAgent(){const id=state.draft.agentId;state.verified[id]=validateDemoProfile(id,scenario=>eventsFor(scenario,'B0'),checksFor);render();toast(state.verified[id].ok?'데모 데이터 점검 완료. 실제 시험은 ‘실제 실행’ 메뉴에서 시작하세요.':'데모 데이터 점검 실패');}
 function loadDemo(){const d=state.draft;if(agents[d.agentId].custom||!state.verified[d.agentId]?.ok||!scenarioMap(d.agentId)[d.scenario])return;Object.assign(state,d);state.run={...d,topology:structuredClone(agents[d.agentId].topology)};state.cursor=0;state.mode='spatial';navigate('execution');toast('선택한 Agent의 저장된 데모 시험을 불러왔습니다.');}
 function open3DDemo(){const result=validateDemoProfile('purchase',scenario=>eventsFor(scenario,'B0'),checksFor);if(!result.ok){toast('3D 데모 데이터를 확인할 수 없습니다.');return;}state.verified.purchase=result;state.draft={agentId:'purchase',scenario:'S03',config:'B0'};loadDemo();state.cursor=5;render();toast('발주 Agent · 응답 유실 시나리오의 저장된 3D 데모입니다.');}
 function targetContext(draft=false){const a=agents[state.agentId];return `<div class="target-context"><span class="agent-icon small ${state.agentId}">${a.initials}</span><div><span class="context-label">평가 대상${draft?'':' · 이 실행에 고정됨'}</span><strong>${esc(a.name)} <span>${esc(a.version)}</span></strong></div><div class="target-metadata"><span>프롬프트 <b>${esc(a.prompt)}</b></span><span>모델 <b>미지정 · 데모</b></span></div><span class="target-type">${esc(a.evaluation)}<br><span class="mono">${esc(draft?a.topology.version:runTopology().version)}</span></span></div>`;}
-function emptyRunView(){return `${header(state.tab==='compare'?'결과 비교':'실행 분석','평가 대상을 선택하고 시험을 불러오면 여기에 표시됩니다.')}<section class="empty-run"><span class="empty-glyph">◈</span><h2>아직 불러온 시험이 없습니다.</h2><p>Agent 선택 → 데모 데이터 점검 → 시험 조건 설정 순서로 시작하세요.</p><button class="primary" data-action="agents">평가 대상 선택 <span>→</span></button></section>`;}
+function emptyRunView(){return `${header(state.tab==='compare'?'결과 비교':'실행 분석','평가 대상을 선택하고 시험을 불러오면 여기에 표시됩니다.')}<section class="empty-run"><span class="empty-glyph">◈</span><h2>아직 불러온 시험이 없습니다.</h2><p>Agent 선택 → 데모 데이터 점검 → 시험 조건 설정 순서로 시작하거나, 아래 S03 데모를 바로 불러오세요.</p><div class="flow-actions"><button class="primary" data-action="agents">평가 대상 선택 <span>→</span></button><button class="secondary" data-action="demo-3d">◈ S03 응답 유실 데모 바로 불러오기</button></div></section>`;}
 function investigationComparisonView(){return `${header('조사 Agent 검사 범위','현재 시험은 고정 사건을 사용한 개별 평가입니다.')}${targetContext()}<section class="panel section-pad"><h2 class="section-title">B0/B1 비교는 발주 업무 시스템에 적용됩니다.</h2><p class="section-description">사고 조사 Agent에는 서버 중복 방지 정책을 적용하지 않습니다. 모델·프롬프트 버전 비교는 동일 사건 fixture로 각각 실행한 기록이 필요합니다. 현재는 한 개 참조 버전의 데모만 제공됩니다.</p><div class="table-wrap"><table><thead><tr><th>검사</th><th>예시 결과</th><th>근거 / 검토 범위</th></tr></thead><tbody>${checksFor().map(c=>`<tr><td>${c.name}</td><td>${badge(c.result,c.result.toLowerCase())}</td><td>${c.detail}</td></tr>`).join('')}</tbody></table></div><div class="flow-actions"><button class="secondary" data-demo-tab="execution">현재 시험 근거 보기</button><button class="primary" data-action="prepare">다른 조사 시나리오 선택 →</button></div></section>`;}
 function agentView(){const id=state.draft.agentId,a=agents[id],result=state.verified[id],graph=a.topology;return `${header('평가할 Agent를 선택하세요.','Agent와 구조를 함께 선택하고, 사건이 어느 노드에서 발생했는지 확인합니다.','<button class="secondary" data-action="register">+ Agent 구조 등록</button><button class="secondary" data-action="demo-3d">◈ 발주 3D 데모 ↗</button>')}
  <div class="flow-overview"><span class="current"><b>1</b>평가 대상 · 구조</span><i>→</i><span><b>2</b>연결 · 시험 조건</span><i>→</i><span><b>3</b>실행 분석</span><i>→</i><span><b>4</b>결과 검토</span></div>
@@ -216,6 +246,10 @@ initRegistration(result=>{state.draft={agentId:result.profile.id,scenario:'CUSTO
 function readRoute(){
  const route=workspaceRoute(location.hash);workspacePage=route.page;
  if(route.demoTab)state.tab=route.demoTab;
+ if(workspacePage==='demo'&&(state.tab==='execution'||state.tab==='compare')&&!state.run){
+  const result=validateDemoProfile('purchase',scenario=>eventsFor(scenario,'B0'),checksFor);
+  if(result.ok){state.verified.purchase=result;state.draft={agentId:'purchase',scenario:'S03',config:'B0'};Object.assign(state,state.draft);state.run={...state.draft,topology:structuredClone(agents.purchase.topology)};state.cursor=5;state.mode='spatial';}
+ }
  return route;
 }
 const initialTab=readRoute();

@@ -426,10 +426,18 @@ export function mountLive(element, selectedPage='agents', navigate) {
               </section>
             </aside>
           </div>
-          <section data-live-compare-area class="card section-pad" ${page==='compare'?'':'hidden'}><h2>비교할 실제 실행</h2><p class="live-hint">같은 시나리오의 완료된 실행을 고르세요. 서버 정책과 Agent 버전 등 달라진 조건을 함께 확인합니다.</p>
-            <form data-live-compare class="live-compare-form"><label>왼쪽 실행<select name="left" required></select></label><label>오른쪽 실행<select name="right" required></select></label><button class="primary" type="submit">실제 결과 비교</button></form>
+          <section data-live-compare-area class="card section-pad rise d1" ${page==='compare'?'':'hidden'}>
+            <div class="card-head-inline">
+              <div>
+                <span class="step-eyebrow">05 / POLICY &amp; RUN COMPARISON</span>
+                <h2>비교할 실제 실행</h2>
+              </div>
+              <button type="button" class="secondary" data-live-open-compare-demo>◈ S03 B0 ↔ B1 비교 데모 바로 보기</button>
+            </div>
+            <p class="live-hint">같은 시나리오의 완료된 실행을 고르세요. 서버 정책과 Agent 버전 등 달라진 조건을 함께 확인합니다.</p>
+            <form data-live-compare class="live-compare-form"><label>왼쪽 실행 (기준)<select name="left" required></select></label><label>오른쪽 실행 (비교)<select name="right" required></select></label><button class="primary" type="submit">실제 결과 비교 →</button></form>
           </section>
-          <div data-live-comparison ${page==='compare'?'':'hidden'}></div>
+          <div data-live-comparison class="rise d2" ${page==='compare'?'':'hidden'}></div>
           <section class="card section-pad live-analysis-shell" data-live-analysis hidden>
             <div class="live-row analysis-top-bar">
               <div>
@@ -864,7 +872,30 @@ function renderEvents() {
   catch { $('#live-scene').textContent='이 브라우저에서는 3D를 표시할 수 없습니다. 아래 이벤트와 근거를 확인하세요.'; }
 }
 function comparisonView(data) {
-  return `<section class="panel section-pad"><div class="live-row"><h2>실제 실행 비교</h2><button class="secondary" data-live-close-comparison>닫기</button></div><p>${esc(data.left.run_id)} (${esc(data.left.system_id)}) ↔ ${esc(data.right.run_id)} (${esc(data.right.system_id)})</p><p>업무 변경 수: <strong>${esc(data.actual.left.change_count ?? data.actual.left.order_count)} → ${esc(data.actual.right.change_count ?? data.actual.right.order_count)}</strong></p><div class="live-table-wrap"><table class="live-table"><thead><tr><th>규칙</th><th>대상</th><th>왼쪽</th><th>오른쪽</th></tr></thead><tbody>${data.checks.map(c=>`<tr><td>${esc(ruleTitle(c.rule_id))}</td><td>${esc(scopeTitle(c.scope))}</td><td>${esc(c.left)}</td><td>${esc(c.right)}</td></tr>`).join('')}</tbody></table></div><details><summary>고정 조건과 변경 조건</summary><pre>${json({fixed_conditions:data.fixed_conditions,changed:data.changed})}</pre></details></section>`;
+  const lCount = data.actual.left.change_count ?? data.actual.left.order_count ?? 0;
+  const rCount = data.actual.right.change_count ?? data.actual.right.order_count ?? 0;
+  const lFail = (data.checks || []).filter(c => c.left === 'FAIL').length;
+  const rFail = (data.checks || []).filter(c => c.right === 'FAIL').length;
+  const lPass = (data.checks || []).filter(c => c.left === 'PASS').length;
+  const rPass = (data.checks || []).filter(c => c.right === 'PASS').length;
+  return `<div class="vs">
+    <section class="card pol">
+      <div class="pol-h"><h2><span class="num">${esc(data.left.system_id || 'LEFT')}</span>${esc(data.left.run_id)}</h2><span class="pill ${lFail?'neg':'pos'}">${lFail?`${lFail} 실패`:`${lPass} 통과`}</span></div>
+      <div class="big"><b class="num ${lCount>1?'neg-t':''}">${esc(lCount)}</b><span>건 업무 변경 저장</span></div>
+      <p class="cap">기준 실행 (${esc(data.left.system_id || '—')})의 최종 DB 변경 건수입니다.</p>
+    </section>
+    <section class="card pol">
+      <div class="pol-h"><h2><span class="num">${esc(data.right.system_id || 'RIGHT')}</span>${esc(data.right.run_id)}</h2><span class="pill ${rFail?'neg':'pos'}">${rFail?`${rFail} 실패`:`${rPass} 통과`}</span></div>
+      <div class="big"><b class="num">${esc(rCount)}</b><span>건 업무 변경 저장</span></div>
+      <p class="cap">비교 실행 (${esc(data.right.system_id || '—')})의 최종 DB 변경 건수입니다.</p>
+    </section>
+  </div>
+  <section class="card">
+    <div class="card-h"><h2>실제 실행 검사별 비교</h2><div class="live-row"><span class="meta">${esc(data.left.run_id)} ↔ ${esc(data.right.run_id)}</span><button class="secondary" data-live-close-comparison>닫기</button></div></div>
+    <div class="live-table-wrap"><table class="mx"><thead><tr><th>규칙</th><th>대상</th><th class="c">${esc(data.left.system_id || '왼쪽')}</th><th class="c">${esc(data.right.system_id || '오른쪽')}</th></tr></thead><tbody>${data.checks.map(c=>`<tr><td><strong>${esc(ruleTitle(c.rule_id))}</strong></td><td class="mono mx-evi">${esc(scopeTitle(c.scope))}</td><td class="c">${badge(c.left)}</td><td class="c">${badge(c.right)}</td></tr>`).join('')}</tbody></table></div>
+    <div class="note"><b>해석 주의</b><span>서버 정책 및 변경 조건의 차이를 함께 확인하세요.</span></div>
+    <details class="section-pad"><summary>고정 조건과 변경 조건</summary><pre>${json({fixed_conditions:data.fixed_conditions,changed:data.changed})}</pre></details>
+  </section>`;
 }
 async function submit(event) {
   event.preventDefault();notify('');const form=event.target, values=Object.fromEntries(new FormData(form)),button=event.submitter;
@@ -967,6 +998,10 @@ function click(event) {
   }
   if(target.hasAttribute('data-live-open-3d-demo')) {
     location.hash='#demo-3d';
+    return;
+  }
+  if(target.hasAttribute('data-live-open-compare-demo')) {
+    location.hash='#demo-compare';
     return;
   }
   if(target.hasAttribute('data-live-demo-jump')) {
