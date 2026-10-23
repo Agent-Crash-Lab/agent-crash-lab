@@ -3872,3 +3872,222 @@ table.mx tr:last-child td {
   background: var(--surface);
   border-top: 1px solid var(--border);
 }
+
+/* ── Tutorial Speech-Bubble Milestone & Coachmarks ── */
+.tutorial-milestone {
+  margin-bottom: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tutorial-steps-track {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tutorial-step-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.tutorial-step-pill:hover {
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+
+.tutorial-step-pill .t-num {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--raised);
+  color: var(--muted);
+}
+
+.tutorial-step-pill.current {
+  border-color: var(--signal);
+  background: var(--sig-bg);
+  color: var(--text);
+  box-shadow: 0 0 0 1px rgba(255, 106, 61, 0.25);
+}
+
+.tutorial-step-pill.current .t-num {
+  background: var(--signal);
+  color: #fff;
+}
+
+.tutorial-step-pill.done {
+  border-color: rgba(46, 211, 138, 0.35);
+  color: var(--text);
+}
+
+.tutorial-step-pill.done .t-num {
+  background: var(--pos-bg);
+  color: var(--pos);
+}
+
+.t-connector {
+  color: var(--faint);
+  font-size: 11px;
+  user-select: none;
+}
+
+.tutorial-bubble-box {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--sig-tint-bg, #241610) 0%, var(--surface) 100%);
+  border: 1px solid var(--sig-tint-border, #ff6a3d55);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+}
+
+.tutorial-bubble-box::before {
+  content: "";
+  position: absolute;
+  top: -7px;
+  left: 36px;
+  width: 12px;
+  height: 12px;
+  background: var(--sig-tint-bg, #241610);
+  border-top: 1px solid var(--sig-tint-border, #ff6a3d55);
+  border-left: 1px solid var(--sig-tint-border, #ff6a3d55);
+  transform: rotate(45deg);
+}
+
+.tutorial-bubble-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  background: var(--sig-bg);
+  border: 1px solid var(--sig-tint-border, #ff6a3d55);
+}
+
+.tutorial-bubble-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.tutorial-kicker {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--signal);
+  letter-spacing: 0.03em;
+}
+
+.tutorial-bubble-body strong {
+  font-size: 14.5px;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.tutorial-bubble-body p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.tutorial-bubble-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tutorial-cta {
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(255, 106, 61, 0.28);
+}
+
+.tutorial-inline-anchor {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+}
+
+.agent-detail-footer .tutorial-inline-anchor,
+.run-insight .tutorial-inline-anchor {
+  width: auto;
+  align-items: flex-end;
+}
+
+.tutorial-inline-bubble {
+  position: relative;
+  margin: 0;
+  padding: 7px 12px;
+  border-radius: 8px;
+  background: var(--sig-tint-bg, #241610);
+  border: 1px solid var(--sig-tint-border, #ff6a3d66);
+  color: var(--sig-tint-text, #ffc2ad);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  animation: tutorialFloat 2.4s ease-in-out infinite;
+}
+
+.tutorial-inline-bubble::after {
+  content: "";
+  position: absolute;
+  left: 18px;
+  bottom: -6px;
+  width: 9px;
+  height: 9px;
+  background: var(--sig-tint-bg, #241610);
+  border-right: 1px solid var(--sig-tint-border, #ff6a3d66);
+  border-bottom: 1px solid var(--sig-tint-border, #ff6a3d66);
+  transform: rotate(45deg);
+}
+
+.agent-detail-footer .tutorial-inline-bubble::after,
+.run-insight .tutorial-inline-bubble::after {
+  left: auto;
+  right: 22px;
+}
+
+@keyframes tutorialFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+:root[data-theme="light"] .tutorial-bubble-box {
+  background: linear-gradient(135deg, #fff5f0 0%, #ffffff 100%);
+  box-shadow: 0 8px 24px rgba(228, 87, 46, 0.08);
+}
+
+@media (max-width: 900px) {
+  .tutorial-bubble-box {
+    grid-template-columns: 1fr;
+  }
+}

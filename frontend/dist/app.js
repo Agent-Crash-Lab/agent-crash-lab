@@ -62,9 +62,70 @@ function checksFor(scenario = state.scenario, config = state.config) {
   ];
 }
 function navigate(tab) { stopPlayback(); workspacePage='demo'; state.tab=tab;state.selected=null;history.replaceState(null,'',`#demo-${tab}`);render(); }
-function navigateWorkspace(tab){if(typeof isLiveAuthenticated==='function'&&!isLiveAuthenticated()){workspacePage='agents';history.replaceState(null,'','#agents');render();return;}stopPlayback();workspacePage=tab;history.replaceState(null,'',`#${tab}`);render();const heading=$('#main h1');if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});heading.scrollIntoView({block:'start'});}}
+function navigateWorkspace(tab){if(typeof isLiveAuthenticated==='function'&&!isLiveAuthenticated()){workspacePage='agents';history.replaceState(null,'','#agents');render();return;}stopPlayback();if(tab==='demo'){workspacePage='demo';state.tab='agents';state.selected=null;history.replaceState(null,'','#demo-agents');render();return;}workspacePage=tab;history.replaceState(null,'',`#${tab}`);render();const heading=$('#main h1');if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});heading.scrollIntoView({block:'start'});}}
 function chooseScenario(id) { if(!scenarioMap(state.draft.agentId)[id])return;state.draft.scenario=id;render(); }
 function header(title, description, actions = '') { return `<div class="page-heading"><div><h1>${title}</h1><p>${description}</p></div><div class="heading-actions">${actions}</div></div>`; }
+function tutorialMilestone(stage) {
+ const id=state.draft?.agentId||state.agentId||'purchase';
+ const verified=!!state.verified[id]?.ok;
+ const steps=[
+  {key:'agents',num:1,label:'평가 대상 · 데이터 점검'},
+  {key:'prepare',num:2,label:'시험 조건 · 장애 설정'},
+  {key:'execution',num:3,label:'3D 실행 · DB 대조'},
+  {key:'compare',num:4,label:'B0 ↔ B1 정책 비교'},
+ ];
+ const activeIdx=stage==='structure'?0:Math.max(0,steps.findIndex(s=>s.key===stage));
+ const copyMap={
+  agents:verified?{
+   kicker:'튜토리얼 1 / 4 단계 완료 · 다음 단계로 이동',
+   title:'데모 데이터와 3D 구조 점검을 마쳤습니다! 이제 장애 시나리오를 고를 차례입니다.',
+   desc:'구조 노드와 이벤트 매핑이 모두 정상입니다. 다음 단계인 [2. 시험 조건 설정]으로 이동해 응답 유실(S03) 시나리오와 서버 정책(B0/B1)을 선택해 보세요.',
+   cta:'<button type="button" class="primary tutorial-cta" data-action="continue">2단계: 시험 조건 설정으로 이동 <span>→</span></button>'
+  }:{
+   kicker:'튜토리얼 1 / 4 단계 · 평가 대상 선택 및 데이터 점검',
+   title:'먼저 평가할 Agent를 확인하고 내장 데모 데이터를 점검해 보세요.',
+   desc:'오른쪽 상세 카드의 [데모 데이터 점검하기]를 누르면 Agent의 3D 구조와 사건 기록이 올바르게 연결되어 있는지 검증하고 2단계가 열립니다.',
+   cta:'<button type="button" class="primary tutorial-cta" data-action="verify">1단계: 데모 데이터 점검하기 <span>→</span></button>'
+  },
+  structure:{
+   kicker:'튜토리얼 1 / 4 단계 (보조) · 등록 구조 3D 미리보기',
+   title:'선택한 Agent의 3D 역할 계층과 샘플 사건 연결을 미리 확인하고 있습니다.',
+   desc:'노드와 연결 경로를 확인했다면 다음 단계인 시험 조건 설정으로 바로 넘어가 시나리오를 불러올 수 있습니다.',
+   cta:'<button type="button" class="primary tutorial-cta" data-action="tutorial-to-prepare">2단계: 시험 조건 설정으로 이동 <span>→</span></button>'
+  },
+  prepare:{
+   kicker:'튜토리얼 2 / 4 단계 · 장애 시나리오 및 서버 정책 설정',
+   title:'추천 시나리오(S03 응답 유실 · B0 기본 서버)로 데모 시험을 불러오세요.',
+   desc:'S03은 DB commit 직후 성공 응답만 유실되는 사고를 주입합니다. Agent가 같은 요청을 재시도할 때 기본 서버(B0)에서 어떤 일이 벌어지는지 3D 실행 분석에서 확인합니다.',
+   cta:verified?'<button type="button" class="primary tutorial-cta" data-action="load">3단계: 데모 시험 불러오기 (3D 실행 분석) <span>→</span></button>':'<button type="button" class="primary tutorial-cta" data-action="tutorial-verify-and-load">점검 완료 후 3단계: 데모 시험 바로 불러오기 <span>→</span></button>'
+  },
+  execution:{
+   kicker:'튜토리얼 3 / 4 단계 · 3D 실행 경로 및 업무 DB 대조 분석',
+   title:'3D 실행도와 타임라인에서 ‘Agent가 본 결과’와 ‘실제 DB 상태’가 갈라지는 지점을 확인하세요.',
+   desc:'06번 사건에서 응답이 유실된 뒤 08번에서 두 번째 발주(PO-002)가 중복 저장됩니다. 확인을 마쳤다면 마지막 단계인 B0 ↔ B1 서버 방어 정책 비교로 이동하세요.',
+   cta:`<button type="button" class="secondary tutorial-cta-sub" data-action="play">${state.playing?'Ⅱ 재생 일시정지':'▶ 사건 이력 재생해보기'}</button><button type="button" class="primary tutorial-cta" data-action="compare">4단계: B0 ↔ B1 결과 비교로 이동 <span>→</span></button>`
+  },
+  compare:{
+   kicker:'튜토리얼 4 / 4 단계 (완주) · 서버 중복 방지 정책(B0 vs B1) 비교',
+   title:'동일한 Agent라도 서버의 요청 키 중복 방지 정책(B1)만으로 중복 발주 사고를 막을 수 있습니다.',
+   desc:'B0(2건 발주 · FAIL)와 B1(1건 발주 · PASS)의 차이를 확인했습니다. 튜토리얼의 4단계를 모두 마쳤습니다! 이제 실제 워크스페이스로 이동해 직접 시험을 설계하고 실행해 보세요.',
+   cta:'<button type="button" class="primary tutorial-cta" data-tab="agents">튜토리얼 완료 · 실제 워크스페이스 시작하기 <span>→</span></button>'
+  }
+ };
+ const cur=copyMap[stage]||copyMap.agents;
+ return `<section class="tutorial-milestone" aria-label="튜토리얼 진행 이정표">
+  <div class="tutorial-steps-track">${steps.map((s,i)=>`<button type="button" class="tutorial-step-pill ${i===activeIdx?'current':i<activeIdx?'done':''}" data-demo-tab="${s.key}"><span class="t-num">${i<activeIdx?'✓':s.num}</span><span class="t-label">${s.label}</span></button>${i<steps.length-1?'<span class="t-connector" aria-hidden="true">───</span>':''}`).join('')}</div>
+  <div class="tutorial-bubble-box">
+   <div class="tutorial-bubble-icon" aria-hidden="true">💬</div>
+   <div class="tutorial-bubble-body">
+    <span class="tutorial-kicker">${cur.kicker}</span>
+    <strong>${cur.title}</strong>
+    <p>${cur.desc}</p>
+   </div>
+   <div class="tutorial-bubble-actions">${cur.cta}</div>
+  </div>
+ </section>`;
+}
 function divergenceCard(events, checks, isIA) {
  if(isIA)return '';
  const isS03=state.scenario==='S03',isB0=state.config==='B0',isS02=state.scenario==='S02';
@@ -90,6 +151,7 @@ function executionView() {
  const events=eventsFor();state.cursor=Math.min(state.cursor,events.length-1);const active=events[state.cursor];const checks=checksFor();const failed=checks.filter(c=>c.result==='FAIL').length;const pending=checks.filter(c=>c.result==='INCONCLUSIVE').length;const isIA=state.agentId==='investigator';
  const ordersCount=state.scenario==='S02'?0:state.scenario==='S03'&&state.config==='B0'?2:1;
  return `${header(`${scenarioMap()[state.scenario].title} 검사`, `${runId()} <span class="text-separator">/</span> 저장된 데모 실행`, '<button class="secondary" data-action="export">근거 내보내기 <span>↓</span></button><button class="primary" data-action="compare">B0 ↔ B1 결과 비교 <span>→</span></button>')}
+ ${tutorialMilestone('execution')}
  ${targetContext()}
  <div class="card strip">
   <div class="lead ${failed?'is-fail':'is-pass'}"><label>${isIA?'조사 판정':'실제 발주'}</label><div class="v">${isIA?`${checks.length-failed}<small>/ ${checks.length}</small>`:`${ordersCount}<small>건</small>`}</div><div class="d">${isIA?'참조 기준 충족':state.scenario==='S03'&&state.config==='B0'?'기대 1건 · <span class="neg-t">+1 중복</span>':state.scenario==='S02'?'거절 후 0건 유지':'기대 1건 일치'}</div></div>
@@ -105,7 +167,7 @@ function executionView() {
  <aside class="evidence-panel" aria-label="선택 근거"><div class="panel-header"><span class="panel-title">사건 상세</span><span class="evidence-position">${state.selected?.kind==='check'?'최종 판정':state.selected?.kind==='event'?events[state.selected.index].event_id:active.event_id}</span></div>${evidenceView(active)}<div class="evidence-footer"><i></i>데모 실행의 저장 기록</div></aside></div>
  ${divergenceCard(events,checks,isIA)}
  ${graphDetails(runTopology())}${frameFor(runTopology(),events,state.cursor).unmapped.length?'<p class="mapping-warning">등록 구조와 연결되지 않은 이벤트가 있습니다. 임의의 노드로 대체하지 않습니다.</p>':''}<section class="checks-panel"><div class="checks-header"><h2>검사 결과 <span>${checks.length}</span></h2><span>최종 snapshot 기준 · 재생 시점과 독립</span></div><div class="checks-grid">${checks.map((c,i)=>`<button class="check-card ${c.result.toLowerCase()}" data-check="${i}"><span class="check-icon">${c.result==='PASS'?'✓':c.result==='FAIL'?'!':'…'}</span><div><strong>${c.name}</strong><p>${c.detail}</p></div>${badge(c.result,c.result.toLowerCase())}<span class="check-arrow">↗</span></button>`).join('')}</div></section>
- <div class="run-insight"><div><strong>${isIA?'설명의 적합성은 사람 검토가 필요합니다.':failed?'동일 요청에 발주가 두 번 저장됐습니다.':'검사 결과의 근거를 확인해 보세요.'}</strong><p>${isIA?'근거 ID가 존재하는 것만으로 설명 내용이 맞다는 뜻은 아닙니다. 보고서의 주장과 원문을 함께 검토합니다.':failed?'B1에서는 요청 키로 중복 생성을 방지합니다. 같은 조건의 두 구성을 비교할 수 있습니다.':'입체 화면과 사건 목록에서 각 판정에 연결된 호출·commit 기록을 확인할 수 있습니다.'}</p></div><button data-action="compare">${isIA?'검사 범위 확인':'구성별 결과 비교'} <span>→</span></button></div>`;
+ <div class="run-insight"><div><strong>${isIA?'설명의 적합성은 사람 검토가 필요합니다.':failed?'동일 요청에 발주가 두 번 저장됐습니다.':'검사 결과의 근거를 확인해 보세요.'}</strong><p>${isIA?'근거 ID가 존재하는 것만으로 설명 내용이 맞다는 뜻은 아닙니다. 보고서의 주장과 원문을 함께 검토합니다.':failed?'B1에서는 요청 키로 중복 생성을 방지합니다. 같은 조건의 두 구성을 비교할 수 있습니다.':'입체 화면과 사건 목록에서 각 판정에 연결된 호출·commit 기록을 확인할 수 있습니다.'}</p></div><div class="tutorial-inline-anchor"><p class="tutorial-inline-bubble">다음 이정표 · 서버 중복 방지(B1)와 결과를 비교해 보세요</p><button data-action="compare">${isIA?'검사 범위 확인':'구성별 결과 비교'} <span>→</span></button></div></div>`;
 }
 function evidenceView(active) {
  const events=eventsFor(); const selected=state.selected; const check=selected?.kind==='check'?checksFor()[selected.index]:null;
@@ -120,13 +182,13 @@ function evidenceView(active) {
  <div class="code-label"><span>${check?'판정 데이터':'사건 데이터'}</span><button data-action="copy" aria-label="근거 JSON 복사">복사</button></div><pre class="code" id="evidence-json">${esc(JSON.stringify(payload,null,2))}</pre></div>`;
 }
 function prepareView() {
- if(agents[state.agentId].custom)return `${header('등록 구조 미리보기','사용자 등록 구조는 실제 평가 어댑터에 아직 연결되지 않았습니다.')}<section class="empty-run"><h2>구조와 샘플 이벤트를 확인하세요.</h2><p>새 평가와 판정은 실행 API 연결 후 사용할 수 있습니다.</p><button class="primary" data-action="structure">등록 구조 3D 보기 →</button></section>`;
+ if(agents[state.agentId].custom)return `${header('등록 구조 미리보기','사용자 등록 구조는 실제 평가 어댑터에 아직 연결되지 않았습니다.')}${tutorialMilestone('prepare')}<section class="empty-run"><h2>구조와 샘플 이벤트를 확인하세요.</h2><p>새 평가와 판정은 실행 API 연결 후 사용할 수 있습니다.</p><button class="primary" data-action="structure">등록 구조 3D 보기 →</button></section>`;
  const a=agents[state.agentId],isIA=state.agentId==='investigator',verified=state.verified[state.agentId]?.ok;
- return `${header('시험 조건 설정', '평가 대상은 유지하고 시나리오와 실행 환경을 정합니다.', '<button class="secondary" data-action="agents">평가 대상 변경</button>')}${targetContext(true)}
+ return `${header('시험 조건 설정', '평가 대상은 유지하고 시나리오와 실행 환경을 정합니다.', '<button class="secondary" data-action="agents">평가 대상 변경</button>')}${tutorialMilestone('prepare')}${targetContext(true)}
  <div class="prepare-layout"><section class="panel section-pad"><h2 class="section-title"><span>01 /</span> ${isIA?'조사 시나리오':'업무 시나리오'}</h2><div class="scenario-options">${Object.entries(scenarioMap()).map(([id,s])=>`<button data-scenario="${id}" class="scenario-option ${state.scenario===id?'selected':''}" aria-pressed="${state.scenario===id}"><span class="scenario-id">${id}</span><div><strong>${s.subtitle}</strong><p>${s.description}</p></div><span class="radio-mark"></span></button>`).join('')}</div>
  <div class="section-divider"></div><h2 class="section-title"><span>02 /</span> 실행 환경 ${isIA?'':'· 업무 서버 정책'}</h2>${isIA?'<div class="scope-note"><strong>고정 사건 fixture · 읽기 전용</strong><p>저장된 사건으로 조사 Agent의 설명을 검사합니다. 새 발주·DB 변경을 실행하지 않으며 B0/B1 서버 정책은 적용하지 않습니다.</p></div>':`<p class="section-description">B0/B1은 Agent 종류가 아닙니다. 동일 Agent에 연결하는 서버의 중복 방지 정책입니다.</p><div class="config-grid">${['B0','B1'].map(c=>`<button data-config="${c}" class="config-card ${state.config===c?'selected':''}" aria-pressed="${state.config===c}"><strong>${c}</strong><span>${c==='B0'?'기본 서버 정책':'중복 방지 서버 정책'}</span><p>${c==='B0'?'중복 방지 미구현 모의 서버':'요청 키 기반 원자적 중복 방지'}<br>서버 승인 검증 활성화</p><i class="radio-mark"></i></button>`).join('')}</div>`}
  <div class="section-divider"></div><h2 class="section-title"><span>03 /</span> ${isIA?'검사 기준':'고정 시험 데이터'}</h2>${isIA?'<ul class="evaluation-list"><li>근거 ID·실행 소속 확인</li><li>읽기 전용 도구 사용 확인</li><li>사실·원인 후보·부족한 근거 출력 구조</li><li>설명 내용 적합성은 사람 검토</li></ul>':'<div class="fixture-grid"><div><label>대상 품목</label><strong>PART-A</strong></div><div><label>공급업체</label><strong>SUP-01</strong></div><div><label>요청 수량 / 재고</label><strong>100 / 20</strong></div><div><label>기존 발주</label><strong>0</strong></div></div><p class="section-description">재고가 부족하면 요청 수량 100개를 발주합니다. 승인·내용·중복·완료 보고를 각각 검사합니다.</p>'}</section>
- <aside class="prepare-aside"><section class="panel section-pad"><span class="eyebrow">시험 요약</span><h3 class="summary-agent">${esc(a.name)}</h3><span class="mono dim">${esc(a.version)}</span><dl class="key-values"><div><dt>시나리오</dt><dd>${state.scenario}</dd></div><div><dt>실행 환경</dt><dd>${isIA?'읽기 전용 fixture':state.config}</dd></div><div><dt>평가 단위</dt><dd>${isIA?'Agent 개별 시험':'서버 포함 시스템'}</dd></div><div><dt>데모 점검</dt><dd>${verified?'완료':'미확인'}</dd></div><div><dt>실제 실행</dt><dd>실제 실행 메뉴에서 제공</dd></div></dl><p>저장된 예시 사건을 불러옵니다. 실제 Agent 호출이나 새 평가는 수행하지 않습니다.</p><button class="primary" data-action="load" ${verified?'':'disabled'}>데모 시험 불러오기 <span>→</span></button>${!verified?'<button class="text-button full" data-action="agents">먼저 평가 대상에서 데모 데이터를 점검하세요 →</button>':''}<button class="secondary full" data-tab="live">실제 실행으로 이동 →</button></section><section class="scope-note"><strong>승인 처리</strong><p>${isIA?'조사 Agent는 업무 변경 권한이 없습니다. 승인된 읽기 전용 도구만 사용합니다.':'승인·거절은 선택한 시나리오의 저장 기록으로 표시됩니다. 실제 담당자 승인은 실제 실행 메뉴에서 입력합니다.'}</p></section></aside></div>`;
+ <aside class="prepare-aside"><section class="panel section-pad"><span class="eyebrow">시험 요약</span><h3 class="summary-agent">${esc(a.name)}</h3><span class="mono dim">${esc(a.version)}</span><dl class="key-values"><div><dt>시나리오</dt><dd>${state.scenario}</dd></div><div><dt>실행 환경</dt><dd>${isIA?'읽기 전용 fixture':state.config}</dd></div><div><dt>평가 단위</dt><dd>${isIA?'Agent 개별 시험':'서버 포함 시스템'}</dd></div><div><dt>데모 점검</dt><dd>${verified?'완료':'미확인'}</dd></div><div><dt>실제 실행</dt><dd>실제 실행 메뉴에서 제공</dd></div></dl><p>저장된 예시 사건을 불러옵니다. 실제 Agent 호출이나 새 평가는 수행하지 않습니다.</p><div class="tutorial-inline-anchor"><p class="tutorial-inline-bubble">${verified?'여기를 눌러 3D 실행 분석(3단계)을 시작하세요':'먼저 점검하거나 상단 이정표 버튼으로 바로 불러오세요'}</p><button class="primary" data-action="load" ${verified?'':'disabled'}>데모 시험 불러오기 <span>→</span></button></div>${!verified?'<button class="text-button full" data-action="agents">먼저 평가 대상에서 데모 데이터를 점검하세요 →</button>':''}<button class="secondary full" data-tab="live">실제 실행으로 이동 →</button></section><section class="scope-note"><strong>승인 처리</strong><p>${isIA?'조사 Agent는 업무 변경 권한이 없습니다. 승인된 읽기 전용 도구만 사용합니다.':'승인·거절은 선택한 시나리오의 저장 기록으로 표시됩니다. 실제 담당자 승인은 실제 실행 메뉴에서 입력합니다.'}</p></section></aside></div>`;
 }
 function compareView() {
  if(state.agentId==='investigator')return investigationComparisonView();
@@ -141,6 +203,7 @@ function compareView() {
  const b1OrderCards=isS02?`<div class="po ghost" style="animation-delay:.2s"><span class="po-ghost-title">발주 없음</span><small>승인 거절됨</small></div>`:`<div class="po" style="animation-delay:.2s"><span class="num">PO-001</span><small>CMT-001 · 순번 05</small></div>${isS03?'<div class="po ghost" style="animation-delay:.5s"><span class="po-ghost-title">새 commit 없음</span><small>deduplicated</small></div>':''}`;
  const checkEvidenceMap={approval_valid:'APR-001',approval_match:'PART-A · 100',duplicate_order:'orders(REQ-001)',report_consistency:'report.order_id'};
  return `${header(`결과 비교 · ${state.scenario} ${scenarioMap()[state.scenario].title}`, isS03?'입력 · Agent · 모델 · 프롬프트는 같고 서버 중복 방지 정책만 다릅니다. B1은 같은 요청 키를 알아보고 새 발주 없이 PO-001을 돌려줬습니다.':'서버 정책의 변화가 실제 업무 상태에 미치는 영향을 비교합니다.', `<button class="secondary" data-action="prepare">실행 조건 바꾸기</button><button class="primary" data-action="export">비교 보고서 JSON ↓</button>`)}
+ ${tutorialMilestone('compare')}
  ${targetContext()}
  <div class="vs">
    <section class="card pol">
@@ -171,8 +234,8 @@ function verifyAgent(){const id=state.draft.agentId;state.verified[id]=validateD
 function loadDemo(){const d=state.draft;if(agents[d.agentId].custom||!state.verified[d.agentId]?.ok||!scenarioMap(d.agentId)[d.scenario])return;Object.assign(state,d);state.run={...d,topology:structuredClone(agents[d.agentId].topology)};state.cursor=0;state.mode='spatial';navigate('execution');toast('선택한 Agent의 저장된 데모 시험을 불러왔습니다.');}
 function open3DDemo(){const result=validateDemoProfile('purchase',scenario=>eventsFor(scenario,'B0'),checksFor);if(!result.ok){toast('3D 데모 데이터를 확인할 수 없습니다.');return;}state.verified.purchase=result;state.draft={agentId:'purchase',scenario:'S03',config:'B0'};loadDemo();state.cursor=5;render();toast('발주 Agent · 응답 유실 시나리오의 저장된 3D 데모입니다.');}
 function targetContext(draft=false){const a=agents[state.agentId];return `<div class="target-context"><span class="agent-icon small ${state.agentId}">${a.initials}</span><div><span class="context-label">평가 대상${draft?'':' · 이 실행에 고정됨'}</span><strong>${esc(a.name)} <span>${esc(a.version)}</span></strong></div><div class="target-metadata"><span>프롬프트 <b>${esc(a.prompt)}</b></span><span>모델 <b>미지정 · 데모</b></span></div><span class="target-type">${esc(a.evaluation)}<br><span class="mono">${esc(draft?a.topology.version:runTopology().version)}</span></span></div>`;}
-function emptyRunView(){return `${header(state.tab==='compare'?'결과 비교':'실행 분석','평가 대상을 선택하고 시험을 불러오면 여기에 표시됩니다.')}<section class="empty-run"><span class="empty-glyph">◈</span><h2>아직 불러온 시험이 없습니다.</h2><p>Agent 선택 → 데모 데이터 점검 → 시험 조건 설정 순서로 시작하거나, 아래 S03 데모를 바로 불러오세요.</p><div class="flow-actions"><button class="primary" data-action="agents">평가 대상 선택 <span>→</span></button><button class="secondary" data-action="demo-3d">◈ S03 응답 유실 데모 바로 불러오기</button></div></section>`;}
-function investigationComparisonView(){return `${header('조사 Agent 검사 범위','현재 시험은 고정 사건을 사용한 개별 평가입니다.')}${targetContext()}<section class="panel section-pad"><h2 class="section-title">B0/B1 비교는 발주 업무 시스템에 적용됩니다.</h2><p class="section-description">사고 조사 Agent에는 서버 중복 방지 정책을 적용하지 않습니다. 모델·프롬프트 버전 비교는 동일 사건 fixture로 각각 실행한 기록이 필요합니다. 현재는 한 개 참조 버전의 데모만 제공됩니다.</p><div class="table-wrap"><table><thead><tr><th>검사</th><th>예시 결과</th><th>근거 / 검토 범위</th></tr></thead><tbody>${checksFor().map(c=>`<tr><td>${c.name}</td><td>${badge(c.result,c.result.toLowerCase())}</td><td>${c.detail}</td></tr>`).join('')}</tbody></table></div><div class="flow-actions"><button class="secondary" data-demo-tab="execution">현재 시험 근거 보기</button><button class="primary" data-action="prepare">다른 조사 시나리오 선택 →</button></div></section>`;}
+function emptyRunView(){return `${header(state.tab==='compare'?'결과 비교':'실행 분석','평가 대상을 선택하고 시험을 불러오면 여기에 표시됩니다.')}${tutorialMilestone(state.tab==='compare'?'compare':'execution')}<section class="empty-run"><span class="empty-glyph">◈</span><h2>아직 불러온 시험이 없습니다.</h2><p>Agent 선택 → 데모 데이터 점검 → 시험 조건 설정 순서로 시작하거나, 아래 S03 데모를 바로 불러오세요.</p><div class="flow-actions"><button class="primary" data-action="agents">평가 대상 선택 <span>→</span></button><button class="secondary" data-action="demo-3d">◈ S03 응답 유실 데모 바로 불러오기</button></div></section>`;}
+function investigationComparisonView(){return `${header('조사 Agent 검사 범위','현재 시험은 고정 사건을 사용한 개별 평가입니다.')}${tutorialMilestone('compare')}${targetContext()}<section class="panel section-pad"><h2 class="section-title">B0/B1 비교는 발주 업무 시스템에 적용됩니다.</h2><p class="section-description">사고 조사 Agent에는 서버 중복 방지 정책을 적용하지 않습니다. 모델·프롬프트 버전 비교는 동일 사건 fixture로 각각 실행한 기록이 필요합니다. 현재는 한 개 참조 버전의 데모만 제공됩니다.</p><div class="table-wrap"><table><thead><tr><th>검사</th><th>예시 결과</th><th>근거 / 검토 범위</th></tr></thead><tbody>${checksFor().map(c=>`<tr><td>${c.name}</td><td>${badge(c.result,c.result.toLowerCase())}</td><td>${c.detail}</td></tr>`).join('')}</tbody></table></div><div class="flow-actions"><button class="secondary" data-demo-tab="execution">현재 시험 근거 보기</button><button class="primary" data-action="prepare">다른 조사 시나리오 선택 →</button></div></section>`;}
 function demoChainSvg(agent){
  const names=agent.id==='purchase'?['Agent','승인','MCP','DB']:agent.id==='investigator'?['Agent','지침','근거','보고서']:agent.topology.nodes.slice(0,4).map(n=>n.label.slice(0,5));
  const fault=agent.id==='purchase'?2:-1;
@@ -183,31 +246,38 @@ function demoChainSvg(agent){
  return `<svg class="chain-svg" viewBox="0 0 ${w} ${h}" aria-hidden="true">${lines}${packet}${dots}</svg>`;
 }
 function agentView(){const id=state.draft.agentId,a=agents[id],result=state.verified[id],graph=a.topology;return `${header('데모 평가 대상','Agent와 구조를 함께 선택하고, 사건이 어느 노드에서 발생했는지 확인합니다.','<button class="secondary" data-action="register">+ Agent 구조 등록</button><button class="primary" data-action="demo-3d">◈ 발주 3D 데모 ↗</button>')}
+ ${tutorialMilestone('agents')}
  <div class="agent-layout"><section class="card"><div class="card-h"><h2>데모 참조 Agent</h2><span class="meta">${Object.keys(agents).length}개 프로필</span></div><div class="agent-options demo-agent-list">${Object.values(agents).map(agent=>`<button class="agent-option ${id===agent.id?'selected':''}" data-agent="${esc(agent.id)}" aria-pressed="${id===agent.id}"><span class="agent-icon ${agent.custom?'custom':agent.id}">${agent.initials}</span><div class="agent-option-body"><div class="agent-name"><strong>${esc(agent.name)}</strong><span class="pill ${agent.id==='purchase'?'sig':'neu'}">${esc(agent.role)}</span></div><p>${esc(agent.description)}</p><div class="agent-spec"><span>${esc(agent.version)}</span><span>노드 ${agent.topology.nodes.length} · 연결 ${agent.topology.edges.length}</span></div>${demoChainSvg(agent)}</div><i class="radio-mark"></i></button>`).join('')}</div>
  <div class="note"><b>구조와 실행 분리</b><span>발주 Agent는 승인·도구·DB·판정 경로를, 조사 Agent는 근거·지침 조회와 보고서 검토 경로를 사용합니다. 구조 등록은 실제 실행 API 연결과 별개입니다.</span></div></section>
  <section class="card agent-detail"><div class="card-h"><h2>${esc(a.name)}</h2><div class="card-h-end"><span class="connection-tag">${a.custom?'사용자 등록 구조':'데모 참조 프로필'}</span>${!a.custom?'<button class="secondary" data-tab="live">실제 실행으로 이동 →</button>':''}</div></div><div class="section-pad"><div class="detail-heading"><span class="agent-icon ${a.custom?'custom':id}">${a.initials}</span><div><h2>${esc(a.code)}</h2><p>${a.custom?'이 브라우저에 등록한 구조 · 샘플 이벤트':'프로젝트에서 제공하는 데모 참조 프로필'}</p></div></div><dl class="agent-fields"><div><dt>평가 범위</dt><dd>${esc(a.evaluation)}</dd></div><div><dt>Agent 버전</dt><dd>${esc(a.version)}</dd></div><div><dt>프롬프트 버전</dt><dd>${esc(a.prompt)}</dd></div><div><dt>모델 / 실행 API</dt><dd>실제 실행 메뉴에서 확인</dd></div><div><dt>구조 버전</dt><dd class="mono">${esc(graph.version)}</dd></div><div><dt>등록 구조</dt><dd>${graph.nodes.length}개 노드 · ${graph.edges.length}개 연결</dd></div></dl>
  <div class="structure-roles">${graph.nodes.map(n=>`<span>${esc(n.label)} <small>${esc(n.role)}</small></span>`).join('')}</div><button class="secondary full" data-action="structure">이 Agent의 구조 · 이벤트 3D 보기 →</button>
- ${a.custom?'<div class="scope-note"><strong>구조 미리보기 전용</strong><p>등록한 샘플 이벤트로 매핑을 확인합니다. 평가 점수를 만들거나 Agent를 실행하지 않습니다. 실제 실행 어댑터는 추후 연결이 필요합니다.</p></div>':`<div class="connection-check"><div class="connection-check-heading"><strong>데모 데이터 점검</strong>${result?badge(result.ok?'완료':'실패',result.ok?'':'fail'):'<span>미확인</span>'}</div><p>구조·이벤트 매핑과 내장 데이터를 확인합니다. 실제 시험을 시작하려면 위의 ‘실제 실행으로 이동’을 누르세요.</p>${result?`<ul class="connection-results">${result.checks.map(c=>`<li><span>${c.ok?'✓':'×'}</span>${c.label}</li>`).join('')}</ul>`:''}<button class="secondary" data-action="verify">${result?'다시 점검':'데모 데이터 점검하기'}</button></div><div class="agent-detail-footer"><p>${result?.ok?'구조와 데모 점검을 마쳤습니다.':'데모 데이터를 점검한 뒤 시험을 준비하세요.'}</p><button class="primary" data-action="continue" ${result?.ok?'':'disabled'}>데모 시험 준비 →</button></div>`}</div></section></div>`;}
+ ${a.custom?'<div class="scope-note"><strong>구조 미리보기 전용</strong><p>등록한 샘플 이벤트로 매핑을 확인합니다. 평가 점수를 만들거나 Agent를 실행하지 않습니다. 실제 실행 어댑터는 추후 연결이 필요합니다.</p></div>':`<div class="connection-check"><div class="connection-check-heading"><strong>데모 데이터 점검</strong>${result?badge(result.ok?'완료':'실패',result.ok?'':'fail'):'<span>미확인</span>'}</div><p>구조·이벤트 매핑과 내장 데이터를 확인합니다. 실제 시험을 시작하려면 위의 ‘실제 실행으로 이동’을 누르세요.</p>${result?`<ul class="connection-results">${result.checks.map(c=>`<li><span>${c.ok?'✓':'×'}</span>${c.label}</li>`).join('')}</ul>`:''}<div class="tutorial-inline-anchor">${!result?.ok?'<p class="tutorial-inline-bubble">1단계 이정표 · 먼저 여기를 눌러 데모 데이터를 점검하세요</p>':''}<button class="secondary" data-action="verify">${result?'다시 점검':'데모 데이터 점검하기'}</button></div></div><div class="agent-detail-footer"><p>${result?.ok?'구조와 데모 점검을 마쳤습니다.':'데모 데이터를 점검한 뒤 시험을 준비하세요.'}</p><div class="tutorial-inline-anchor">${result?.ok?'<p class="tutorial-inline-bubble">점검 완료! 여기를 눌러 2단계(시험 조건 설정)로 이동하세요</p>':''}<button class="primary" data-action="continue" ${result?.ok?'':'disabled'}>데모 시험 준비 →</button></div></div>`}</div></section></div>`;}
 function previewData(){const a=agents[state.draft.agentId];return{agent:a,graph:a.topology,events:a.custom?a.events:eventsFor(a.defaultScenario,'B0')};}
 function structureView(){const{agent,graph,events}=previewData();state.previewCursor=Math.min(state.previewCursor??0,Math.max(events.length-1,0));const mapping=mapEvents(graph,events),current=mapping[state.previewCursor],node=graph.nodes.find(n=>n.id===state.previewNode)||current?.node,unmappedCount=mapping.filter(m=>!m.ok).length;return `${header(`${esc(agent.name)} · 등록 구조`,'등록한 구조와 샘플 사건의 연결을 확인합니다. 실제 Agent 실행이나 새 평가가 아닙니다.','<button class="secondary" data-action="agents">평가 대상으로 돌아가기</button>')}
+ ${tutorialMilestone('structure')}
  <div class="card strip"><div class="lead"><label>구조 버전</label><div class="v" style="font-size:20px">${esc(graph.version)}</div><div class="d">${agent.custom?'사용자 등록 구조':'데모 참조 구조'}</div></div><div><label>등록 노드</label><div class="v">${graph.nodes.length}<small>개</small></div><div class="d">역할 기반 3D 배치</div></div><div><label>연결 경로</label><div class="v">${graph.edges.length}<small>개</small></div><div class="d">방향성 호출 · 응답</div></div><div><label>샘플 사건</label><div class="v">${events.length}<small>개</small></div><div class="d">${unmappedCount?`<span class="neg-t">${unmappedCount}개 미매핑</span>`:'전체 매핑 확인'}</div></div><div><label>현재 선택 노드</label><div class="v" style="font-size:20px">${esc(node?.id||'—')}</div><div class="d">${esc(node?.role||'미선택')}</div></div></div>
  <div class="inspection-grid structure-inspection"><section class="stage-panel"><div class="stage-toolbar"><div class="segmented view-toggle"><button data-preview-mode="spatial" class="${state.previewMode!=='timeline'?'selected':''}">◈ 3D 구조</button><button data-preview-mode="timeline" class="${state.previewMode==='timeline'?'selected':''}">등록 노드 목록</button></div></div>${state.previewMode==='timeline'?`<div class="topology-fallback">${graph.nodes.map(n=>`<button class="secondary full" data-preview-node="${esc(n.id)}">${esc(n.label)} · ${esc(n.role)}</button>`).join('')}</div>`:`<div class="visual-stage topology-stage"><div class="stage-caption"><span class="stage-kicker">${agent.custom?'사용자 등록 구조':'데모 Agent 구조'}</span><strong>${esc(current?.event.title||'구조만 등록됨')}</strong><span>노드 역할로 입체 형태를, 연결 정보로 경로를 구성합니다.</span></div><div id="structure-host" role="group" aria-label="등록 구조 3D 미리보기"></div></div>`}</section><aside class="card"><div class="card-h"><h2>${node?'선택한 노드':'노드 · 샘플 사건'}</h2><span class="meta mono">${esc(node?.id||'—')}</span></div><div class="section-pad"><h3>${esc(node?.label||'구조 정보')}</h3><p class="mono dim">${esc(node?.id||'—')} · ${esc(node?.role||'—')}</p><p class="live-hint">${events.length?'샘플 사건을 선택하면 해당 노드와 연결을 강조합니다.':'샘플 이벤트가 없어 등록된 구조만 표시합니다.'}</p>${node&&!events.slice(0,state.previewCursor+1).some(e=>e.node_id===node.id)?'<p class="mapping-warning">이 시점까지 이 노드에서 관측된 사건이 없습니다.</p>':''}<div class="preview-events">${events.map((e,i)=>`<button data-preview-event="${i}" class="${i===state.previewCursor?'selected':''}"><span>${String(i+1).padStart(2,'0')}</span><div>${esc(e.title)}<small>${esc(e.node_id)}${e.edge_id?` · ${esc(e.edge_id)}`:''}</small></div></button>`).join('')}</div></div></aside></div>${graphDetails(graph)}`;}
 function render() {
  leaveLive();
  $('#demo-navigation').hidden=workspacePage!=='demo';
+ const stepNav=$('.step-nav');
+ if(stepNav && workspacePage==='demo') stepNav.hidden=true;
  document.querySelectorAll('.workspace-bar [data-tab], .site-rail [data-tab]').forEach(button=>{button.classList.toggle('active',button.dataset.tab===workspacePage);button.setAttribute('aria-current',button.dataset.tab===workspacePage?'page':'false');});
  $('.footer>span').textContent=workspacePage==='demo'?'데모 예시입니다. 실제 시험 결과와 구분합니다.':'서버에서 조회한 실제 실행·검사·근거를 표시합니다.';
  if(workspacePage!=='demo'){mountLive($('#main'),workspacePage,navigateWorkspace);return;}
- if($('#header-mode-label'))$('#header-mode-label').textContent='데모 모드';
+ if($('#header-mode-label'))$('#header-mode-label').textContent='튜토리얼 모드';
  const modeBadge=$('#header-mode-badge');
  if(modeBadge){
    const dot=modeBadge.querySelector('.pulse-dot');
    if(dot) dot.className='pulse-dot idle';
  }
  const demoBtn=$('.header-end .demo-entry');
- if(demoBtn) demoBtn.textContent='실제 실행으로 이동';
+ if(demoBtn){
+   demoBtn.dataset.tab='agents';
+   demoBtn.textContent='실제 실행으로 이동';
+ }
  if($('#header-scope'))$('#header-scope').textContent=agents[state.agentId]?.name||'데모 참조';
- if($('#header-page-label'))$('#header-page-label').textContent={agents:'데모 평가 대상',prepare:'데모 시험 조건',execution:'데모 실행 분석',compare:'데모 결과 비교',structure:'등록 구조'}[state.tab]||'데모 예시';
+ if($('#header-page-label'))$('#header-page-label').textContent={agents:'1. 평가 대상 · 점검',prepare:'2. 시험 조건 설정',execution:'3. 3D 실행 분석',compare:'4. B0 ↔ B1 결과 비교',structure:'등록 구조 미리보기'}[state.tab]||'튜토리얼';
  $('#main').innerHTML=state.tab==='structure'?structureView():state.tab==='agents'?agentView():state.tab==='prepare'?withDraft(prepareView):!state.run?emptyRunView():state.tab==='execution'?executionView():compareView();
 
  document.querySelectorAll('[data-demo-tab]').forEach(b=>{b.classList.toggle('active',b.dataset.demoTab===(state.tab==='structure'?'agents':state.tab));b.setAttribute('aria-current',b.dataset.demoTab===(state.tab==='structure'?'agents':state.tab)?'page':'false');});
@@ -243,6 +313,8 @@ document.addEventListener('click',async e=>{
  case 'demo-3d':open3DDemo();break;
  case 'verify':verifyAgent();break;
  case 'continue':if(state.verified[state.draft.agentId]?.ok)navigate('prepare');break;
+ case 'tutorial-to-prepare':{const id=state.draft.agentId;if(!state.verified[id]?.ok)state.verified[id]=validateDemoProfile(id,scenario=>eventsFor(scenario,'B0'),checksFor);navigate('prepare');break;}
+ case 'tutorial-verify-and-load':{const id=state.draft.agentId;if(!state.verified[id]?.ok)state.verified[id]=validateDemoProfile(id,scenario=>eventsFor(scenario,'B0'),checksFor);loadDemo();break;}
  case 'prepare':navigate('prepare');break;
  case 'compare':navigate('compare');break;
  case 'load':loadDemo();break;

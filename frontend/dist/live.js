@@ -302,7 +302,8 @@ function syncShellChrome() {
   const demoBtn=document.querySelector('.header-end .demo-entry');
   if(demoBtn){
     demoBtn.hidden=!authed;
-    demoBtn.textContent='데모 둘러보기';
+    demoBtn.dataset.tab='demo';
+    demoBtn.textContent='튜토리얼 시작하기';
   }
   if(userEl){
     if(state.session){
