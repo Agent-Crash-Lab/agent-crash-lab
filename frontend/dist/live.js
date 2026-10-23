@@ -120,25 +120,31 @@ function renderLoginTopoSvg() {
   const P=(x,y,z=0)=>[+(cx+(x-y)*0.866*S).toFixed(1),+(cy+(x+y)*0.5*S-z*S).toFixed(1)];
   const pos={}; NODES.forEach(nd=>pos[nd.id]=[nd.n*1.15, nd.l*1.15-1.7]);
   const poly=(pts,fill,stroke='none',sw=1,extra='')=>`<polygon points="${pts.map(p=>p.join(',')).join(' ')}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" ${extra}/>`;
-  let g='';
+  let g=`<defs>
+    <filter id="lg-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>`;
   [0,1,2,3].forEach(l=>{
     const y0=l*1.15-1.7, a=P(-1.85,y0-0.45), b=P(1.85,y0-0.45), c=P(1.85,y0+0.45), d=P(-1.85,y0+0.45), t=0.12;
     const ad=[a[0],a[1]+t*S], bd=[b[0],b[1]+t*S], cd=[c[0],c[1]+t*S], dd=[d[0],d[1]+t*S];
-    g+=poly([d,c,cd,dd],'#101013')+poly([b,c,cd,bd],'#0c0c0e')+poly([a,b,c,d],l%2?'#19191d':'#1c1c21');
+    g+=poly([d,c,cd,dd],'#0a0a0d')+poly([b,c,cd,bd],'#060608')+poly([a,b,c,d],l%2?'#19191e':'#1c1c22','#272732',1);
   });
   EDGES.forEach(([s,t,st],i)=>{
     const [x1,y1]=pos[s],[x2,y2]=pos[t], off=st==='fault'?0.18:0;
     const pts=[P(x1+off,y1,0.02),P(x1+off,y2,0.02),P(x2+off,y2,0.02)];
     const d=`M${pts[0]} L${pts[1]} L${pts[2]}`;
-    const col=st==='done'?'#d9d9de':st==='fault'?'#ff6a3d':'#3a3a42';
-    g+=`<path id="lg-e${i}" d="${d}" fill="none" stroke="${col}" stroke-width="1.6" ${st==='fault'?'stroke-dasharray="6 5" class="fault-edge"':''} opacity="${st==='idle'?1:0.85}"/>`;
+    const col=st==='done'?'#50dfb0':st==='fault'?'#ff6a3d':'#2a2a36';
+    g+=`<path d="${d}" fill="none" stroke="#101014" stroke-width="4.5" stroke-linecap="round"/>`;
+    g+=`<path id="lg-e${i}" d="${d}" fill="none" stroke="${col}" stroke-width="1.8" ${st==='fault'?'stroke-dasharray="6 5" class="fault-wire-glitch"':''} opacity="${st==='idle'?0.6:0.95}"/>`;
     if(st==='done'){
-      g+=`<circle r="3" fill="#ffffff"><animateMotion dur="${2.2+i*0.35}s" repeatCount="indefinite" path="${d}"/></circle>`;
+      g+=`<circle r="3.2" fill="#6fd4ab" filter="url(#lg-glow)"><animateMotion dur="${2.0+i*0.35}s" repeatCount="indefinite" path="${d}"/></circle>`;
+      g+=`<circle r="1.8" fill="#34b38a" opacity="0.6"><animateMotion dur="${2.0+i*0.35}s" repeatCount="indefinite" path="${d}" begin="0.1s"/></circle>`;
     } else if(st==='fault'){
       const m=P(x1+off,(y1+y2)/2,0.02);
       const half=`M${pts[0]} L${m}`;
-      g+=`<circle r="3.5" fill="#ff8a5f"><animateMotion dur="1.8s" repeatCount="indefinite" path="${half}"/></circle>`;
-      g+=`<g transform="translate(${m})"><circle r="11" fill="#2a1610" stroke="#ff6a3d" stroke-width="1.4"/><path d="M-4 -4 4 4M4 -4 -4 4" stroke="#ff6a3d" stroke-width="1.8" stroke-linecap="round"/></g>`;
+      g+=`<circle r="3.8" fill="#ff8a5f"><animateMotion dur="1.5s" repeatCount="indefinite" path="${half}"/></circle>`;
+      g+=`<g transform="translate(${m[0]}, ${m[1]})"><g class="hazard-node"><circle r="12" fill="#200d07" stroke="#ff6a3d" stroke-width="1.8"/><path d="M-4 -4 4 4M4 -4 -4 4" stroke="#ff6a3d" stroke-width="2" stroke-linecap="round"/><circle r="16" fill="none" stroke="#ff6a3d" stroke-width="1" stroke-dasharray="3 3"><animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="4s" repeatCount="indefinite"/></circle></g></g>`;
     }
   });
   let labelsHtml='';
@@ -149,14 +155,15 @@ function renderLoginTopoSvg() {
     const st=nd.fault?'#ff6a3d':nd.dim?'#2c2c33':'#3d3d46';
     if(nd.fault){
       const c=P(x,y,0);
-      g+=`<ellipse class="shock" cx="${c[0]}" cy="${c[1]}" rx="${(0.9*S).toFixed(1)}" ry="${(0.52*S).toFixed(1)}" fill="none" stroke="#ff6a3d" stroke-width="1.5"/><ellipse class="shock s2" cx="${c[0]}" cy="${c[1]}" rx="${(0.9*S).toFixed(1)}" ry="${(0.52*S).toFixed(1)}" fill="none" stroke="#ff6a3d" stroke-width="1.2"/>`;
+      g+=`<ellipse class="shock s1" cx="${c[0]}" cy="${c[1]}" rx="${(0.9*S).toFixed(1)}" ry="${(0.52*S).toFixed(1)}" fill="none" stroke="#ff6a3d" stroke-width="1.6"/>`;
+      g+=`<ellipse class="shock s2" cx="${c[0]}" cy="${c[1]}" rx="${(0.9*S).toFixed(1)}" ry="${(0.52*S).toFixed(1)}" fill="none" stroke="#ff3e14" stroke-width="1.2"/>`;
     }
     if(nd.kind==='cyl'){
       const c0=P(x,y,0), c1=P(x,y,h), rx=+(w*1.2*S).toFixed(1), ry=+(w*0.69*S).toFixed(1);
       g+=`<path d="M${c0[0]-rx},${c1[1]} L${c0[0]-rx},${c0[1]} A${rx},${ry} 0 0 0 ${c0[0]+rx},${c0[1]} L${c0[0]+rx},${c1[1]} Z" fill="${left}" stroke="${st}"/>`;
       g+=`<path d="M${c0[0]-rx},${(c0[1]+c1[1])/2} A${rx},${ry} 0 0 0 ${c0[0]+rx},${(c0[1]+c1[1])/2}" fill="none" stroke="${st}"/>`;
       g+=`<ellipse cx="${c1[0]}" cy="${c1[1]}" rx="${rx}" ry="${ry}" fill="#2b3a44" stroke="#5b8fb5"/>`;
-      g+=`<ellipse class="dbfill" cx="${c1[0]}" cy="${c1[1]}" rx="${(rx*0.55).toFixed(1)}" ry="${(ry*0.55).toFixed(1)}" fill="#9ccaf0" opacity=".25"/>`;
+      g+=`<ellipse class="dbfill" cx="${c1[0]}" cy="${c1[1]}" rx="${(rx*0.55).toFixed(1)}" ry="${(ry*0.55).toFixed(1)}" fill="#9ccaf0" opacity=".35"><animate attributeName="opacity" values="0.2;0.5;0.2" dur="2s" repeatCount="indefinite"/></ellipse>`;
     } else {
       const A=P(x-w,y-w,h), B=P(x+w,y-w,h), C=P(x+w,y+w,h), D=P(x-w,y+w,h), Bd=P(x+w,y-w,0), Cd=P(x+w,y+w,0), Dd=P(x-w,y+w,0);
       g+=poly([D,C,Cd,Dd],left,st)+poly([B,C,Cd,Bd],right,st)+poly([A,B,C,D],top,st,1.2);
@@ -166,15 +173,18 @@ function renderLoginTopoSvg() {
         if(!nd.dim){
           const l1=P(x-w*0.45,y-w*0.1,h+0.26), l2=P(x-w*0.05,y-w*0.1,h+0.26), l3=P(x-w*0.45,y-w*0.1,h+0.17), l4=P(x-w*0.15,y-w*0.1,h+0.17);
           g+=`<path d="M${l1}L${l2}M${l3}L${l4}" stroke="#6fd4ab" stroke-width="1.6" class="blink"/>`;
+          const haloPos=P(x,y,h+0.52);
+          g+=`<ellipse cx="${haloPos[0]}" cy="${haloPos[1]}" rx="${(w*0.8*S).toFixed(1)}" ry="${(w*0.45*S).toFixed(1)}" fill="none" stroke="#50dfb0" stroke-width="1" stroke-dasharray="6 4" class="halo-orbit" opacity="0.8"/>`;
         }
       }
       if(nd.kind==='disc'){
         const c=P(x,y,h+0.02);
         g+=`<ellipse cx="${c[0]}" cy="${c[1]}" rx="${(w*0.7*S).toFixed(1)}" ry="${(w*0.4*S).toFixed(1)}" fill="#1f2a24" stroke="#3fb68b"/>`;
+        g+=`<ellipse cx="${c[0]}" cy="${c[1]}" rx="${(w*0.45*S).toFixed(1)}" ry="${(w*0.25*S).toFixed(1)}" fill="none" stroke="#6fd4ab" stroke-width="1" stroke-dasharray="4 3" class="halo-orbit-rev"/>`;
       }
       if(nd.fault){
         const A2=P(x-w*0.6,y-w*0.6,h), C2=P(x+w*0.6,y+w*0.6,h);
-        g+=`<line x1="${A2[0]}" y1="${A2[1]}" x2="${C2[0]}" y2="${C2[1]}" stroke="#ff6a3d" stroke-width="1.4" opacity=".7"/>`;
+        g+=`<line x1="${A2[0]}" y1="${A2[1]}" x2="${C2[0]}" y2="${C2[1]}" stroke="#ff6a3d" stroke-width="1.8" class="fault-wire-glitch"/>`;
       }
     }
     const L=P(x,y,h+(nd.kind==='screen'?0.62:0.42));

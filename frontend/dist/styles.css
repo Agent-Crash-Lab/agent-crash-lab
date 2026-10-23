@@ -133,24 +133,69 @@ a {
 }
 
 @keyframes shock {
-  0% { transform: scale(0.5); opacity: 0.9; }
-  100% { transform: scale(1.85); opacity: 0; }
+  0% { transform: scale(0.5); opacity: 0.95; }
+  100% { transform: scale(2.2); opacity: 0; }
 }
 
 .shock {
   transform-box: fill-box;
   transform-origin: center;
-  animation: shock 2.6s var(--ease) infinite;
+  animation: shock 2.4s cubic-bezier(0.1, 0.8, 0.3, 1) infinite;
 }
 .shock.s2 {
-  animation-delay: 1.3s;
+  animation-delay: 0.8s;
+}
+.shock.s3 {
+  animation-delay: 1.6s;
 }
 
-@keyframes dashFlow {
-  to { stroke-dashoffset: -44; }
+@keyframes faultWireGlitch {
+  0%, 100% { stroke-dashoffset: 0; opacity: 0.95; }
+  25% { stroke-dashoffset: -12; opacity: 0.6; }
+  50% { stroke-dashoffset: -24; opacity: 1; }
+  75% { stroke-dashoffset: -36; opacity: 0.45; }
 }
-.fault-edge {
-  animation: dashFlow 1.8s linear infinite;
+.fault-wire-glitch {
+  animation: faultWireGlitch 1.2s linear infinite;
+}
+
+@keyframes haloOrbit {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+.halo-orbit {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: haloOrbit 8s linear infinite;
+}
+.halo-orbit-rev {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: haloOrbit 6s linear infinite reverse;
+}
+
+@keyframes hazardPulse {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px #ff6a3d); }
+  50% { transform: scale(1.08); filter: drop-shadow(0 0 10px #ff3e14); }
+}
+.hazard-node {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: hazardPulse 1.8s ease-in-out infinite;
+}
+
+.iso-node-group {
+  transition: transform 0.25s var(--ease), filter 0.25s var(--ease);
+}
+.iso-node-group:hover {
+  transform: translateY(-4px);
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.65));
+}
+.iso-node-group.is-active {
+  filter: drop-shadow(0 4px 14px rgba(255, 106, 61, 0.4));
+}
+.iso-node-group.is-fault {
+  filter: drop-shadow(0 4px 18px rgba(255, 62, 20, 0.55));
 }
 
 @keyframes blink {
@@ -1891,11 +1936,20 @@ main#main:has([data-live-auth-split]:not([hidden])) {
   white-space: nowrap;
   padding: 6px 10px;
   border-radius: 6px;
-  background: #1b1b1fee;
+  background: rgba(27, 27, 31, 0.92);
   border: 1px solid #2b2b31;
   font-size: 12px;
   color: var(--text);
   z-index: 2;
+  transition: transform 0.2s var(--ease), border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
+  backdrop-filter: blur(8px);
+}
+
+.scene-label:hover {
+  transform: translate(-50%, -108%);
+  border-color: var(--control);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+  z-index: 10;
 }
 
 .scene-label > span {
@@ -1905,13 +1959,21 @@ main#main:has([data-live-auth-split]:not([hidden])) {
 
 .scene-label.selected {
   border-color: var(--signal);
+  box-shadow: 0 0 0 1px var(--signal), 0 8px 24px rgba(255, 106, 61, 0.3);
+  z-index: 8;
 }
 
 .scene-label.fault-label {
-  background: #2a1610f0;
+  background: rgba(42, 22, 16, 0.94);
   color: #ffd0bf;
-  border-color: #ff6a3d88;
-  z-index: 4;
+  border-color: #ff6a3d;
+  z-index: 9;
+  animation: labelHazardPulse 2s ease-in-out infinite;
+}
+
+@keyframes labelHazardPulse {
+  0%, 100% { box-shadow: 0 0 0 1px #ff6a3d, 0 8px 24px rgba(255, 106, 61, 0.35); }
+  50% { box-shadow: 0 0 0 2px #ff3e14, 0 12px 32px rgba(255, 62, 20, 0.6); }
 }
 
 .playback {
