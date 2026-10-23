@@ -111,16 +111,33 @@ function renderChainSvg(chain, faultIndex=-1) {
   return `<svg class="chain" viewBox="0 0 300 64" aria-hidden="true">${g}</svg>`;
 }
 function renderLoginTopoSvg() {
+  const ICONS={
+    mcp:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2.5" width="12" height="4" rx="1"/><rect x="2" y="9.5" width="12" height="4" rx="1"/><circle cx="4.5" cy="4.5" r="0.8" fill="currentColor"/><circle cx="4.5" cy="11.5" r="0.8" fill="currentColor"/></svg>`,
+    scenario:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9.5 2H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5.5L9.5 2Z"/><path d="M5.5 8h5M5.5 10.8h3.2" stroke-linecap="round"/></svg>`,
+    harness:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1.8 13.5 4v4.2c0 3.2-2.3 5.2-5.5 6-3.2-.8-5.5-2.8-5.5-6V4L8 1.8Z"/><path d="m6 8 1.5 1.5L10.5 6" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+    mfg:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3.5" y="3.5" width="9" height="9" rx="1.8"/><path d="M6.5 6.5h3v3h-3zM8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2" stroke-linecap="round"/></svg>`,
+    rag:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 3.5A1.5 1.5 0 0 1 4 2h8.5v11H4a1.5 1.5 0 0 0-1.5 1.5v-11Z"/><path d="M2.5 13.5A1.5 1.5 0 0 1 4 12h9.5M6 5.5h4.5M6 8h3" stroke-linecap="round"/></svg>`,
+    db:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><ellipse cx="8" cy="3.8" rx="5" ry="2"/><path d="M3 3.8v8.4c0 1.1 2.2 2 5 2s5-.9 5-2V3.8"/><path d="M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/></svg>`,
+    qa:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7.2" cy="7.2" r="4.2"/><path d="m10.5 10.5 3.2 3.2M5.6 7.2h3.2M7.2 5.6v3.2" stroke-linecap="round"/></svg>`
+  };
   const NODES=[
-    {id:'harness',label:'Harness',sub:'실행 준비 · 사건 1',l:0,n:-1,kind:'box'},
-    {id:'agent',label:'발주 Agent',sub:'Agent · 사건 4',l:0,n:1,kind:'screen'},
-    {id:'approval',label:'담당자 승인',sub:'승인 · 사건 1',l:1,n:-1,kind:'disc'},
-    {id:'mcp',label:'business-mcp',sub:'도구 · 사건 3',l:1,n:1,kind:'box',fault:true},
-    {id:'oracle',label:'Oracle',sub:'검사 · 사건 0',l:2,n:-1,kind:'box',dim:true},
-    {id:'db',label:'업무 DB',sub:'저장 · 2건',l:2,n:1,kind:'cyl'},
-    {id:'investigator',label:'사고 조사 Agent',sub:'Agent · 사건 0',l:3,n:0,kind:'screen',dim:true}
+    {id:'mcp',label:'MCP Server',sub:'인증·승인·구매 도구',l:0,n:-1,kind:'mcp',ox:-8,oy:-8},
+    {id:'scenario',label:'Scenario Agent',sub:'시험 설계·검토',l:0,n:1,kind:'screen',ox:22,oy:-4},
+    {id:'harness',label:'Harness',sub:'시험 운영·판정',l:1,n:-1,kind:'disc',ox:-6,oy:-18},
+    {id:'mfg',label:'Manufacturing Operation Agent',sub:'시험 대상 · 도구 호출',l:1,n:1,kind:'screen',fault:true,ox:18,oy:6},
+    {id:'rag',label:'Knowledge / RAG',sub:'자료 검색 · 문헌 색인',l:2,n:-1,kind:'rag',ox:-32,oy:6},
+    {id:'db',label:'PostgreSQL',sub:'업무 상태·시험 증거',l:2,n:1,kind:'cyl',ox:-10,oy:4},
+    {id:'qa',label:'QA 조사 · 보고서',sub:'필요시 조사 · QA 보고서',l:3,n:0,kind:'screen',ox:-24,oy:12}
   ];
-  const EDGES=[['harness','agent','done'],['agent','approval','done'],['agent','mcp','done'],['mcp','db','done'],['mcp','agent','fault'],['db','oracle','idle'],['oracle','investigator','idle']];
+  const EDGES=[
+    ['mcp','harness','done'],
+    ['harness','scenario','done'],
+    ['scenario','rag','done'],
+    ['harness','mfg','done'],
+    ['mfg','mcp','fault'],
+    ['mfg','db','done'],
+    ['mfg','qa','done']
+  ];
   const W=760, H=440, S=86, cx=W*0.5, cy=H*0.54;
   const P=(x,y,z=0)=>[+(cx+(x-y)*0.866*S).toFixed(1),+(cy+(x+y)*0.5*S-z*S).toFixed(1)];
   const pos={}; NODES.forEach(nd=>pos[nd.id]=[nd.n*1.15, nd.l*1.15-1.7]);
@@ -205,23 +222,42 @@ function renderLoginTopoSvg() {
       const rib1=(c0[1]*0.65+c1[1]*0.35).toFixed(1), rib2=(c0[1]*0.35+c1[1]*0.65).toFixed(1);
       g+=`<path d="M${c0[0]-rx},${rib1} A${rx},${ry} 0 0 0 ${c0[0]+rx},${rib1}" fill="none" stroke="${st}" stroke-width="1.3"/>`;
       g+=`<path d="M${c0[0]-rx},${rib2} A${rx},${ry} 0 0 0 ${c0[0]+rx},${rib2}" fill="none" stroke="${st}" stroke-width="1.3"/>`;
-      g+=`<ellipse cx="${c1[0]}" cy="${c1[1]}" rx="${rx}" ry="${ry}" fill="var(--iso-db-lid, #27333d)" stroke="#ff6a88" stroke-width="1.5"/>`;
-      g+=`<ellipse class="dbfill" cx="${c1[0]}" cy="${c1[1]}" rx="${(rx*0.76).toFixed(1)}" ry="${(ry*0.76).toFixed(1)}" fill="#ff6a88" opacity=".48" filter="url(#lg-glow)"><animate attributeName="opacity" values="0.32;0.65;0.32" dur="2.2s" repeatCount="indefinite"/></ellipse>`;
-      g+=`<circle cx="${c1[0]}" cy="${c1[1]}" r="2.8" fill="#ff3e14"/>`;
+      g+=`<ellipse cx="${c1[0]}" cy="${c1[1]}" rx="${rx}" ry="${ry}" fill="var(--iso-db-lid, #27333d)" stroke="#34b38a" stroke-width="1.5"/>`;
+      g+=`<ellipse class="dbfill" cx="${c1[0]}" cy="${c1[1]}" rx="${(rx*0.76).toFixed(1)}" ry="${(ry*0.76).toFixed(1)}" fill="#50dfb0" opacity=".42" filter="url(#lg-glow)"><animate attributeName="opacity" values="0.28;0.6;0.28" dur="2.2s" repeatCount="indefinite"/></ellipse>`;
+      g+=`<circle cx="${c1[0]}" cy="${c1[1]}" r="2.8" fill="#50dfb0"/>`;
     } else {
       const A=P(x-w,y-w,h), B=P(x+w,y-w,h), C=P(x+w,y+w,h), D=P(x-w,y+w,h), Bd=P(x+w,y-w,0), Cd=P(x+w,y+w,0), Dd=P(x-w,y+w,0);
       const ShA=P(x-w-0.04,y-w,0), ShB=P(x+w+0.04,y-w,0), ShC=P(x+w+0.04,y+w+0.04,0), ShD=P(x-w-0.04,y+w+0.04,0);
       g+=poly([ShA,ShB,ShC,ShD],'var(--iso-shadow, #08080b)','none',0,'opacity="0.35"');
       g+=poly([D,C,Cd,Dd],left,st,1.2)+poly([B,C,Cd,Bd],right,st,1.2)+poly([A,B,C,D],top,st,1.4);
+      if(nd.kind==='mcp'){
+        // Server rack blades & gateway port on top
+        [0.12, 0.23].forEach(zOff=>{
+          const rL=P(x-w*0.7,y+w,zOff), rR=P(x+w*0.7,y+w,zOff);
+          g+=`<line x1="${rL[0]}" y1="${rL[1]}" x2="${rR[0]}" y2="${rR[1]}" stroke="#50dfb0" stroke-width="1.6" opacity="0.8"/>`;
+        });
+        const topC=P(x,y,h+0.02);
+        g+=`<ellipse cx="${topC[0]}" cy="${topC[1]}" rx="10" ry="5.5" fill="none" stroke="#50dfb0" stroke-width="1.3"/>`;
+        g+=`<circle cx="${topC[0]}" cy="${topC[1]}" r="2.4" fill="#50dfb0"/>`;
+      }
+      if(nd.kind==='rag'){
+        // Stacked Knowledge / RAG index plates on top of pedestal
+        [0.06, 0.13].forEach((zOff, idx)=>{
+          const pA=P(x-w*0.68,y-w*0.68,h+zOff), pB=P(x+w*0.68,y-w*0.68,h+zOff), pC=P(x+w*0.68,y+w*0.68,h+zOff), pD=P(x-w*0.68,y+w*0.68,h+zOff);
+          g+=poly([pA,pB,pC,pD],'var(--iso-disc-bg, #16221c)',idx===1?'#50dfb0':'#34b38a',1.3);
+        });
+        const k1=P(x-w*0.4,y,h+0.15), k2=P(x+w*0.4,y,h+0.15);
+        g+=`<line x1="${k1[0]}" y1="${k1[1]}" x2="${k2[0]}" y2="${k2[1]}" stroke="#6fd4ab" stroke-width="1.6" stroke-linecap="round"/>`;
+      }
       if(nd.kind==='screen'){
         const s1=P(x-w*0.58,y-w*0.12,h), s2=P(x+w*0.12,y-w*0.12,h), s3=P(x+w*0.12,y-w*0.12,h+0.4), s4=P(x-w*0.58,y-w*0.12,h+0.4);
-        g+=poly([s1,s2,s3,s4],'var(--iso-terminal-bg, #0e1014)',nd.dim?'var(--iso-node-dim-stroke, #282832)':'var(--iso-terminal-stroke, #4e5464)',1.4);
-        if(!nd.dim){
-          const l1=P(x-w*0.48,y-w*0.12,h+0.29), l2=P(x+w*0.02,y-w*0.12,h+0.29), l3=P(x-w*0.48,y-w*0.12,h+0.19), l4=P(x-w*0.14,y-w*0.12,h+0.19), l5=P(x-w*0.48,y-w*0.12,h+0.10), l6=P(x-w*0.04,y-w*0.12,h+0.10);
-          g+=`<g filter="url(#lg-glow)"><path d="M${l1}L${l2}" stroke="#6fd4ab" stroke-width="1.8" class="blink"/><path d="M${l3}L${l4}" stroke="#34b38a" stroke-width="1.5"/><path d="M${l5}L${l6}" stroke="#227a5d" stroke-width="1.5"/></g>`;
-          const haloPos=P(x,y,h+0.55);
-          g+=`<ellipse cx="${haloPos[0]}" cy="${haloPos[1]}" rx="${(w*0.88*S).toFixed(1)}" ry="${(w*0.5*S).toFixed(1)}" fill="none" stroke="#50dfb0" stroke-width="1.2" stroke-dasharray="9 5" class="halo-orbit" opacity="0.85"/>`;
-        }
+        const scrStroke=nd.fault?'#ff6a3d':nd.dim?'var(--iso-node-dim-stroke, #282832)':'var(--iso-terminal-stroke, #4e5464)';
+        g+=poly([s1,s2,s3,s4],'var(--iso-terminal-bg, #0e1014)',scrStroke,1.4);
+        const l1=P(x-w*0.48,y-w*0.12,h+0.29), l2=P(x+w*0.02,y-w*0.12,h+0.29), l3=P(x-w*0.48,y-w*0.12,h+0.19), l4=P(x-w*0.14,y-w*0.12,h+0.19), l5=P(x-w*0.48,y-w*0.12,h+0.10), l6=P(x-w*0.04,y-w*0.12,h+0.10);
+        const c1=nd.fault?'#ff8a5f':'#6fd4ab', c2=nd.fault?'#ff6a3d':'#34b38a', c3=nd.fault?'#cc4420':'#227a5d';
+        g+=`<g filter="url(#lg-glow)"><path d="M${l1}L${l2}" stroke="${c1}" stroke-width="1.8" class="blink"/><path d="M${l3}L${l4}" stroke="${c2}" stroke-width="1.5"/><path d="M${l5}L${l6}" stroke="${c3}" stroke-width="1.5"/></g>`;
+        const haloPos=P(x,y,h+0.55);
+        g+=`<ellipse cx="${haloPos[0]}" cy="${haloPos[1]}" rx="${(w*0.88*S).toFixed(1)}" ry="${(w*0.5*S).toFixed(1)}" fill="none" stroke="${nd.fault?'#ff6a3d':'#50dfb0'}" stroke-width="1.2" stroke-dasharray="9 5" class="halo-orbit" opacity="0.85"/>`;
       }
       if(nd.kind==='disc'){
         const c=P(x,y,h+0.03), rxD=+(w*0.82*S).toFixed(1), ryD=+(w*0.46*S).toFixed(1);
@@ -230,15 +266,14 @@ function renderLoginTopoSvg() {
         g+=`<circle cx="${c[0]}" cy="${c[1]}" r="3" fill="#50dfb0" filter="url(#lg-glow)"/>`;
       }
       if(nd.fault){
-        const A2=P(x-w*0.62,y-w*0.62,h), C2=P(x+w*0.62,y+w*0.62,h);
-        g+=`<line x1="${A2[0]}" y1="${A2[1]}" x2="${C2[0]}" y2="${C2[1]}" stroke="#ff6a3d" stroke-width="2" class="fault-wire-glitch"/>`;
-        const b0=P(x,y,h), b1=P(x,y,h+0.52);
+        const b0=P(x,y,h), b1=P(x,y,h+0.58);
         g+=`<line x1="${b0[0]}" y1="${b0[1]}" x2="${b1[0]}" y2="${b1[1]}" stroke="#ff6a3d" stroke-width="1.8" stroke-dasharray="4 4" class="uplink-beam"/>`;
       }
     }
     g+=`</g>`;
-    const L=P(x,y,h+(nd.kind==='screen'?0.64:0.46));
-    labelsHtml+=`<div class="nlabel ${nd.fault?'fault':''} ${nd.dim?'dim':''}" style="left:${(L[0]/W*100).toFixed(1)}%;top:${(L[1]/H*100).toFixed(1)}%">${esc(nd.label)}<small>${esc(nd.sub)}</small></div>`;
+    const L=P(x,y,h+(nd.kind==='screen'?0.64:0.48));
+    const lx=L[0]+(nd.ox||0), ly=L[1]+(nd.oy||0);
+    labelsHtml+=`<div class="nlabel ${nd.fault?'fault':''} ${nd.dim?'dim':''}" style="left:${(lx/W*100).toFixed(1)}%;top:${(ly/H*100).toFixed(1)}%"><span class="nlabel-ico">${ICONS[nd.id]||''}</span><span class="nlabel-body">${esc(nd.label)}<small>${esc(nd.sub)}</small></span></div>`;
   });
   return `<div class="login-art"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" aria-hidden="true">${g}</svg><div class="login-labels">${labelsHtml}</div></div>`;
 }
@@ -303,9 +338,9 @@ export function mountLive(element, selectedPage='agents', navigate) {
         </div>
         ${renderLoginTopoSvg()}
         <div class="login-ticker rise d2">
-          <div><b class="num">3</b><span>제조 업무 유형</span></div>
-          <div><b class="num">12</b><span>이벤트 · S03</span></div>
-          <div><b class="num neg-t">2 <small>/ 1</small></b><span>B0 실제 발주 / 기대</span></div>
+          <div><b>구매 · 생산 · 품질</b><span>Manufacturing Operation Agent (시험 대상)</span></div>
+          <div><b>Scenario + RAG</b><span>문헌 검색 기반 시험 설계 · 검토</span></div>
+          <div><b>Harness + QA 조사</b><span>장애 주입 · DB 증거 판정 · QA 보고서</span></div>
         </div>
       </div>
       <div class="login-pane">
