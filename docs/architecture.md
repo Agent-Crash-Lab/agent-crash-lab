@@ -182,6 +182,8 @@ flowchart LR
 | `POST /api/qa/registrations/{profile_id}/design` | `generation_mode` → 저장된 계획 |
 | `POST /api/qa/design` | `target`·`sample_data`·`generation_mode` → 저장된 계획 |
 | `GET /api/qa/plans/{plan_id}` | 본인 계획 조회 |
+| `GET /api/qa/plans/{plan_id}/scenarios` | 실행 가능한 시험안마다 같은 대상의 시나리오 보관함 기준 `NEW`/`EXISTING`. 다른 사용자의 시나리오는 존재 여부만 표시 |
+| `GET /api/qa/scenarios/{scenario_id}/runs` | 계획이 달라도 같은 시험 조건인 본인 실행 목록 |
 | `POST /api/runs` | `plan_id`·`case_id`·`system_id` → 202·`run_id`; `test_id`와 동시 지정 불가 |
 | `GET /api/runs/{run_id}` | 실행 상태·검사·업무 변경 건수·`qa_report` |
 | `POST /api/qa/batches` | `request_id`·`plan_id`·`case_ids`·`systems`·한도 → 순차 실험 |

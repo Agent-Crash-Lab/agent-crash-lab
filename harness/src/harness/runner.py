@@ -12,6 +12,7 @@ from harness.catalog import Catalog, TestSpec
 from harness.clients import AgentClient, ClientError, McpClient
 from harness.config import Settings
 from harness.events import EventLog, epoch_iso, now_iso, occurred_epoch
+from harness.scenarios import register as register_scenario
 from harness.simulation import Simulations
 from harness.store import Store
 from harness.validation import collect_evidence_ids, validate_report
@@ -166,6 +167,12 @@ class Runner:
                 raise RunnerError(400, "VALIDATION_ERROR", "plan_id requires a SYSTEM test")
             system_id = None
             case = None
+        # Runs of the same condition share a scenario_id across plans (harness.scenarios).
+        scenario = (
+            register_scenario(self.store, plan or self.catalog.qa_plan, case, user_id, now_iso())
+            if case is not None
+            else None
+        )
         async with self.lock:
             if self.batch_owner and self.batch_owner != batch_id:
                 raise RunnerError(409, "QA_BATCH_IN_PROGRESS")
@@ -191,6 +198,7 @@ class Runner:
                 "finished_at": None,
                 "manifest": self.catalog.manifest(test, system_id, plan, case),
                 "qa_case": case,
+                "qa_scenario_id": scenario["scenario_id"] if scenario else None,
                 "request": None,
                 "approval_request": None,
                 "approval": None,
