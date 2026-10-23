@@ -247,7 +247,7 @@ document.addEventListener('click',async e=>{
  }
 });
 document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.matches('svg [role=button]')){e.preventDefault();e.target.dispatchEvent(new MouseEvent('click',{bubbles:true}));}});
-for(const id of ['help-button','about-button'])$('#'+id).addEventListener('click',()=>$('#info-dialog').showModal());
+$('#help-button')?.addEventListener('click',()=>$('#info-dialog').showModal());
 for(const id of ['close-dialog','understood'])$('#'+id).addEventListener('click',()=>$('#info-dialog').close());
 function updateThemeUI() {
   const isLight = document.documentElement.dataset.theme === 'light';

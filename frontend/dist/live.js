@@ -291,8 +291,8 @@ export function mountLive(element, selectedPage='agents', navigate) {
             </svg>
             <span>Crash Lab</span>
           </div>
-          <h2 class="login-headline rise">Agent가 무너지는 순간,<br>근거로 남깁니다</h2>
-          <p class="login-lead rise d1">제조 Agent에 사고를 주입하고, Agent가 본 결과와 업무 DB의 실제 상태를 나란히 대조하는 QA 워크스페이스입니다.</p>
+          <h2 class="login-headline rise">QA 워크스페이스</h2>
+          <p class="login-lead rise d1">제조 Agent 장애 주입 및 신뢰성 검증 환경</p>
         </div>
         ${renderLoginTopoSvg()}
         <div class="login-ticker rise d2">
@@ -304,7 +304,7 @@ export function mountLive(element, selectedPage='agents', navigate) {
       <div class="login-pane">
         <div class="login-pane-head rise d1">
           <h2>워크스페이스 로그인</h2>
-          <p class="login-sub">로그인 토큰은 메모리에만 보관합니다. 새로고침 후 다시 로그인하세요.</p>
+          <p class="login-sub">안전한 세션을 위해 브라우저를 새로고침하면 다시 로그인합니다.</p>
         </div>
         <div class="role-presets rise d2" role="group" aria-label="개발 계정 빠른 선택">
           <button type="button" class="role-preset on" data-role-preset="requester-01"><strong>요청자</strong><span class="num">requester-01</span></button>
