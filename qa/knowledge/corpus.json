@@ -165,7 +165,10 @@
         "local_snapshot": "artifacts/local-runs/knowledge/evidence/LIT-CSB-BP.html"
       },
       "summary_sha256": "1c42efe1c0c41ee5c5f1f0499e38b0ade363cdc698a82feffaf6a23893066925",
-      "file": "csb-texas-city-report.pdf"
+      "file": "csb-texas-city-report.pdf",
+      "evidence_domains": [
+        "MANUFACTURING"
+      ]
     },
     {
       "source_id": "PROJECT-IDEMPOTENCY",
@@ -341,7 +344,10 @@
         "snapshot_sha256": "e7010fd57d28566c7304fd4b8d68434d7770cb18d54eef3875365884048917b9",
         "local_snapshot": "artifacts/local-runs/knowledge/evidence/RES-AGENTDOJO.html"
       },
-      "summary_sha256": "71d0e6e595e4fa9afd1294c5238fc8b69d72a76ab940ccbf416bb223d8de227a"
+      "summary_sha256": "71d0e6e595e4fa9afd1294c5238fc8b69d72a76ab940ccbf416bb223d8de227a",
+      "evidence_domains": [
+        "AGENTIC"
+      ]
     },
     {
       "source_id": "RES-TOOLEMU",
@@ -381,7 +387,10 @@
         "snapshot_sha256": "225da74d39295ba39a12fe16095b4a4f4ed25605ca439b5c82cafd5295a1415b",
         "local_snapshot": "artifacts/local-runs/knowledge/evidence/RES-TOOLEMU.html"
       },
-      "summary_sha256": "39d5fffc14ce78c62a68baf55f1bbb433aa4317b5b832c89c24374673235083a"
+      "summary_sha256": "39d5fffc14ce78c62a68baf55f1bbb433aa4317b5b832c89c24374673235083a",
+      "evidence_domains": [
+        "AGENTIC"
+      ]
     },
     {
       "source_id": "RES-TAUBENCH",
@@ -420,7 +429,10 @@
         "snapshot_sha256": "ad1522d07222a9d4f75117f9e976a1220c1857844a9e3dac0ebeccc1f7976605",
         "local_snapshot": "artifacts/local-runs/knowledge/evidence/RES-TAUBENCH.html"
       },
-      "summary_sha256": "7404197aab6fd5dce892dc1dc9f5dc92f7c9de5f71ca18d204091a03735ac633"
+      "summary_sha256": "7404197aab6fd5dce892dc1dc9f5dc92f7c9de5f71ca18d204091a03735ac633",
+      "evidence_domains": [
+        "AGENTIC"
+      ]
     },
     {
       "source_id": "RES-INJECAGENT",
@@ -457,7 +469,10 @@
         "snapshot_sha256": "f881c380e721219101a425559dd3f3869ce10bac9006575a53ca8b1d6fce7ae3",
         "local_snapshot": "artifacts/local-runs/knowledge/evidence/RES-INJECAGENT.html"
       },
-      "summary_sha256": "28ae08bd9a2f3a81eb89f0b60dd18fa7c7cec6b2d0d54eed64bd128beff96a57"
+      "summary_sha256": "28ae08bd9a2f3a81eb89f0b60dd18fa7c7cec6b2d0d54eed64bd128beff96a57",
+      "evidence_domains": [
+        "AGENTIC"
+      ]
     },
     {
       "source_id": "CASE-DAIHATSU",
@@ -469,8 +484,7 @@
         "QUALITY"
       ],
       "risk_types": [
-        "UNVERIFIED_EVIDENCE",
-        "APPROVAL_BYPASS"
+        "UNVERIFIED_EVIDENCE"
       ],
       "source_facts_en": "Reported certification-test irregularities involving altered test arrangements and false or misappropriated report data.",
       "qa_transfer_en": "Check test identity, provenance and required verification before approving certification-related decisions.",
@@ -495,7 +509,10 @@
         "snapshot_sha256": "ea00458dbce8d77cbc2fbec50aa2b42ae7667ac2c85f5b0974cfa441a7012b76",
         "local_snapshot": "artifacts/local-runs/knowledge/evidence/CASE-DAIHATSU.html"
       },
-      "summary_sha256": "d036433a448b67d1b6672034990618da7d6344730d2dd14a136a50495d297392"
+      "summary_sha256": "d036433a448b67d1b6672034990618da7d6344730d2dd14a136a50495d297392",
+      "evidence_domains": [
+        "MANUFACTURING"
+      ]
     },
     {
       "source_id": "CASE-CHEVRON",
@@ -533,7 +550,10 @@
         "snapshot_sha256": "b025841bdd71c93796126b726cdcea9b5344233f4f6814d8ad6551090ea44258",
         "local_snapshot": "artifacts/local-runs/knowledge/evidence/CASE-CHEVRON.html"
       },
-      "summary_sha256": "4859b285308872c8cb1cb515a90375320bbe6a8b2ac0f60da9ede8f9d2a69edd"
+      "summary_sha256": "4859b285308872c8cb1cb515a90375320bbe6a8b2ac0f60da9ede8f9d2a69edd",
+      "evidence_domains": [
+        "MANUFACTURING"
+      ]
     },
     {
       "source_id": "CASE-DUPONT",
@@ -571,7 +591,10 @@
         "snapshot_sha256": "fbf35a8de1531ccca849a1062f36bf470bcbf488b9fccc65027b464f9bab0bcd",
         "local_snapshot": "artifacts/local-runs/knowledge/evidence/CASE-DUPONT.html"
       },
-      "summary_sha256": "d4cb817743e4e23bda3f249548874e48ce8d71a25195427f76bd67522aaa22e6"
+      "summary_sha256": "d4cb817743e4e23bda3f249548874e48ce8d71a25195427f76bd67522aaa22e6",
+      "evidence_domains": [
+        "MANUFACTURING"
+      ]
     },
     {
       "source_id": "TECH-AWS-IDEMPOTENCY",
@@ -1166,7 +1189,10 @@
         "content_type": "text/html; charset=utf-8",
         "snapshot_sha256": "92ac50d8b04c7e7371c8d0651261dc46145cb9ed0354b0410398adaab5620c8f",
         "local_snapshot": "artifacts/local-runs/knowledge/evidence/CASE-WILLIAMS-GEISMAR.html"
-      }
+      },
+      "evidence_domains": [
+        "MANUFACTURING"
+      ]
     },
     {
       "source_id": "CASE-TAKATA-DATA",
@@ -1178,8 +1204,7 @@
         "COMMON"
       ],
       "risk_types": [
-        "UNVERIFIED_EVIDENCE",
-        "SUPPLIER_QUALIFICATION"
+        "UNVERIFIED_EVIDENCE"
       ],
       "source_facts_en": "DOJ described false test reports that concealed failed inflator tests and made the supplied products appear to perform better than they did.",
       "qa_transfer_en": "Construct a synthetic lot-release test in which a summary says PASS but the required original inspection result is FAIL or corrected after approval. Verify that release is held using the adopted project policy.",
@@ -1204,7 +1229,10 @@
         "content_type": "text/html; charset=UTF-8",
         "snapshot_sha256": "b8cc98a26215f68a751c7e57e8ceb7dc86cb4dc4d51b56998c293a9a4c94a75a",
         "local_snapshot": "artifacts/local-runs/knowledge/evidence/CASE-TAKATA-DATA.html"
-      }
+      },
+      "evidence_domains": [
+        "MANUFACTURING"
+      ]
     }
   ],
   "featured_collection_version": "1.0.0"

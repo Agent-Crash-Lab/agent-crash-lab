@@ -14,6 +14,7 @@ from uuid import uuid4
 
 import httpx
 from jsonschema import Draft202012Validator
+from jsonschema import ValidationError as JsonSchemaValidationError
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -21,6 +22,7 @@ from agents.llm import ModelError, StructuredModel, resolve_model
 from agents.scenario.analysis import analyze as analyze
 from agents.scenario.analysis import analyze_description as analyze_description
 from agents.scenario.analysis import screen_risks as screen_risks
+from agents.scenario.exceptions import active_conditions
 from agents.scenario.morphology import build_field
 from agents.scenario.proposals import (
     GENERATIVE_PROMPT,
@@ -40,6 +42,7 @@ from agents.scenario.review import (
     evidence_options,
     review_prerequisites,
     review_stage,
+    scenario_preview,
 )
 from agents.scenario.scenario_schema import output_schema
 
@@ -53,6 +56,8 @@ class DesignState(TypedDict, total=False):
     reviews: list
     morphology: dict
     manufacturing_reviews: list
+    eligible_proposals: list
+    reviewable_proposals: list
 
 
 class RepairFeedback(BaseModel):
@@ -173,7 +178,7 @@ async def design_qa(settings, body, model=None, search=None, reviewer=None):
                     or settings.llm_model
                 ),
                 schema=StageReviews,
-                max_output_tokens=1024,
+                max_output_tokens=4096,
             )
             if mode == "openai"
             else OfflineReviewer()
@@ -305,6 +310,16 @@ async def design_qa(settings, body, model=None, search=None, reviewer=None):
         morphology["unmapped_risks"] = [
             r["risk_key"] for r in selected if r["risk_key"] not in mapped
         ]
+        available = evidence_options(
+            selected, list(found.values()), body.target["simulation_adapter"]
+        )
+        # Only generate a risk when both review stages have risk-matched retrieved evidence.
+        reviewable = {
+            key
+            for key, options in available.items()
+            if options["MANUFACTURING"] and options["AGENTIC"]
+        }
+        selected = [risk for risk in selected if risk["risk_key"] in reviewable]
         trace.append({"stage": "DERIVE_EXCEPTION_OPTIONS"})
         return {
             "sources": list(found.values()),
@@ -363,10 +378,90 @@ async def design_qa(settings, body, model=None, search=None, reviewer=None):
         proposals = [p.model_dump() for p in generated.proposals]
         if generative:
             recipes = {risk["risk_key"]: risk["recipe"] for risk in state["selected_risks"]}
+            if (
+                hasattr(model, "schema")
+                and hasattr(model, "budget")
+                and {proposal["risk_key"] for proposal in proposals} != recipes.keys()
+            ):
+                raise ModelError("DESIGN_RISK_COVERAGE_MISMATCH")
             for proposal in proposals:
                 if proposal["risk_key"] not in recipes:
                     raise ModelError("DESIGN_RISK_OUTSIDE_SCOPE")
                 proposal["risk_type"] = recipes[proposal["risk_key"]]
+        # Citation IDs are bound from retrieved records by code. The LLM reviewer still
+        # judges whether each passage supports the scenario's manufacturing and Agentic claims.
+        for proposal in proposals:
+            risk_rows = [
+                r for r in state["selected_risks"] if r["risk_key"] == proposal["risk_key"]
+            ]
+            options = evidence_options(
+                risk_rows, state["sources"], body.target["simulation_adapter"]
+            )[proposal["risk_key"]]
+            bound = [
+                options[domain][0] for domain in ("MANUFACTURING", "AGENTIC") if options[domain]
+            ]
+            bound.extend(options["PROJECT_POLICY"][:1])
+            proposal["evidence_ids"] = list(dict.fromkeys(bound))
+
+            # Resolve a label mismatch only when the authored facts map to a complete,
+            # unique, supported condition set at the same execution phase.
+            if proposal.get("data_strategy") == "MODEL_GENERATED" and proposal.get("exception_ids"):
+                try:
+                    catalog = state["morphology"].get("exception_catalog", [])
+                    catalog_by_id = {item["exception_id"]: item for item in catalog}
+                    selected_events = [
+                        catalog_by_id.get(item_id) for item_id in proposal["exception_ids"]
+                    ]
+                    if selected_events and all(
+                        item
+                        and item["execution_support"] == "SUPPORTED"
+                        and item["risk_key"] == proposal["risk_key"]
+                        and proposal["tool_name"] in item["tool_names"]
+                        for item in selected_events
+                    ):
+                        payload = json.loads(proposal["test_data_json"])
+                        conditions = {item["condition"] for item in selected_events}
+                        payload["approval_decision"] = (
+                            "REJECTED" if "APPROVAL_DENIED" in conditions else "APPROVED"
+                        )
+                        payload["fault"] = (
+                            "RESPONSE_LOSS" if "RESPONSE_LOSS" in conditions else "NONE"
+                        )
+                        proposal["test_data_json"] = json.dumps(payload, ensure_ascii=False)
+                    preview = scenario_preview(proposal, body.sample_data)
+                    phase = (
+                        "AFTER_APPROVAL_BEFORE_WRITE" if preview["after_approval"] else "INITIAL"
+                    )
+                    state_at_phase = (
+                        preview["after_approval"][-1]["state"]
+                        if preview["after_approval"]
+                        else preview["initial_state"]
+                    )
+                    actual = active_conditions(
+                        preview["business_input"], state_at_phase, proposal["risk_key"]
+                    )
+                    current = [catalog_by_id.get(item_id) for item_id in proposal["exception_ids"]]
+                    can_rebind = bool(current) and all(
+                        item
+                        and item["execution_support"] == "SUPPORTED"
+                        and item["phase"] == phase
+                        and proposal["tool_name"] in item["tool_names"]
+                        for item in current
+                    )
+                    replacements = [
+                        item["exception_id"]
+                        for condition in sorted(actual)
+                        for item in catalog
+                        if item["risk_key"] == proposal["risk_key"]
+                        and item["condition"] == condition
+                        and item["phase"] == phase
+                        and item["execution_support"] == "SUPPORTED"
+                        and proposal["tool_name"] in item["tool_names"]
+                    ]
+                    if can_rebind and actual and len(replacements) == len(actual):
+                        proposal["exception_ids"] = replacements
+                except (KeyError, TypeError, ValueError):
+                    pass
         if body.repair:
             replacements = {p["proposal_id"]: p for p in proposals}
             if len(replacements) != len(proposals) or replacements.keys() != ids:
@@ -379,42 +474,73 @@ async def design_qa(settings, body, model=None, search=None, reviewer=None):
                 for p in body.repair.previous_proposals
             ]
             trace.append({"stage": "REPAIR_WITH_FEEDBACK", "proposal_ids": sorted(ids)})
+        impacts = state["analysis"]["manufacturing_context"].get("potential_business_impacts", {})
+        target_impacts = impacts.get(state["analysis"]["target_type"], {})
+        for proposal in proposals:
+            impact = target_impacts.get(proposal["risk_key"])
+            if impact:
+                proposal["assessment"]["business_impact"] = impact
         return {"proposals": proposals}
 
     async def validate_node(state):
         known = {s["document_id"]: s for s in state["sources"]}
         allowed = {r["risk_key"]: r for r in state["selected_risks"]}
         tools = set(state["analysis"]["write_tools"])
-        ids = set()
+        ids = [proposal["proposal_id"] for proposal in state["proposals"]]
+        if len(ids) != len(set(ids)):
+            raise ModelError("DESIGN_DUPLICATE_PROPOSAL")
         scenario_validator = Draft202012Validator(contract["$defs"]["generated_scenario"])
+        eligible, blocked = [], []
         for proposal in state["proposals"]:
-            if proposal["proposal_id"] in ids:
-                raise ModelError("DESIGN_DUPLICATE_PROPOSAL")
-            if proposal["tool_name"] not in tools:
-                raise ModelError("DESIGN_INVALID_TOOL")
-            ids.add(proposal["proposal_id"])
-            if not set(proposal["evidence_ids"]) <= known.keys():
-                raise ModelError("DESIGN_UNRETRIEVED_SOURCE")
+            issue = None
+            decision = "REJECT"
             risk = allowed.get(proposal["risk_key"])
-            if risk is None or risk["recipe"] != proposal["risk_type"]:
-                raise ModelError("DESIGN_RISK_OUTSIDE_SCOPE")
-            if any(
+            if proposal["tool_name"] not in tools:
+                issue = "선언되지 않은 변경 도구입니다."
+            elif risk is None or risk["recipe"] != proposal["risk_type"]:
+                issue = "선택한 위험 계열이 대상 Agent의 적용 범위와 맞지 않습니다."
+            elif not set(proposal["evidence_ids"]) <= known.keys():
+                issue = "검색에서 확인되지 않은 문헌 ID가 포함됐습니다."
+            elif any(
                 proposal["risk_key"] not in known[sid]["risk_types"]
                 for sid in proposal["evidence_ids"]
             ):
-                raise ModelError("DESIGN_EVIDENCE_RISK_MISMATCH")
-            data = json.loads(proposal["test_data_json"])
-            if proposal["data_strategy"] == "MODEL_GENERATED":
-                scenario_validator.validate(data)
-            if not isinstance(data, dict):
-                raise ValueError("Test data must be a JSON object")
-        trace.append({"stage": "VALIDATE_PROPOSALS"})
-        return {}
+                issue = "인용 문헌의 위험 태그가 제안의 위험 계열과 다릅니다."
+            else:
+                try:
+                    data = json.loads(proposal["test_data_json"])
+                    if not isinstance(data, dict):
+                        raise ValueError("시험 데이터는 JSON 객체여야 합니다.")
+                    if proposal["data_strategy"] == "MODEL_GENERATED":
+                        scenario_validator.validate(data)
+                except (ValueError, json.JSONDecodeError) as exc:
+                    issue = f"시험 데이터 JSON을 읽을 수 없습니다: {exc}"
+                except JsonSchemaValidationError as exc:
+                    issue = f"시험 데이터가 선언 스키마와 맞지 않습니다: {exc.message}"
+            if issue:
+                blocked.append(
+                    {
+                        "proposal_id": proposal["proposal_id"],
+                        "decision": decision,
+                        "method": "CODE_PREREQUISITES",
+                        "reasons": [issue],
+                    }
+                )
+            else:
+                eligible.append(proposal)
+        trace.append(
+            {
+                "stage": "VALIDATE_PROPOSALS",
+                "eligible_count": len(eligible),
+                "blocked_count": len(blocked),
+            }
+        )
+        return {"eligible_proposals": eligible, "reviews": blocked}
 
     async def manufacturing_node(state):
         context = proposal_context(state)
         blocked, eligible = [], []
-        for proposal in state["proposals"]:
+        for proposal in state["eligible_proposals"]:
             issue = review_prerequisites(proposal, context)
             if issue:
                 blocked.append(issue)
@@ -422,21 +548,23 @@ async def design_qa(settings, body, model=None, search=None, reviewer=None):
                 eligible.append(proposal)
         rows = await review_stage("MANUFACTURING", eligible, context, reviewer, generative)
         trace.append({"stage": "REVIEW_MANUFACTURING", "reviews": rows})
-        return {"reviews": blocked, "manufacturing_reviews": rows}
+        return {
+            "reviews": [*state["reviews"], *blocked],
+            "manufacturing_reviews": rows,
+            "reviewable_proposals": eligible,
+        }
 
     async def agentic_node(state):
         first = {r["proposal_id"]: r for r in state["manufacturing_reviews"]}
-        eligible = [
-            p
-            for p in state["proposals"]
-            if first.get(p["proposal_id"], {}).get("decision") == "ACCEPT_FOR_BINDING"
-        ]
+        # Keep the two specialist judgments independent. A weak manufacturing
+        # evidence match must not prevent the separate Agent failure-path review.
+        eligible = state["reviewable_proposals"]
         rows = await review_stage(
             "AGENTIC", eligible, proposal_context(state), reviewer, generative
         )
         second = {r["proposal_id"]: r for r in rows}
         combined = {r["proposal_id"]: r for r in state["reviews"]}
-        method = "TWO_STAGE_SEMANTIC_V1" if generative else "OFFLINE_METADATA_CHECK"
+        method = "TWO_STAGE_SEMANTIC_V2" if generative else "OFFLINE_METADATA_CHECK"
         for pid, manufacturing in first.items():
             stages = [manufacturing]
             if pid in second:
@@ -502,7 +630,7 @@ async def design_qa(settings, body, model=None, search=None, reviewer=None):
         "data_generation": "MODEL_AUTHORED_PATCHES" if generative else "REGISTERED_RECIPES",
         "generation_model": getattr(model, "model", None),
         "review_model": getattr(reviewer, "model", None),
-        "review_method": "TWO_STAGE_SEMANTIC_V1" if generative else "OFFLINE_METADATA_CHECK",
+        "review_method": "TWO_STAGE_SEMANTIC_V2" if generative else "OFFLINE_METADATA_CHECK",
         "review_pipeline": "MANUFACTURING_THEN_AGENTIC_V1",
         "review_prompt_version": hashlib.sha256(
             (REVIEW_PROMPT + "".join(STAGE_PROMPTS.values())).encode()

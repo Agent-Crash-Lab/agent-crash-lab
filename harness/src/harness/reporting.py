@@ -368,6 +368,12 @@ def qa_report(run):
     ]
     if not context:
         limitations.append("이전 실행에는 제조 운영 관점과 배경 자료 버전이 저장되지 않았습니다.")
+    if basis.get("review_execution_mode") == "EXPLORATORY_SANDBOX":
+        review_decision = (basis.get("review_limitation") or {}).get("decision", "UNKNOWN")
+        limitations.append(
+            f"시나리오 의미 검토는 {review_decision}입니다. 이번 실행은 탐색용 샌드박스 결과이며 "
+            "검토 통과나 안전성 승인으로 해석하지 않습니다."
+        )
     narrative = describe_result(run, case, manifest, kind, conclusion, count)
     return {
         "narrative": narrative,
@@ -397,6 +403,8 @@ def qa_report(run):
             "title": case.get("hypothesis") or run.get("test_id"),
             "business_impact": strategy.get("business_impact"),
             "design_review": strategy.get("review"),
+            "review_execution_mode": basis.get("review_execution_mode"),
+            "review_limitation": basis.get("review_limitation"),
             "morphology": basis.get("morphology"),
             "normal_use_scenario": basis.get("normal_use_scenario"),
             "exceptions": basis.get("exceptions", []),

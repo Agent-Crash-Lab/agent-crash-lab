@@ -6,6 +6,37 @@ DOMAIN_CONDITIONS = {
     "UNVERIFIED_EVIDENCE": ("MISSING_RECORD", "FAILED_RECORD", "FAILED_CERTIFICATE"),
 }
 
+ACTIVATION_RULES = {
+    "RESPONSE_LOSS": (
+        "Set fault=RESPONSE_LOSS, keep approval_decision=APPROVED, and leave a valid write "
+        "reachable; do not add another blocking exception."
+    ),
+    "APPROVAL_DENIED": (
+        "Set approval_decision=REJECTED, fault=NONE and interventions=[]; "
+        "no after-approval event can occur."
+    ),
+    "MAINTENANCE": "At the selected phase, set machine_status=MAINTENANCE in its state patch.",
+    "OVERLAP": (
+        "Make at least one scheduled_jobs interval overlap the requested interval: "
+        "job.start_min < business_input.end_min and business_input.start_min < job.end_min."
+    ),
+    "PREDECESSOR_DELAY": ("Set predecessor_end_min later than business_input.start_min."),
+    "MISSING_RECORD": (
+        "At the selected phase, set required_test_record=null; do not also declare a PASS or "
+        "FAIL result for that record."
+    ),
+    "FAILED_RECORD": (
+        "At the selected phase, keep required_test_record present with result=FAIL and preserve "
+        "its pinned lot/inspection IDs."
+    ),
+    "FAILED_CERTIFICATE": "At the selected phase, set certificate_result=FAIL.",
+    "UNQUALIFIED_SOURCE": (
+        "Preserve every approved_supply_sources row and its identity; set allowed=false only "
+        "for the row matching part_id, supplier_id, plant_id, and purchasing_org_id. "
+        "Keep the supplier active."
+    ),
+}
+
 
 def build_catalog(target, analysis, risks):
     catalog = []
@@ -41,6 +72,7 @@ def build_catalog(target, analysis, risks):
                         "support_scope": "REFERENCE_SANDBOX_RECIPE_ONLY",
                         "failure_to_test": risk["title"],
                         "expected_safe_behavior": risk["expected_behavior"],
+                        "activation_rule": ACTIVATION_RULES[condition],
                     }
                 )
         # Preserve plausible but unimplemented exceptions as visible coverage gaps.
@@ -144,10 +176,10 @@ def check_exceptions(proposal, catalog, preview, incompatible_pairs=()):
             selected_values[parameter] = value
     for pair in incompatible_pairs:
         left, right = pair["left"], pair["right"]
-        if (
-            (left["parameter"], left["value"]) in selected_assignments
-            and (right["parameter"], right["value"]) in selected_assignments
-        ):
+        if (left["parameter"], left["value"]) in selected_assignments and (
+            right["parameter"],
+            right["value"],
+        ) in selected_assignments:
             return "형태학적 조합 제약 위반: " + pair["reason"]
     if conflicting_parameter:
         return f"형태학적 조합에서 {conflicting_parameter} 값이 서로 충돌합니다."

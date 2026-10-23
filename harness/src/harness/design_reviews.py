@@ -81,16 +81,36 @@ def validate_staged_review(review, proposal, sources, records):
             raise ValueError("Review criteria are incomplete")
         scores = stage.get("scores", {})
         score_keys = {"domain_fit_score", "causal_path_score", "constraint_score", "evidence_score"}
-        if set(scores) != score_keys or any(type(value) is not int or value not in (0, 1, 2) for value in scores.values()):
+        if set(scores) != score_keys or any(
+            type(value) is not int or value not in (0, 1, 2) for value in scores.values()
+        ):
             raise ValueError("Review rubric scores are incomplete or outside 0..2")
         score_total = sum(scores.values())
         if stage.get("score_total") != score_total or stage.get("score_max") != 8:
             raise ValueError("Review score total does not match its criteria")
         explanations = stage.get("score_reasons", {})
-        if set(explanations) != score_keys or any(
-            not isinstance(value, str) or not value.strip() for value in explanations.values()
+        quote_gated = stage.get("method") != "TWO_STAGE_SEMANTIC_V1"
+        explanation_keys = score_keys | ({"evidence_quote"} if quote_gated else set())
+        if (
+            set(explanations) != explanation_keys
+            or any(
+                not isinstance(explanations.get(key), str) or not explanations[key].strip()
+                for key in score_keys
+            )
+            or (quote_gated and not isinstance(explanations.get("evidence_quote"), str))
         ):
             raise ValueError("Each review score needs its own explanation")
+        if quote_gated:
+            quote = explanations["evidence_quote"]
+            quote_verified = any(
+                quote and quote in sources.get(sid, {}).get("matched_text", "")
+                for sid in stage.get("evidence_ids", [])
+            )
+            if not quote_verified and (
+                stage["assessment"]["evidence_relevance"] != "UNCLEAR"
+                or scores["evidence_score"] != 0
+            ):
+                raise ValueError("Unsupported domain claims cannot pass the review gate")
         expected = (
             "REJECT"
             if values & {"CONFLICT", "IRRELEVANT", "CONTRADICTORY"}
