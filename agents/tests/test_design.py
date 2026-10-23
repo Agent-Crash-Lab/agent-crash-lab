@@ -11,20 +11,10 @@ from agents.server import create_app
 
 
 def reference():
-    descriptor = json.loads((ROOT / "qa/examples/purchase-target.json").read_text())
-    binding = descriptor.pop("business_input_binding")
-    tools = json.loads((ROOT / "qa/examples/purchase-tools.json").read_text())["tools"]
-    target = {
-        **descriptor,
-        "tools": [{k: t[k] for k in ("name", "effect", "input_schema")} for t in tools],
-        "business_input_schema": next(t for t in tools if t["name"] == binding["tool_name"])[
-            "input_schema"
-        ]["properties"][binding["property"]],
-    }
-    seed = json.loads((ROOT / "qa/examples/purchase-initial-state.json").read_text())["seed"]
-    return DesignRequest(
-        target=target, sample_data={"business_input": seed["request"], "initial_state": seed}
-    )
+    profile = json.loads((ROOT / "qa/examples/targets/agents.json").read_text())["agents"][
+        "PURCHASE"
+    ]
+    return DesignRequest(target=profile["target"], sample_data=profile["sample_data"])
 
 
 async def found(query):
@@ -99,7 +89,7 @@ async def test_design_uses_target_features_and_records_queries_citations_and_sta
 @pytest.mark.parametrize("kind", ["PRODUCTION", "QUALITY"])
 @pytest.mark.asyncio
 async def test_domain_examples_produce_domain_data_not_purchase_data(settings, kind):
-    example = json.loads((ROOT / "qa/examples/manufacturing-targets.json").read_text())[kind]
+    example = json.loads((ROOT / "qa/examples/targets/agents.json").read_text())["agents"][kind]
     result = await design_qa(
         settings, DesignRequest(**{k: example[k] for k in ("target", "sample_data")}), search=found
     )
@@ -150,9 +140,9 @@ def test_design_endpoint_requires_internal_auth_and_never_executes_target(settin
 
 
 def test_curated_scope_expectations_for_ten_target_variants():
-    fixture = json.loads((ROOT / "qa/examples/design-review-cases.json").read_text())
+    fixture = json.loads((ROOT / "qa/examples/scenarios/design-review-cases.json").read_text())
     library = json.loads((ROOT / "qa/knowledge/risk-library.json").read_text())
-    examples = json.loads((ROOT / "qa/examples/manufacturing-targets.json").read_text())
+    examples = json.loads((ROOT / "qa/examples/targets/agents.json").read_text())["agents"]
     for case in fixture["cases"]:
         body = (
             reference()
@@ -210,6 +200,16 @@ async def test_independent_critic_can_withhold_a_well_formed_proposal(settings):
                         ][:1],
                         "evidence_relevance": "IRRELEVANT",
                         "scenario_consistency": "COHERENT",
+                        "domain_fit_score": 2,
+                        "causal_path_score": 2,
+                        "constraint_score": 2,
+                        "evidence_score": 2,
+                        "score_reasons": {
+                            "domain_fit_score": "업무 범위가 맞습니다.",
+                            "causal_path_score": "조건과 결과가 연결됩니다.",
+                            "constraint_score": "운영 제약을 반영했습니다.",
+                            "evidence_score": "인용 자료가 근거를 제공합니다.",
+                        },
                         "reasons": ["문헌의 업무 적용 범위를 재검토하세요."],
                     }
                     for p in context["proposals"]
@@ -289,10 +289,45 @@ def test_review_criteria_determine_decision_without_a_model_supplied_verdict(
         policy_alignment=alignment,
         evidence_relevance=evidence,
         scenario_consistency=consistency,
+        domain_fit_score=2,
+        causal_path_score=2,
+        constraint_score=2,
+        evidence_score=2,
+        score_reasons={
+            "domain_fit_score": "업무 범위가 맞습니다.",
+            "causal_path_score": "조건과 결과가 연결됩니다.",
+            "constraint_score": "운영 제약을 반영했습니다.",
+            "evidence_score": "인용 자료가 근거를 제공합니다.",
+        },
         reasons=["기대 행동과 채택 정책을 대조했습니다."],
     )
     assert item.verdict()["decision"] == decision
     assert item.verdict()["assessment"]["policy_alignment"] == alignment
+
+
+def test_review_total_score_cannot_hide_a_missing_critical_basis():
+    from agents.scenario.review import ReviewItem
+
+    item = ReviewItem(
+        proposal_id="LOW-EVIDENCE",
+        policy_alignment="ALIGNED",
+        evidence_relevance="SUPPORTED",
+        scenario_consistency="COHERENT",
+        domain_fit_score=2,
+        causal_path_score=2,
+        constraint_score=2,
+        evidence_score=0,
+        score_reasons={
+            "domain_fit_score": "대상 업무가 일치합니다.",
+            "causal_path_score": "조건과 결과가 연결됩니다.",
+            "constraint_score": "제약을 구체화했습니다.",
+            "evidence_score": "인용 근거가 없습니다.",
+        },
+        reasons=["근거가 충분하지 않습니다."],
+    )
+    verdict = item.verdict()
+    assert verdict["score_total"] == 6
+    assert verdict["decision"] == "NEEDS_INFORMATION"
 
 
 @pytest.mark.asyncio

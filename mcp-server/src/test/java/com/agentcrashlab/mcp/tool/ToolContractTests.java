@@ -22,7 +22,7 @@ class ToolContractTests {
 
 	@Test
 	void businessToolsMatchDraftContract() throws IOException {
-		assertSameTools("mcp/business-tools.json", "../qa/examples/purchase-tools.json");
+		assertSameTools("mcp/business-tools.json", "../qa/examples/purchase/tools.json");
 	}
 
 	@Test

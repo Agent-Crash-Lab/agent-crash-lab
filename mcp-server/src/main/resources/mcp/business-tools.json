@@ -1,5 +1,5 @@
 {
-  "_source": "qa/examples/purchase-tools.json 의 name·description·input_schema 복사본. 원본과 같은지 BusinessToolContractTests가 검사한다.",
+  "_source": "qa/examples/purchase/tools.json 의 name·description·input_schema 복사본. 원본과 같은지 BusinessToolContractTests가 검사한다.",
   "tools": [
     {
       "name": "get_inventory",

@@ -208,7 +208,7 @@ def test_invalid_quantity(quantity):
 def test_hash_matches_shared_fixture():
     from conftest import ROOT
 
-    data = json.loads((ROOT / "qa/examples/investigation-cases.json").read_text())
+    data = json.loads((ROOT / "qa/examples/investigation/cases.json").read_text())
     record = data["cases"][0]["evidence"][0]["payload"]["approvals"][0]
     assert PurchaseRequest(**record["payload"]).payload_hash() == record["payload_hash"]
 

@@ -70,7 +70,9 @@ class NovelModel:
 
 
 def production():
-    item = json.loads((ROOT / "qa/examples/manufacturing-targets.json").read_text())["PRODUCTION"]
+    item = json.loads((ROOT / "qa/examples/targets/agents.json").read_text())["agents"][
+        "PRODUCTION"
+    ]
     return DesignRequest(**{k: item[k] for k in ("target", "sample_data")}, generation_mode="llm")
 
 
@@ -350,9 +352,9 @@ async def test_review_sees_only_eligible_materialized_proposals(settings):
 def test_preview_applies_null_without_mutating_the_reference_sample():
     from agents.scenario.review import scenario_preview
 
-    sample = json.loads((ROOT / "qa/examples/manufacturing-targets.json").read_text())["QUALITY"][
-        "sample_data"
-    ]
+    sample = json.loads((ROOT / "qa/examples/targets/agents.json").read_text())["agents"][
+        "QUALITY"
+    ]["sample_data"]
     proposal = {
         "data_strategy": "MODEL_GENERATED",
         "test_data_json": json.dumps(
@@ -422,7 +424,7 @@ def test_generation_schema_pins_business_identity_and_excludes_transaction_recor
 
     from agents.scenario.scenario_schema import output_schema
 
-    example = json.loads((ROOT / "qa/examples/manufacturing-targets.json").read_text())[kind]
+    example = json.loads((ROOT / "qa/examples/targets/agents.json").read_text())["agents"][kind]
     if kind == "PURCHASE":
         from test_design import reference
 
@@ -498,6 +500,47 @@ async def test_static_maintenance_with_denied_approval_is_rejected_before_review
     )
     assert result["reviews"][0]["decision"] == "REJECT"
     assert "승인 조건" in result["reviews"][0]["reasons"][0]
+
+
+def test_quality_morphology_rejects_missing_and_failed_same_record_together():
+    from agents.scenario.exceptions import check_exceptions
+
+    profile = json.loads((ROOT / "qa/examples/targets/agents.json").read_text())["agents"][
+        "QUALITY"
+    ]
+    model = profile["scenario_model"]
+    bindings = model["condition_bindings"]
+    result = check_exceptions(
+        {
+            "risk_key": "UNVERIFIED_EVIDENCE",
+            "tool_name": "release_lot",
+            "exception_ids": ["E_MISSING_RECORD_INITIAL", "E_FAILED_RECORD_INITIAL"],
+            "data_strategy": "MODEL_GENERATED",
+        },
+        [
+            {
+                "exception_id": "E_MISSING_RECORD_INITIAL",
+                "risk_key": "UNVERIFIED_EVIDENCE",
+                "tool_names": ["release_lot"],
+                "execution_support": "SUPPORTED",
+                "phase": "INITIAL",
+                "condition": "MISSING_RECORD",
+                "factor_values": bindings["MISSING_RECORD"],
+            },
+            {
+                "exception_id": "E_FAILED_RECORD_INITIAL",
+                "risk_key": "UNVERIFIED_EVIDENCE",
+                "tool_names": ["release_lot"],
+                "execution_support": "SUPPORTED",
+                "phase": "INITIAL",
+                "condition": "FAILED_RECORD",
+                "factor_values": bindings["FAILED_RECORD"],
+            },
+        ],
+        {},
+        model["incompatible_pairs"],
+    )
+    assert result and "조합 제약" in result
 
 
 @pytest.mark.asyncio

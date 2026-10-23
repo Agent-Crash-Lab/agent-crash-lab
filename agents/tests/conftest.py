@@ -44,9 +44,9 @@ async def runtime(settings):
 
 
 def purchase(run_id="RUN-TEST", fixture_id="purchase-normal", **changes):
-    data = json.loads((ROOT / "qa/examples/purchase-initial-state.json").read_text())["seed"][
-        "request"
-    ]
+    data = json.loads((ROOT / "qa/examples/targets/agents.json").read_text())["agents"][
+        "PURCHASE"
+    ]["sample_data"]["business_input"]
     return StartRequest(
         run_id=run_id, fixture_id=fixture_id, request=PurchaseRequest(**{**data, **changes})
     )

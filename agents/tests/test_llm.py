@@ -426,7 +426,9 @@ async def test_structured_scenario_object_is_serialized_for_stable_storage(trans
     from agents.scenario.scenario_schema import output_schema
 
     model, response, create, _ = transport
-    ref = json.loads((ROOT / "qa/examples/manufacturing-targets.json").read_text())["PRODUCTION"]
+    ref = json.loads((ROOT / "qa/examples/targets/agents.json").read_text())["agents"][
+        "PRODUCTION"
+    ]
     contract = json.loads((ROOT / "qa/contracts/qa.schema.json").read_text())
     scenario = {
         "business_input_patch": ref["sample_data"]["business_input"],

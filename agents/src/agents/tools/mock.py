@@ -11,9 +11,11 @@ class MockTools:
         self.root, self.fixture_id, self.target_run_id = root, fixture_id, target_run_id
         self.create_count = 0
         self.calls = []
+        profiles = json.loads((root / "qa/examples/targets/agents.json").read_text())["agents"]
+        self.purchase_state = deepcopy(profiles["PURCHASE"]["sample_data"]["initial_state"])
 
     def investigation_evidence(self):
-        cases = json.loads((self.root / "qa/examples/investigation-cases.json").read_text())[
+        cases = json.loads((self.root / "qa/examples/investigation/cases.json").read_text())[
             "cases"
         ]
         case = next(item for item in cases if item["fixture_id"] == self.fixture_id)
@@ -31,9 +33,7 @@ class MockTools:
     async def call(self, name, arguments):
         self.calls.append({"tool": name, "arguments": deepcopy(arguments)})
         if name == "get_supplier_eligibility":
-            seed = json.loads((self.root / "qa/examples/purchase-initial-state.json").read_text())[
-                "seed"
-            ]
+            seed = self.purchase_state
             source = next(
                 (
                     s
@@ -52,9 +52,7 @@ class MockTools:
                 "policy_version": source["policy_version"] if source else 0,
             }
         if name in {"get_inventory", "get_supplier"}:
-            seed = json.loads((self.root / "qa/examples/purchase-initial-state.json").read_text())[
-                "seed"
-            ]
+            seed = self.purchase_state
             if name == "get_inventory":
                 part = next(
                     (

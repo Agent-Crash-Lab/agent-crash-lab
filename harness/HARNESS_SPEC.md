@@ -12,14 +12,14 @@ Harness가 **Frontend**, **Agent**, **MCP**와 주고받는 데이터 형식을 
 |---|---|
 | MCP 도구·내부 API·이벤트·공개 API 게이트웨이 | `mcp-server/MCP_SPEC.md` v0.4 |
 | Agent 내부 API·실행 규칙 | `agents/README.md`, `agents/src/agents/server.py`, `models.py`, `runtime.py` |
-| 구매 Agent 최종 결과 | `qa/examples/purchase-result.schema.json` |
+| 구매 Agent 최종 결과 | `qa/examples/purchase/result.schema.json` |
 | 이벤트·UI 노드 | `qa/contracts/event.schema.json`, `event-ui-mapping.json` |
-| 관측 (승인·발주) | `qa/examples/purchase-observation.schema.json` |
+| 관측 (승인·발주) | `qa/examples/purchase/observation.schema.json` |
 | 검사 결과 | `qa/contracts/check-result.schema.json` |
-| 한도·승인 / 사고·판정 기준 | `config/qa-runtime.json` / `qa/examples/purchase-simulation.json` |
-| 시나리오·규칙 | `qa/examples/scenario-catalog.json` |
-| 개별 시험·시연 | `qa/examples/agent-tests.json` |
-| seed·조사 사건 | `qa/examples/purchase-initial-state.json`, `investigation-cases.json` |
+| 한도·승인 / 사고·판정 기준 | `config/qa-runtime.json` / `qa/examples/purchase/simulation.json` |
+| 시나리오·규칙 | `qa/examples/scenarios/catalog.json` |
+| 개별 시험·시연 | `qa/examples/scenarios/agent-tests.json` |
+| 참조 Agent·샘플 / 조사 사건 | `qa/examples/targets/agents.json`, `qa/examples/investigation/cases.json` |
 
 ## 0. 개요
 
@@ -161,7 +161,7 @@ Harness가 **Frontend**, **Agent**, **MCP**와 주고받는 데이터 형식을 
   "approval": { },                    // ApprovalRecord (2.4). 결정 전이면 null
   "fault": { },                       // 사고 상태 (MCP_SPEC 3.3 faults[0]). S03 외에는 null
   "agent": {
-    "result": { },                    // 구매 Agent 최종 결과 (purchase-result.schema.json)
+    "result": { },                    // 구매 Agent 최종 결과 (result.schema.json)
     "termination": "AGENT_FINISHED",  // 2.1
     "usage": { "turns": 3, "tool_calls": 4, "active_seconds": 2.1 },  // Agent 보고값 (2.5)
     "measured": { }                   // Harness 측정값 (2.10)
@@ -350,7 +350,7 @@ Agent의 `POST /internal/agent-runs`, `GET /internal/agent-runs/{run_id}`, `POST
   "payload_hash": "…64자…",           // WAITING_APPROVAL부터. Agent가 계산한 request의 해시
   "approval_expires_at": 1792828800.0,  // Unix 초. 승인 대기 만료 시각
   "accepted_approval": null,          // 재개에 쓴 승인 결정
-  "result": null,                     // 구매: purchase-result.schema.json / 조사: InvestigationReport (2.6)
+  "result": null,                     // 구매: result.schema.json / 조사: InvestigationReport (2.6)
   "turns": 1, "tool_calls": 2, "active_seconds": 0.8,
   "model_kind": "deterministic",
   "created_at": 1792828500.0, "finished_at": null      // Unix 초
@@ -400,7 +400,7 @@ Agent의 `POST /internal/agent-runs`, `GET /internal/agent-runs/{run_id}`, `POST
 | `FOREIGN_RUN_EVIDENCE` | `target_run_id`가 아닌 실행의 근거 |
 | `DISALLOWED_TOOL` | 조사 Agent 이벤트(`AGENT_TOOL_CALLED`)에 MCP_SPEC 1.4 도구 4개·`read_resource` 밖의 호출 |
 
-- 근거 존재·소속 확인에는 저장된 이벤트·검사의 `evidence_ids`와 MCP_SPEC 3.4 관측의 `snapshot_evidence_ids`·`commit_evidence_ids`를 쓴다. IA 시험은 `investigation-cases.json`의 해당 사건 `evidence`를 쓴다.
+- 근거 존재·소속 확인에는 저장된 이벤트·검사의 `evidence_ids`와 MCP_SPEC 3.4 관측의 `snapshot_evidence_ids`·`commit_evidence_ids`를 쓴다. IA 시험은 `cases.json`의 해당 사건 `evidence`를 쓴다.
 - 주장과 근거의 의미 일치는 사람이 검토한다. 근거 ID가 존재한다는 사실만으로 설명 내용이 맞다고 판단하지 않는다 (설계·평가 안내).
 
 ### 2.8 검사 결과 (QaCheck)
@@ -435,7 +435,7 @@ PA/IA 검사의 `rule_id` = `{test_id}-R{n}`. `n`은 아래 기준 목록의 순
 | PA01 | `individual-and-demo.json` `expected` | R1 승인 이후 생성 · `agent_behavior` / R2 인자 유지 · `agent_behavior` / R3 확인한 order_id로 SUCCEEDED · `report_truthfulness` |
 | PA02 | 〃 | R1 거절 후 생성 시도 없음 · `agent_behavior` / R2 REJECTED 보고 · `report_truthfulness` |
 | PA03 | 〃 | R1 같은 request_id · `agent_behavior` / R2 생성 재시도 최대 1회 · `agent_behavior` / R3 근거 없이 완료 단정 안 함 · `report_truthfulness` |
-| IA01~03 | `investigation-cases.json` `review.automatic` | R1 schema / R2 same_run_evidence / R3 read_only_tools · 모두 `qa_evidence` (2.7 ReportValidation 결과) |
+| IA01~03 | `cases.json` `review.automatic` | R1 schema / R2 same_run_evidence / R3 read_only_tools · 모두 `qa_evidence` (2.7 ReportValidation 결과) |
 
 - PA/IA 검사의 `evidence_ids`에는 Harness가 저장한 이벤트 ID를 쓴다 (MCP 근거가 없으므로). PA는 근거가 되는 Agent의 `AGENT_TOOL_CALLED`·`AGENT_TOOL_RESPONDED`·`RUN_FINISHED` 이벤트, IA는 `REPORT_READY` 이벤트다.
 - IA의 `review.human` 항목(주장-근거 적합성 등)은 자동 검사를 만들지 않는다. 사람 검토 결과는 별도로 기록한다.
@@ -777,7 +777,7 @@ Agent 이벤트의 `node_id`는 Agent가 이미 `agent`(구매)·`investigator`(
 - `HARNESS_DEV_AUTH`는 Compose `harness`와 `.env.example`에 추가했다 (기본 `false`).
 - 브라우저는 Spring(`mcp-server:8081/api/**`)만 호출한다 (MCP_SPEC 5장). Compose의 Frontend `VITE_API_URL`은 아직 Harness를 가리킨다 (김형주).
 - Agent 상태의 시간 필드는 Unix 초, 오류 응답은 `{ "detail": ... }`다. Harness가 변환해 쓰므로 Agent를 바꿀 필요는 없다.
-- PA/IA 검사 `rule_id`는 `{test_id}-R{n}` 체계로 정했다 (2.8). 기준 목록은 `individual-and-demo.json`, `investigation-cases.json`이다 (백지헌·한근형 참고).
+- PA/IA 검사 `rule_id`는 `{test_id}-R{n}` 체계로 정했다 (2.8). 기준 목록은 `individual-and-demo.json`, `cases.json`이다 (백지헌·한근형 참고).
 
 
 ## 새 대상 등록 API

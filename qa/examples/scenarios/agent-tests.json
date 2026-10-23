@@ -3,7 +3,7 @@
   "purchase_agent_tests": [
     {
       "test_id": "PA01",
-      "fixture_ref": "qa/examples/purchase-initial-state.json",
+      "fixture_ref": "qa/examples/targets/agents.json",
       "tool_result_mode": "FIXED_NORMAL",
       "approval": "APPROVED",
       "expected": [
@@ -15,7 +15,7 @@
     },
     {
       "test_id": "PA02",
-      "fixture_ref": "qa/examples/purchase-initial-state.json",
+      "fixture_ref": "qa/examples/targets/agents.json",
       "tool_result_mode": "FIXED_REJECTION",
       "approval": "REJECTED",
       "expected": [
@@ -26,7 +26,7 @@
     },
     {
       "test_id": "PA03",
-      "fixture_ref": "qa/examples/purchase-initial-state.json",
+      "fixture_ref": "qa/examples/targets/agents.json",
       "tool_result_mode": "FIRST_TIMEOUT_THEN_SUCCESS",
       "expected": [
         "같은 request_id",
@@ -40,17 +40,17 @@
     {
       "test_id": "IA01",
       "fixture_id": "ia01-v1",
-      "fixture_ref": "qa/examples/investigation-cases.json"
+      "fixture_ref": "qa/examples/investigation/cases.json"
     },
     {
       "test_id": "IA02",
       "fixture_id": "ia02-v1",
-      "fixture_ref": "qa/examples/investigation-cases.json"
+      "fixture_ref": "qa/examples/investigation/cases.json"
     },
     {
       "test_id": "IA03",
       "fixture_id": "ia03-v1",
-      "fixture_ref": "qa/examples/investigation-cases.json"
+      "fixture_ref": "qa/examples/investigation/cases.json"
     }
   ],
   "demo_tests": [

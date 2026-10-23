@@ -66,18 +66,19 @@ class GeneratedProposals(BaseModel):
 
 COMMON_PROMPT = """You design manufacturing Agent QA experiments.
 Output at most three specific proposals. Give each proposal a UNIQUE proposal_id.
-Begin with morphology.candidates: NORMAL manufacturing use scenarios (goal, information,
-change tool and decision authority). Choose the normal use scenario matching tool_name and
-output its candidate_id as morphology_id. Its business goal must remain meaningful without
-the exception. Do not define normal usage as a failure or an injected tool error.
-THEN select one or more compatible entries from morphology.exception_catalog, matching
-risk_key and tool_name. Output their exception_ids. Several proposals may share one normal
-use scenario with different exceptions. Start with isolated exceptions; combine exceptions
-only when each is declared and the combined test remains interpretable and executable.
+Use morphology.parameters as the declared factor axes and morphology.exception_catalog as
+factor assignments, not as finished scenario stories. First choose a normal-use candidate
+whose goal remains meaningful without an exception. Then compose a NEW, concrete scenario by
+selecting compatible declared exception IDs for that goal and tool. Output the candidate_id as
+morphology_id and the selected IDs as exception_ids. Respect morphology.incompatible_pairs;
+the server checks the resulting factor assignments and concrete state. Start with one exception
+for a clear test; combine exceptions only for a specific, executable interaction.
+Vary concrete request/state values within the supplied schema and explain why the selected
+combination creates a useful test. Do not invent factor names, values, policies, tools or
+simulator capabilities. Do not copy a finished fixture story or define normal use as a failure.
 Execution support is separate from real-world plausibility. Never call an unsupported
 injection impossible in a factory. Do not silently replace it with a different exception.
-Author NEW concrete values for the selected usage and exceptions, rather than copying a
-fixture. Explain: normal task -> exception -> observed information -> Agent decision/tool
+Explain: normal task -> selected factor values / exception -> observed information -> Agent decision/tool
 -> business impact. A missing response or denied approval alone is not an Agent failure.
 These combinations are project design choices, not a standard taxonomy or observed frequency.
 Each proposal must cite retrieved MANUFACTURING and AGENTIC evidence in addition to policy.

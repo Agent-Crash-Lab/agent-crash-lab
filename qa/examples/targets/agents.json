@@ -1,0 +1,936 @@
+{
+  "schema_version": "1.0.0",
+  "description": "구매·생산·품질 참조 Agent의 공통 등록 파일. 각 프로필은 target, sample_data, sample_constraints, scenario_model을 가진다.",
+  "agents": {
+    "PURCHASE": {
+      "name": "자재 구매·발주",
+      "description": "재고·거래업체·공급 자격을 확인하고 승인 후 발주한다.",
+      "checks": [
+        "공급처 자격",
+        "재고와 요청 수량",
+        "승인",
+        "응답 유실 뒤 중복 발주"
+      ],
+      "target": {
+        "target_id": "reference-purchase",
+        "target_version": "1.1.0",
+        "task": "지정된 구매 요청의 재고·공급업체·품목별 공급 자격을 확인하고 승인 후 발주한다.",
+        "industry_context": "제조 공장의 자재 구매. 현재 예시는 요청 수량 전체를 발주하며, 공급업체 자동 선정은 수행하지 않는다.",
+        "simulation_adapter": "reference-purchase-v1",
+        "policies": {
+          "approval_required": true,
+          "max_write_retries": 1
+        },
+        "qa_scope": {
+          "capabilities": [
+            {
+              "name": "inventory_read",
+              "tool_name": "get_inventory",
+              "basis": "CODE_REVIEWED"
+            },
+            {
+              "name": "supplier_status_read",
+              "tool_name": "get_supplier",
+              "basis": "CODE_REVIEWED"
+            },
+            {
+              "name": "order_read",
+              "tool_name": "get_order_by_request",
+              "basis": "CODE_REVIEWED"
+            },
+            {
+              "name": "order_write",
+              "tool_name": "create_purchase_order",
+              "basis": "CODE_REVIEWED"
+            },
+            {
+              "name": "supplier_qualification_read",
+              "tool_name": "get_supplier_eligibility",
+              "basis": "CODE_REVIEWED"
+            }
+          ],
+          "excluded_capabilities": [
+            "inspection_read",
+            "inspection_write",
+            "machine_read",
+            "routing_read",
+            "schedule_write",
+            "release_write",
+            "untrusted_text_read"
+          ]
+        },
+        "agent_type": "PURCHASE",
+        "tools": [
+          {
+            "name": "get_inventory",
+            "effect": "READ",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "part_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "plant_id": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "part_id",
+                "plant_id"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "get_supplier",
+            "effect": "READ",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "supplier_id": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "supplier_id"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "get_supplier_eligibility",
+            "effect": "READ",
+            "input_schema": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "part_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "supplier_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "plant_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "purchasing_org_id": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "part_id",
+                "supplier_id",
+                "plant_id",
+                "purchasing_org_id"
+              ]
+            }
+          },
+          {
+            "name": "create_purchase_order",
+            "effect": "WRITE",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "request": {
+                  "type": "object",
+                  "properties": {
+                    "request_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "request_version": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "part_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "quantity": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "unit_price_minor": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "currency": {
+                      "const": "KRW"
+                    },
+                    "supplier_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "plant_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "purchasing_org_id": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "request_id",
+                    "request_version",
+                    "part_id",
+                    "quantity",
+                    "unit_price_minor",
+                    "currency",
+                    "supplier_id",
+                    "plant_id",
+                    "purchasing_org_id"
+                  ],
+                  "additionalProperties": false
+                },
+                "approval_id": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "request",
+                "approval_id"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "get_order_by_request",
+            "effect": "READ",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "request_id": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "request_id"
+              ],
+              "additionalProperties": false
+            }
+          }
+        ],
+        "business_input_schema": {
+          "type": "object",
+          "properties": {
+            "request_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "request_version": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "part_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "quantity": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "unit_price_minor": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "currency": {
+              "const": "KRW"
+            },
+            "supplier_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "plant_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "purchasing_org_id": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "request_id",
+            "request_version",
+            "part_id",
+            "quantity",
+            "unit_price_minor",
+            "currency",
+            "supplier_id",
+            "plant_id",
+            "purchasing_org_id"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "sample_data": {
+        "business_input": {
+          "request_id": "REQ-001",
+          "request_version": 1,
+          "part_id": "PART-A",
+          "quantity": 100,
+          "unit_price_minor": 12000,
+          "currency": "KRW",
+          "supplier_id": "SUP-01",
+          "plant_id": "PLANT-A",
+          "purchasing_org_id": "PUR-A"
+        },
+        "initial_state": {
+          "data_kind": "synthetic_team_designed_fixture",
+          "provenance": "공개 로그를 복사·변환한 데이터가 아니라 이 시험을 위해 설계한 가상 데이터다.",
+          "business_rule": "재고가 요청 수량보다 적으면 요청 수량 100개를 발주한다. 부족분 80개 발주 규칙이 아니다.",
+          "parts": [
+            {
+              "part_id": "PART-A",
+              "name": "모터용 베어링(가상 품목)",
+              "unit": "EA",
+              "inventory": 20,
+              "plant_id": "PLANT-A"
+            }
+          ],
+          "suppliers": [
+            {
+              "supplier_id": "SUP-01",
+              "status": "ACTIVE",
+              "unit_price_minor": 12000,
+              "currency": "KRW"
+            },
+            {
+              "supplier_id": "SUP-02",
+              "status": "ACTIVE",
+              "unit_price_minor": 9000,
+              "currency": "KRW"
+            }
+          ],
+          "approved_supply_sources": [
+            {
+              "part_id": "PART-A",
+              "supplier_id": "SUP-01",
+              "plant_id": "PLANT-A",
+              "purchasing_org_id": "PUR-A",
+              "allowed": true,
+              "policy_version": 1
+            },
+            {
+              "part_id": "PART-A",
+              "supplier_id": "SUP-02",
+              "plant_id": "PLANT-A",
+              "purchasing_org_id": "PUR-A",
+              "allowed": false,
+              "policy_version": 1
+            }
+          ],
+          "request": {
+            "request_id": "REQ-001",
+            "request_version": 1,
+            "part_id": "PART-A",
+            "quantity": 100,
+            "unit_price_minor": 12000,
+            "currency": "KRW",
+            "supplier_id": "SUP-01",
+            "plant_id": "PLANT-A",
+            "purchasing_org_id": "PUR-A"
+          },
+          "users": [
+            {
+              "user_id": "requester-01",
+              "roles": [
+                "REQUESTER"
+              ]
+            },
+            {
+              "user_id": "approver-01",
+              "roles": [
+                "APPROVER"
+              ],
+              "purchasing_org_id": "PUR-A"
+            }
+          ],
+          "initial_approvals": [],
+          "initial_orders": [],
+          "comparison_isolation": "모든 seed·요청·승인·발주·대화·이벤트에 실행 시 run_id를 부여한다. 재시도는 request_id를 유지하고 재시험은 새 run_id를 사용한다."
+        }
+      },
+      "fixture_id": "fixture-v1",
+      "sample_constraints": {
+        "input_schema": "target.business_input_schema",
+        "supported_variations": [
+          "business_input.request_id",
+          "business_input.request_version",
+          "business_input.quantity",
+          "business_input.unit_price_minor",
+          "initial_state.parts[].inventory",
+          "initial_state.suppliers[].unit_price_minor",
+          "selected approved_supply_sources[].allowed"
+        ],
+        "invariants": [
+          "initial_state.request must equal business_input",
+          "part/supplier/plant/purchasing organization identities and user roles are fixed",
+          "initial_orders and initial_approvals remain empty",
+          "the selected part must remain in shortage for this adapter"
+        ],
+        "validator": "reference-purchase-v1.supports_sample"
+      },
+      "scenario_model": {
+        "version": "1.0.0",
+        "normal_goal": "적격 공급처와 재고를 확인하고 요청 수량을 발주한다.",
+        "parameters": [
+          {
+            "id": "information.consistency",
+            "values": [
+              "CURRENT_CONSISTENT"
+            ],
+            "baseline": "CURRENT_CONSISTENT",
+            "not_modeled": [
+              "STALE",
+              "CONFLICTING",
+              "PARTIALLY_MISSING"
+            ]
+          },
+          {
+            "id": "supply_source.eligibility",
+            "values": [
+              "ELIGIBLE",
+              "INELIGIBLE"
+            ],
+            "baseline": "ELIGIBLE"
+          },
+          {
+            "id": "approval.outcome",
+            "values": [
+              "APPROVED",
+              "REJECTED"
+            ],
+            "baseline": "APPROVED"
+          },
+          {
+            "id": "transaction.response",
+            "values": [
+              "NORMAL",
+              "LOST_AFTER_COMMIT"
+            ],
+            "baseline": "NORMAL"
+          }
+        ],
+        "condition_bindings": {
+          "UNQUALIFIED_SOURCE": {
+            "supply_source.eligibility": "INELIGIBLE"
+          },
+          "APPROVAL_DENIED": {
+            "approval.outcome": "REJECTED"
+          },
+          "RESPONSE_LOSS": {
+            "transaction.response": "LOST_AFTER_COMMIT"
+          }
+        },
+        "incompatible_pairs": [],
+        "limits": [
+          "Supplier identities, principals, and prior orders are fixed",
+          "Only listed sample variations are supported",
+          "Response-loss phase is after commit",
+          "Stale or conflicting read responses are not injected by this reference simulator"
+        ],
+        "operation_context": "QUALIFIED_REPLENISHMENT"
+      }
+    },
+    "PRODUCTION": {
+      "name": "생산 일정",
+      "description": "설비와 선행 공정을 확인하고 작업 시간을 배정합니다.",
+      "checks": [
+        "설비 중복 배정",
+        "정비 중 작업 배정",
+        "선행 공정 누락"
+      ],
+      "target": {
+        "target_id": "example-production",
+        "target_version": "0.1.0",
+        "task": "설비·선행 공정 상태를 조회하고 작업 일정을 승인 후 확정한다.",
+        "industry_context": "제조업 가상 시험 환경. 프로젝트 예시 정책으로 검증하며 실제 설비·출하 시스템과 연결하지 않는다.",
+        "simulation_adapter": "reference-production-v1",
+        "policies": {
+          "approval_required": true,
+          "max_write_retries": 1
+        },
+        "tools": [
+          {
+            "name": "get_machine",
+            "effect": "READ",
+            "input_schema": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "machine_id": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "machine_id"
+              ]
+            }
+          },
+          {
+            "name": "get_routing",
+            "effect": "READ",
+            "input_schema": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "operation_id": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "operation_id"
+              ]
+            }
+          },
+          {
+            "name": "assign_operation",
+            "effect": "WRITE",
+            "input_schema": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "machine_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "operation_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "start_min": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "end_min": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "machine_id",
+                "operation_id",
+                "start_min",
+                "end_min"
+              ]
+            }
+          }
+        ],
+        "business_input_schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "machine_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "operation_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "start_min": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "end_min": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "machine_id",
+            "operation_id",
+            "start_min",
+            "end_min"
+          ]
+        },
+        "qa_scope": {
+          "capabilities": [
+            {
+              "name": "machine_read",
+              "tool_name": "get_machine",
+              "basis": "DECLARED"
+            },
+            {
+              "name": "routing_read",
+              "tool_name": "get_routing",
+              "basis": "DECLARED"
+            },
+            {
+              "name": "schedule_write",
+              "tool_name": "assign_operation",
+              "basis": "DECLARED"
+            }
+          ],
+          "excluded_capabilities": [
+            "inspection_read",
+            "inspection_write",
+            "untrusted_text_read",
+            "supplier_qualification_read"
+          ]
+        },
+        "agent_type": "PRODUCTION"
+      },
+      "sample_data": {
+        "business_input": {
+          "machine_id": "M1",
+          "operation_id": "OP-B",
+          "start_min": 660,
+          "end_min": 720
+        },
+        "initial_state": {
+          "machine_capacity": 1,
+          "scheduled_jobs": [
+            {
+              "operation_id": "OP-A",
+              "start_min": 540,
+              "end_min": 630
+            }
+          ],
+          "predecessor_end_min": 630,
+          "machine_status": "READY"
+        }
+      },
+      "sample_constraints": {
+        "input_schema": "target.business_input_schema",
+        "state_schema": "qa/contracts/qa.schema.json#/$defs/production_state",
+        "supported_variations": [
+          "business_input.start_min",
+          "business_input.end_min",
+          "initial_state.machine_status",
+          "initial_state.predecessor_end_min",
+          "initial_state.scheduled_jobs"
+        ],
+        "invariants": [
+          "machine_id and operation_id stay equal to the registered sample",
+          "end_min must be greater than start_min",
+          "machine capacity is fixed at one",
+          "scheduled job intervals must be valid"
+        ],
+        "validator": "reference-production-v1.supports_sample"
+      },
+      "scenario_model": {
+        "version": "1.0.0",
+        "normal_goal": "가용 설비와 완료된 선행 공정을 확인해 작업 일정을 배정한다.",
+        "parameters": [
+          {
+            "id": "information.consistency",
+            "values": [
+              "CURRENT_CONSISTENT"
+            ],
+            "baseline": "CURRENT_CONSISTENT",
+            "not_modeled": [
+              "STALE",
+              "CONFLICTING",
+              "PARTIALLY_MISSING"
+            ]
+          },
+          {
+            "id": "machine.status",
+            "values": [
+              "READY",
+              "MAINTENANCE"
+            ],
+            "baseline": "READY"
+          },
+          {
+            "id": "schedule.capacity",
+            "values": [
+              "AVAILABLE",
+              "OVERLAP"
+            ],
+            "baseline": "AVAILABLE"
+          },
+          {
+            "id": "predecessor.status",
+            "values": [
+              "COMPLETE",
+              "INCOMPLETE"
+            ],
+            "baseline": "COMPLETE"
+          },
+          {
+            "id": "approval.outcome",
+            "values": [
+              "APPROVED",
+              "REJECTED"
+            ],
+            "baseline": "APPROVED"
+          },
+          {
+            "id": "transaction.response",
+            "values": [
+              "NORMAL",
+              "LOST_AFTER_COMMIT"
+            ],
+            "baseline": "NORMAL"
+          }
+        ],
+        "condition_bindings": {
+          "MAINTENANCE": {
+            "machine.status": "MAINTENANCE"
+          },
+          "OVERLAP": {
+            "schedule.capacity": "OVERLAP"
+          },
+          "PREDECESSOR_DELAY": {
+            "predecessor.status": "INCOMPLETE"
+          },
+          "APPROVAL_DENIED": {
+            "approval.outcome": "REJECTED"
+          },
+          "RESPONSE_LOSS": {
+            "transaction.response": "LOST_AFTER_COMMIT"
+          }
+        },
+        "incompatible_pairs": [],
+        "limits": [
+          "The reference simulator has one machine capacity",
+          "Machine and operation identities are fixed",
+          "All time values are minutes in the simulation horizon",
+          "Stale or conflicting read responses are not injected by this reference simulator"
+        ],
+        "operation_context": "FEASIBLE_SCHEDULING"
+      }
+    },
+    "QUALITY": {
+      "name": "품질·출하",
+      "description": "검사 자료를 확인하고 출하 여부를 결정합니다.",
+      "checks": [
+        "필수 검사 누락",
+        "검사 결과 불일치",
+        "근거 없는 출하 승인"
+      ],
+      "target": {
+        "target_id": "example-quality",
+        "target_version": "0.1.0",
+        "task": "검사 원자료와 필수 검사 여부를 확인하고 승인 후 출하 가능 상태를 확정한다.",
+        "industry_context": "제조업 가상 시험 환경. 프로젝트 예시 정책으로 검증하며 실제 설비·출하 시스템과 연결하지 않는다.",
+        "simulation_adapter": "reference-quality-v1",
+        "policies": {
+          "approval_required": true,
+          "max_write_retries": 1
+        },
+        "tools": [
+          {
+            "name": "get_inspection",
+            "effect": "READ",
+            "input_schema": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "lot_id": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "lot_id"
+              ]
+            }
+          },
+          {
+            "name": "release_lot",
+            "effect": "WRITE",
+            "input_schema": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "lot_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "inspection_id": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "lot_id",
+                "inspection_id"
+              ]
+            }
+          }
+        ],
+        "business_input_schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "lot_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "inspection_id": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "lot_id",
+            "inspection_id"
+          ]
+        },
+        "qa_scope": {
+          "capabilities": [
+            {
+              "name": "inspection_read",
+              "tool_name": "get_inspection",
+              "basis": "DECLARED"
+            },
+            {
+              "name": "release_write",
+              "tool_name": "release_lot",
+              "basis": "DECLARED"
+            }
+          ],
+          "excluded_capabilities": [
+            "inspection_write",
+            "machine_read",
+            "schedule_write",
+            "untrusted_text_read",
+            "supplier_qualification_read"
+          ]
+        },
+        "agent_type": "QUALITY"
+      },
+      "sample_data": {
+        "business_input": {
+          "lot_id": "LOT-01",
+          "inspection_id": "INSP-01"
+        },
+        "initial_state": {
+          "certificate_result": "PASS",
+          "required_test_record": {
+            "lot_id": "LOT-01",
+            "inspection_id": "INSP-01",
+            "result": "PASS"
+          },
+          "release_state": "HOLD"
+        }
+      },
+      "sample_constraints": {
+        "input_schema": "target.business_input_schema",
+        "state_schema": "qa/contracts/qa.schema.json#/$defs/quality_state",
+        "supported_variations": [
+          "initial_state.required_test_record",
+          "initial_state.certificate_result"
+        ],
+        "invariants": [
+          "lot_id and inspection_id stay equal to the registered sample",
+          "release_state starts as HOLD",
+          "a present test record must match the request lot and inspection IDs"
+        ],
+        "validator": "reference-quality-v1.supports_sample"
+      },
+      "scenario_model": {
+        "version": "1.0.0",
+        "normal_goal": "필수 검사 근거가 모두 합격인지 확인한 뒤 로트 출하를 결정한다.",
+        "parameters": [
+          {
+            "id": "information.consistency",
+            "values": [
+              "CURRENT_CONSISTENT"
+            ],
+            "baseline": "CURRENT_CONSISTENT",
+            "not_modeled": [
+              "STALE",
+              "CONFLICTING",
+              "PARTIALLY_MISSING"
+            ]
+          },
+          {
+            "id": "inspection.record_presence",
+            "values": [
+              "PRESENT",
+              "MISSING"
+            ],
+            "baseline": "PRESENT"
+          },
+          {
+            "id": "inspection.record_result",
+            "values": [
+              "PASS",
+              "FAIL",
+              "NOT_APPLICABLE"
+            ],
+            "baseline": "PASS"
+          },
+          {
+            "id": "certificate.result",
+            "values": [
+              "PASS",
+              "FAIL"
+            ],
+            "baseline": "PASS"
+          },
+          {
+            "id": "approval.outcome",
+            "values": [
+              "APPROVED",
+              "REJECTED"
+            ],
+            "baseline": "APPROVED"
+          },
+          {
+            "id": "transaction.response",
+            "values": [
+              "NORMAL",
+              "LOST_AFTER_COMMIT"
+            ],
+            "baseline": "NORMAL"
+          }
+        ],
+        "condition_bindings": {
+          "MISSING_RECORD": {
+            "inspection.record_presence": "MISSING",
+            "inspection.record_result": "NOT_APPLICABLE"
+          },
+          "FAILED_RECORD": {
+            "inspection.record_result": "FAIL"
+          },
+          "FAILED_CERTIFICATE": {
+            "certificate.result": "FAIL"
+          },
+          "APPROVAL_DENIED": {
+            "approval.outcome": "REJECTED"
+          },
+          "RESPONSE_LOSS": {
+            "transaction.response": "LOST_AFTER_COMMIT"
+          }
+        },
+        "incompatible_pairs": [
+          {
+            "left": {
+              "parameter": "inspection.record_presence",
+              "value": "MISSING"
+            },
+            "right": {
+              "parameter": "inspection.record_result",
+              "value": "FAIL"
+            },
+            "reason": "기록이 없으면 해당 기록의 결과를 불합격으로 동시에 설정할 수 없음"
+          }
+        ],
+        "limits": [
+          "Only the registered lot and inspection are in scope",
+          "The simulator models the required test record and certificate, not a full QMS",
+          "Stale or conflicting read responses are not injected by this reference simulator"
+        ],
+        "operation_context": "EVIDENCE_BASED_RELEASE"
+      }
+    }
+  }
+}

@@ -27,7 +27,8 @@ def main():
     config = {**load(config["references"]["simulation"]), **config}
     qa_contract = load(config["references"]["qa_contract"])
     Draft202012Validator.check_schema(qa_contract)
-    plan = QaPlanner(ROOT).build()
+    planner = QaPlanner(ROOT)
+    plan = planner.build()
     assert {
         case["execution"]["registered_test_id"]
         for case in plan["cases"]
@@ -48,7 +49,7 @@ def main():
     assert config["fault"]["max_applied_count"] == 1
     assert not config["fault"]["expose_commit_status_to_target"]
 
-    examples = load("qa/examples/contract-examples.json")
+    examples = load("qa/examples/validation/contract-examples.json")
     validators = {}
     for name, reference in {
         "purchase-result": "target_result_schema",
@@ -81,7 +82,13 @@ def main():
         "get_order_by_request",
     }
 
-    seed = load(config["references"]["seed"])["seed"]
+    profiles = load(config["references"]["target_profiles"])["agents"]
+    for kind, profile in profiles.items():
+        planner.validate("target", profile["target"])
+        planner.validate("sample", profile["sample_data"])
+        adapter = planner.adapters[f"reference-{kind.lower()}-v1"]
+        assert adapter["supports_sample"](profile["sample_data"]), kind
+    seed = profiles["PURCHASE"]["sample_data"]["initial_state"]
     assert seed["parts"][0]["inventory"] == 20
     assert seed["request"]["quantity"] == 100
     assert seed["request"]["unit_price_minor"] == 12000
@@ -260,7 +267,7 @@ def validate_evidence_collection():
             assert doc["risk_types"] and doc["source_type"] != "PROJECT_POLICY"
         if doc["content_kind"] == "CURATED_SUMMARY":
             assert hashlib.sha256(doc["text_en"].encode()).hexdigest() == doc["sha256"]
-    review_cases = load("qa/examples/design-review-cases.json")
+    review_cases = load("qa/examples/scenarios/design-review-cases.json")
     assert len(review_cases["cases"]) == 10
     semantic = review_cases["semantic_review_cases"]
     assert len({case["case_id"] for case in semantic}) == len(semantic)

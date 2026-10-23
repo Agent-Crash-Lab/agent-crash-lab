@@ -6,7 +6,7 @@ from harness.planning import QaPlanner, fingerprint
 
 
 @pytest.mark.parametrize(
-    "mutation", ["none", "missing-stage", "wrong-domain", "overridden-rejection"]
+    "mutation", ["none", "missing-stage", "wrong-domain", "overridden-rejection", "score-total", "score-gate"]
 )
 def test_harness_independently_enforces_two_review_gates(mutation):
     import copy
@@ -30,6 +30,20 @@ def test_harness_independently_enforces_two_review_gates(mutation):
                 "status": "COMPLETED",
                 "decision": "ACCEPT_FOR_BINDING",
                 "evidence_ids": [sid + ":p0"],
+                "scores": {
+                    "domain_fit_score": 2,
+                    "causal_path_score": 2,
+                    "constraint_score": 2,
+                    "evidence_score": 2,
+                },
+                "score_reasons": {
+                    "domain_fit_score": "업무 관련 문헌을 확인함",
+                    "causal_path_score": "조건에서 결과로 이어지는 경로를 확인함",
+                    "constraint_score": "운영 제약을 확인함",
+                    "evidence_score": "단계에 맞는 출처를 확인함",
+                },
+                "score_total": 8,
+                "score_max": 8,
                 "assessment": {
                     "policy_alignment": "ALIGNED",
                     "evidence_relevance": "SUPPORTED",
@@ -47,6 +61,11 @@ def test_harness_independently_enforces_two_review_gates(mutation):
     elif mutation == "overridden-rejection":
         changed["stages"][1]["assessment"]["evidence_relevance"] = "IRRELEVANT"
         changed["stages"][1]["decision"] = "REJECT"
+    elif mutation == "score-total":
+        changed["stages"][1]["score_total"] = 7
+    elif mutation == "score-gate":
+        changed["stages"][1]["scores"]["evidence_score"] = 0
+        changed["stages"][1]["score_total"] = 6
     if mutation == "none":
         validate_staged_review(changed, proposal, sources, records)
     else:

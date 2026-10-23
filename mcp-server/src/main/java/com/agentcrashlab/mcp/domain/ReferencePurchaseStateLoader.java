@@ -13,12 +13,12 @@ import com.agentcrashlab.mcp.common.CrashLabProperties;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * qa/examples/purchase-initial-state.json을 읽는다. 실행 초기화 때마다 다시 읽는다.
+ * qa/examples/targets/agents.json의 구매 초기 상태를 읽는다. 실행 초기화 때마다 다시 읽는다.
  */
 @Component
 public class ReferencePurchaseStateLoader {
 
-	static final String SEED_FILE = "examples/purchase-initial-state.json";
+	static final String SEED_FILE = "examples/targets/agents.json";
 
 	private final JsonMapper json;
 
@@ -73,8 +73,9 @@ public class ReferencePurchaseStateLoader {
 		}
 		try {
 			Map<String, Object> actual = this.json.readValue(this.json.writeValueAsString(initialState), Map.class);
-			Map<String, Object> file = this.json.readValue(Files.readString(this.seedPath), Map.class);
-			Map<String, Object> expected = (Map<String, Object>) file.get("seed");
+			Map<String, Object> expected = (Map<String, Object>) readPurchaseProfile()
+				.get("sample_data");
+			expected = (Map<String, Object>) expected.get("initial_state");
 			PurchasePayload request = PurchasePayload.fromMap(actual.get("request"));
 			if (!request.requestId().equals(request.requestId().strip()) || request.requestId().length() > 128) {
 				throw new IllegalArgumentException("Invalid request ID");
@@ -127,13 +128,24 @@ public class ReferencePurchaseStateLoader {
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	public SeedFile read() {
 		try {
-			return this.json.readValue(Files.readString(this.seedPath), SeedFile.class);
+			Map<String, Object> purchase = readPurchaseProfile();
+			Map<String, Object> sample = (Map<String, Object>) purchase.get("sample_data");
+			Seed seed = this.json.readValue(this.json.writeValueAsString(sample.get("initial_state")), Seed.class);
+			return new SeedFile((String) purchase.get("fixture_id"), seed);
 		}
 		catch (java.io.IOException ex) {
 			throw new IllegalStateException("Cannot read seed fixture: " + this.seedPath, ex);
 		}
+	}
+
+	@SuppressWarnings("unchecked")
+	private Map<String, Object> readPurchaseProfile() throws java.io.IOException {
+		Map<String, Object> root = this.json.readValue(Files.readString(this.seedPath), Map.class);
+		Map<String, Object> agents = (Map<String, Object>) root.get("agents");
+		return (Map<String, Object>) agents.get("PURCHASE");
 	}
 
 }

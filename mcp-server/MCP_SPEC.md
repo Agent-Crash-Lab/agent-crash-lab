@@ -10,13 +10,13 @@ mcp-server가 **Agent**, **Harness**와 주고받는 데이터 형식과 공개 
 
 | 내용 | 파일 |
 |---|---|
-| 구매 도구 인자·오류 | `qa/examples/purchase-tools.json` |
+| 구매 도구 인자·오류 | `qa/examples/purchase/tools.json` |
 | 조사 도구 | `qa/contracts/investigation-tools.json` |
 | 이벤트·UI 노드 | `qa/contracts/event.schema.json`, `event-ui-mapping.json` |
-| 관측 row (승인·발주) | `qa/examples/purchase-observation.schema.json` |
+| 관측 row (승인·발주) | `qa/examples/purchase/observation.schema.json` |
 | 검사 결과 | `qa/contracts/check-result.schema.json` |
-| 한도·승인 / 사고·해시 기준 | `config/qa-runtime.json` / `qa/examples/purchase-simulation.json` |
-| seed | `qa/examples/purchase-initial-state.json` |
+| 한도·승인 / 사고·해시 기준 | `config/qa-runtime.json` / `qa/examples/purchase/simulation.json` |
+| seed | `qa/examples/targets/agents.json` |
 | 지침 목록 | `qa/knowledge/guides/index.json` |
 | Harness 연동 | `harness/HARNESS_SPEC.md` (Harness 명세 v0.3) |
 
@@ -105,7 +105,7 @@ hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False, separator
 
 ### 1.3 구매 도구 (business-mcp)
 
-인자는 `purchase-tools.json`과 같다. drafts에는 출력 필드 이름만 있으므로 출력의 타입·의미는 추천안이다 (회의 확정 필요).
+인자는 `tools.json`과 같다. drafts에는 출력 필드 이름만 있으므로 출력의 타입·의미는 추천안이다 (회의 확정 필요).
 
 | 도구 | 효과 | 입력 | 출력 |
 |---|---|---|---|
@@ -167,7 +167,7 @@ hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False, separator
 
 ### 1.5 오류 계약
 
-PA03 개별 시험과 S03 통합 시험이 이 계약을 공유한다. 코드 목록은 `purchase-tools.json`의 `tool_errors`와 같다.
+PA03 개별 시험과 S03 통합 시험이 이 계약을 공유한다. 코드 목록은 `tools.json`의 `tool_errors`와 같다.
 
 | 코드 | 의미 | retryable |
 |---|---|---|
@@ -378,7 +378,7 @@ Oracle 판정 직전에 호출한다. 응답은 `oracle-observation.schema.json`
 
 Harness는 `wait_ms: 5000`으로 호출한다. Oracle은 `oracle_ro`로 업무 DB를 직접 조회하므로 Harness는 이 응답을 확정 신호로만 쓴다. 관측 형식 응답은 `get_business_state`와 디버깅에 쓴다.
 
-### 3.5 사고 주입 (`qa/examples/purchase-simulation.json`의 `fault`)
+### 3.5 사고 주입 (`qa/examples/purchase/simulation.json`의 `fault`)
 
 ```json
 {

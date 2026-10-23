@@ -154,8 +154,11 @@ class BusinessToolTests extends PostgresIntegrationTest {
 	void activeSupplierWithoutScopedQualificationIsVisibleAndBlocked() throws Exception {
 		var json = tools.jackson.databind.json.JsonMapper.builder().build();
 		Map<String,Object> file = json.readValue(java.nio.file.Files.readString(
-			java.nio.file.Path.of("../qa/examples/purchase-initial-state.json")), Map.class);
-		Map<String,Object> seed = (Map<String,Object>) file.get("seed");
+			java.nio.file.Path.of("../qa/examples/targets/agents.json")), Map.class);
+		Map<String,Object> agents = (Map<String,Object>) file.get("agents");
+		Map<String,Object> purchase = (Map<String,Object>) agents.get("PURCHASE");
+		Map<String,Object> sample = (Map<String,Object>) purchase.get("sample_data");
+		Map<String,Object> seed = (Map<String,Object>) sample.get("initial_state");
 		((List<Map<String,Object>>) seed.get("approved_supply_sources")).getFirst().put("allowed", false);
 		var run = this.runSetup.initialize(new ReferencePurchaseSimulation.Command("RUN-QUAL", "S04",
 			"idempotent-v1", "fixture-v1", "requester-01", List.of(), seed));

@@ -99,8 +99,11 @@ class ReferencePurchaseSimulationTests extends PostgresIntegrationTest {
 	void initializesPreparedDataAndRejectsAuthorityChangesBeforeWrites() throws Exception {
 		JsonMapper json = JsonMapper.builder().build();
 		Map<String, Object> file = json.readValue(Files.readString(
-			Path.of("../qa/examples/purchase-initial-state.json")), Map.class);
-		Map<String, Object> seed = (Map<String, Object>) file.get("seed");
+			Path.of("../qa/examples/targets/agents.json")), Map.class);
+		Map<String, Object> agents = (Map<String, Object>) file.get("agents");
+		Map<String, Object> purchase = (Map<String, Object>) agents.get("PURCHASE");
+		Map<String, Object> sample = (Map<String, Object>) purchase.get("sample_data");
+		Map<String, Object> seed = (Map<String, Object>) sample.get("initial_state");
 		Map<String, Object> request = (Map<String, Object>) seed.get("request");
 		request.put("request_id", "REQ-PREPARED");
 		request.put("quantity", 200);

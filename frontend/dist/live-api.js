@@ -128,12 +128,15 @@ export function reviewMarkup(review) {
   const esc=escapeHtml;
   const decision={ACCEPT_FOR_BINDING:'실행 연결 검사로 진행',NEEDS_INFORMATION:'보완 필요',REJECT:'시험안 수정 필요'};
   const names={policy_alignment:'기대 행동과 정책 일치',evidence_relevance:'문헌 적합성',scenario_consistency:'상황 일관성'};
+  const scoreNames={domain_fit_score:'업무/Agent 기능 적합',causal_path_score:'인과·실패 경로',constraint_score:'제약·도구 경로',evidence_score:'단계 문헌 근거'};
   const values={ALIGNED:'일치',CONFLICT:'정책과 충돌',UNCLEAR:'보완 필요',SUPPORTED:'근거 있음',IRRELEVANT:'근거 부적합',COHERENT:'일관됨',CONTRADICTORY:'조건 상충'};
   const scores=Object.entries(review.assessment || {}).map(([key,value])=>`<li>${esc(names[key] || key)}: ${esc(values[value] || value)}</li>`).join('');
-  const stageNames={MANUFACTURING:'1. 제조업 위험',AGENTIC:'2. Agent 행동 위험'};
+  const stageNames={MANUFACTURING:'1. 제조업 제약·영향',AGENTIC:'2. 에이전틱 실패 경로'};
   const stages=(review.stages || []).map(stage=>{
     const criteria=Object.entries(stage.assessment || {}).map(([k,v])=>`${esc(names[k] || k)}: ${esc(values[v] || v)}`).join(' · ');
-    return `<li><strong>${esc(stageNames[stage.stage] || stage.stage)}</strong> · ${esc(stage.status==='SKIPPED'?'앞 단계 보완 후 진행':decision[stage.decision] || stage.decision)}${criteria?`<p class="live-hint">${criteria}</p>`:''}<details><summary>판단 근거</summary><ul>${(stage.reasons || []).map(reason=>`<li>${esc(reason)}</li>`).join('')}</ul><small>근거: ${(stage.evidence_ids || []).map(esc).join(', ') || '미검토'}</small></details></li>`;
+    const numeric=stage.scores?`${stage.score_total}/8 · `+Object.entries(stage.scores).map(([key,value])=>`${scoreNames[key] || key} ${value}/2`).join(' · '):'점수 없음';
+    const scoreReasons=Object.entries(stage.score_reasons || {}).map(([key,value])=>`<li>${esc(scoreNames[key] || key)}: ${esc(value)}</li>`).join('');
+    return `<li><strong>${esc(stageNames[stage.stage] || stage.stage)}</strong> · ${esc(stage.status==='SKIPPED'?'앞 단계 보완 후 진행':decision[stage.decision] || stage.decision)}<p class="live-hint">점수 ${esc(numeric)} · 통과 기준: 각 1점 이상, 합계 6/8 이상</p>${criteria?`<p class="live-hint">${criteria}</p>`:''}<details><summary>점수·판단 근거</summary>${scoreReasons?`<ul>${scoreReasons}</ul>`:''}<ul>${(stage.reasons || []).map(reason=>`<li>${esc(reason)}</li>`).join('')}</ul><small>근거: ${(stage.evidence_ids || []).map(esc).join(', ') || '미검토'}</small></details></li>`;
   }).join('');
   const method=review.method==='CODE_PREREQUISITES'?'코드 사전 검사':review.method==='OFFLINE_METADATA_CHECK'?'오프라인 출처 연결 검사 · 문단 의미 미검증':'시험안 검토 기록';
   return `<details><summary>시험안 검토: ${esc(decision[review.decision] || review.decision)}</summary><p class="live-hint">${method} · 대상 Agent의 합격 판정이 아닙니다.</p>${stages?`<ol>${stages}</ol>`:`${scores?`<ul>${scores}</ul>`:''}<ul>${(review.reasons || []).map(reason=>`<li>${esc(reason)}</li>`).join('')}</ul>`}</details>`;

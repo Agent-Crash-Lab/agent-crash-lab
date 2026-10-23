@@ -28,9 +28,9 @@ class FakeMcp:
 
     def __init__(self):
         self.calls = []
-        self.request = json.loads((ROOT / "qa/examples/purchase-initial-state.json").read_text())[
-            "seed"
-        ]["request"]
+        self.request = json.loads((ROOT / "qa/examples/targets/agents.json").read_text())[
+            "agents"
+        ]["PURCHASE"]["sample_data"]["business_input"]
         self.orders = 1
         self.fault_status = "APPLIED"
         self.approval_wait = 300  # seconds until the approval request expires

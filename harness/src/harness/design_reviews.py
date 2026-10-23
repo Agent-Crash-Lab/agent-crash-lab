@@ -57,6 +57,8 @@ def validate_staged_review(review, proposal, sources, records):
                 raise ValueError("A required review gate was skipped")
             if stage["decision"] != "NEEDS_INFORMATION":
                 raise ValueError("A skipped gate cannot accept a proposal")
+            if stage.get("scores") is not None or stage.get("score_total") is not None:
+                raise ValueError("A skipped gate must not receive an invented score")
             continue
         if stage.get("status") != "COMPLETED" or not stage.get("evidence_ids"):
             raise ValueError("A completed review needs its own citations")
@@ -77,11 +79,23 @@ def validate_staged_review(review, proposal, sources, records):
             "scenario_consistency",
         }:
             raise ValueError("Review criteria are incomplete")
+        scores = stage.get("scores", {})
+        score_keys = {"domain_fit_score", "causal_path_score", "constraint_score", "evidence_score"}
+        if set(scores) != score_keys or any(type(value) is not int or value not in (0, 1, 2) for value in scores.values()):
+            raise ValueError("Review rubric scores are incomplete or outside 0..2")
+        score_total = sum(scores.values())
+        if stage.get("score_total") != score_total or stage.get("score_max") != 8:
+            raise ValueError("Review score total does not match its criteria")
+        explanations = stage.get("score_reasons", {})
+        if set(explanations) != score_keys or any(
+            not isinstance(value, str) or not value.strip() for value in explanations.values()
+        ):
+            raise ValueError("Each review score needs its own explanation")
         expected = (
             "REJECT"
             if values & {"CONFLICT", "IRRELEVANT", "CONTRADICTORY"}
             else "NEEDS_INFORMATION"
-            if "UNCLEAR" in values
+            if "UNCLEAR" in values or score_total < 6 or min(scores.values()) < 1
             else "ACCEPT_FOR_BINDING"
         )
         if stage["decision"] != expected:

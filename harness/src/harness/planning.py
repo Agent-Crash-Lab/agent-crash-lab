@@ -32,7 +32,7 @@ class QaPlanner:
         self.contract = self.read(refs["qa_contract"])
         self.patterns = self.read(refs["risk_patterns"])
         self.test_policy = self.read("qa/knowledge/test-policy.json")
-        self.target_examples = self.read("qa/examples/manufacturing-targets.json")
+        self.target_examples = self.read("qa/examples/targets/agents.json")["agents"]
         self.risk_library = self.read("qa/knowledge/risk-library.json")
         self.operations = self.read("qa/knowledge/manufacturing-operations.json")
         self.source_records = {
@@ -57,15 +57,37 @@ class QaPlanner:
             }
             for name, adapter in adapters.items()
         }
+        for kind, profile in self.target_examples.items():
+            target, sample = profile["target"], profile["sample_data"]
+            self.validate("target", target)
+            self.validate("sample", sample)
+            adapter = self.adapters.get(target["simulation_adapter"])
+            if (
+                target.get("agent_type") != kind
+                or not adapter
+                or adapter["target_hash"] != fingerprint(target)
+                or not adapter["supports_sample"](sample)
+            ):
+                raise ValueError(f"Invalid reference profile or sample constraints: {kind}")
+            model = profile["scenario_model"]
+            parameters = {p["id"]: set(p["values"]) for p in model["parameters"]}
+            if any(p["baseline"] not in parameters[p["id"]] for p in model["parameters"]):
+                raise ValueError(f"Invalid scenario baseline: {kind}")
+            for binding in model["condition_bindings"].values():
+                if any(value not in parameters.get(name, set()) for name, value in binding.items()):
+                    raise ValueError(f"Invalid scenario factor binding: {kind}")
+            for pair in model["incompatible_pairs"]:
+                for side in (pair["left"], pair["right"]):
+                    if side["value"] not in parameters.get(side["parameter"], set()):
+                        raise ValueError(f"Invalid scenario constraint: {kind}")
 
     def target_input(self, kind):
         adapter = self.adapters.get(f"reference-{kind.lower()}-v1")
         if adapter:
-            if kind == "PURCHASE":
-                sample = self.reference_sample
-            else:
-                sample = self.target_examples[kind]["sample_data"]
-            return {"target": adapter["target"], "sample_data": sample}
+            return {
+                "target": adapter["target"],
+                "sample_data": self.target_examples[kind]["sample_data"],
+            }
         return {key: self.target_examples[kind][key] for key in ("target", "sample_data")}
 
     def target_types(self):

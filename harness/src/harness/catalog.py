@@ -39,7 +39,11 @@ class Catalog:
         self.planner = QaPlanner(root)
         self.config = self.planner.config
         refs = self.config["references"]
-        self.seed = self._json(refs["seed"])
+        purchase = self._json(refs["target_profiles"])["agents"]["PURCHASE"]
+        self.seed = {
+            "fixture_id": purchase["fixture_id"],
+            "seed": purchase["sample_data"]["initial_state"],
+        }
         self.cases = {
             case["test_id"]: case for case in self._json(refs["investigation_cases"])["cases"]
         }

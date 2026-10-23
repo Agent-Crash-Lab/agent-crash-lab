@@ -115,7 +115,7 @@ export function profileAnalysis(profile, options=[]) {
     <p class="live-hint">${profile.execution_binding && profile.execution_status==='CONNECTED'?`실제 실행 대상: ${esc(profile.execution_binding.name || "플랫폼 구매 Agent")} · ${esc(profile.execution_binding.execution_profile.agent_version)} · 예시 정책 적용`:'등록자 설명 기준 · 실제 코드·권한 확인 전 · 실행 환경 연결 필요'}</p>
     ${!profile.can_design?'<p class="live-error">승인·재시도 정책을 입력해야 시험을 설계할 수 있습니다. 등록 정보를 보완해 다시 저장하세요.</p>':''}
     <div class="live-table-wrap"><table class="live-table"><thead><tr><th>위험</th><th>분류</th><th>판단 근거</th></tr></thead><tbody>${(a.risk_screening || []).map(r=>`<tr><td>${esc(r.title)}</td><td>${esc(labels[r.status])}</td><td>${esc(r.reason)}${r.missing_capabilities.length?`<br><small>필요 기능: ${esc(r.missing_capabilities.map(n=>capabilityLabel(n,options)).join(', '))}</small>`:''}</td></tr>`).join('')}</tbody></table></div>
-    <p class="live-hint">업무·조건·행동을 조합해 최대 3개를 제안하고, 제조업 위험 → Agent 행동 위험 순서로 검토합니다. 시험 후보가 곧 실행 가능 또는 검증 완료를 뜻하지 않습니다.</p>
+    <p class="live-hint">정상 업무에 예외 조건을 적용해 최대 3개 시험안을 제안하고, 제조업 제약·영향 → 에이전틱 실패 경로 순서로 검토합니다. 후보가 실행 가능 또는 검증 완료를 뜻하지는 않습니다.</p>
     <button type="button" class="primary" data-qa-plan ${profile.can_design?'':'disabled'}>이 Agent의 시험 설계 →</button>
     <button type="button" class="secondary" data-qa-edit>등록 정보 보완</button>
   </article>`;

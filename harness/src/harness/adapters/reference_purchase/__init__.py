@@ -26,25 +26,21 @@ class ReferencePurchaseAdapter:
         def read(reference):
             return json.loads((root / config["references"][reference]).read_text())
 
-        descriptor = read("target_descriptor")
+        profile = read("target_profiles")["agents"]["PURCHASE"]
+        descriptor = copy.deepcopy(profile["target"])
         if (
             descriptor["policies"]["max_write_retries"]
             != config["execution"]["write_retries_after_ambiguous_error"]
         ):
             raise ValueError("Reference target policy and runtime retry limit must match")
-        binding = descriptor.pop("business_input_binding")
         tools = read("tool_contracts")["tools"]
         target_tools = [
             {key: tool[key] for key in ("name", "effect", "input_schema")} for tool in tools
         ]
-        command = next(tool for tool in tools if tool["name"] == binding["tool_name"])
-        self.target = {
-            **descriptor,
-            "tools": target_tools,
-            "business_input_schema": command["input_schema"]["properties"][binding["property"]],
-        }
-        seed = read("seed")["seed"]
-        self.sample = {"business_input": seed["request"], "initial_state": seed}
+        if target_tools != descriptor["tools"]:
+            raise ValueError("Purchase Agent profile and tool contract must match")
+        self.target = descriptor
+        self.sample = copy.deepcopy(profile["sample_data"])
         self.rules_by_test = {
             scenario["scenario_id"]: scenario["test_runner_only"]["oracle_rule_ids"]
             for scenario in read("scenarios")["base_scenarios"]

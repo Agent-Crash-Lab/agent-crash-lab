@@ -118,7 +118,7 @@ def active_conditions(request, state, risk_key):
     return set()
 
 
-def check_exceptions(proposal, catalog, preview):
+def check_exceptions(proposal, catalog, preview, incompatible_pairs=()):
     ids = proposal.get("exception_ids", [])
     options = {e["exception_id"]: e for e in catalog}
     if not ids or len(ids) != len(set(ids)) or not set(ids) <= options.keys():
@@ -133,6 +133,24 @@ def check_exceptions(proposal, catalog, preview):
         return "실행 미지원: " + " ".join(e.get("support_reason", "") for e in selected)
     if len({e["phase"] for e in selected}) != 1:
         return "실행 미지원: 여러 시점에 걸친 예외 주입은 현재 지원하지 않습니다."
+    selected_values = {}
+    selected_assignments = set()
+    conflicting_parameter = None
+    for exception in selected:
+        for parameter, value in exception.get("factor_values", {}).items():
+            selected_assignments.add((parameter, value))
+            if parameter in selected_values and selected_values[parameter] != value:
+                conflicting_parameter = parameter
+            selected_values[parameter] = value
+    for pair in incompatible_pairs:
+        left, right = pair["left"], pair["right"]
+        if (
+            (left["parameter"], left["value"]) in selected_assignments
+            and (right["parameter"], right["value"]) in selected_assignments
+        ):
+            return "형태학적 조합 제약 위반: " + pair["reason"]
+    if conflicting_parameter:
+        return f"형태학적 조합에서 {conflicting_parameter} 값이 서로 충돌합니다."
     if proposal["data_strategy"] != "MODEL_GENERATED":
         return None  # Fixed recipes are independently checked by the Harness.
     conditions = {e["condition"] for e in selected}

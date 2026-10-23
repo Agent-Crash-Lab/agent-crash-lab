@@ -2,18 +2,24 @@
 
 ## 어디에 무엇이 있는가?
 
-| 위치 | 내용 |
-|---|---|
-| `qa/contracts/` | 대상 설명·시험 계획·이벤트·판정의 공통 양식 |
-| `qa/knowledge/corpus.json` | 검색할 자료의 버전·권리·적용 범위. 현재 32건; 추가 등록의 기준 파일 |
-| `qa/knowledge/sources-collected.json` | 연구 5·사례 7·기술 10·프로젝트 정책 6건의 출처·요약·수집 기록 |
-| `qa/knowledge/test-policy.json` | 시험 중요도 하한·반복 계산·중단·비용 한도 |
-| `qa/knowledge/risk-library.json` | 위험 6종의 필요 기능·검색 질문·출처 연결 |
-| `qa/knowledge/literature.json` | 논문·보고서 6건의 조사 기록과 시험 아이디어 6건 |
-| `qa/knowledge/risk-patterns.json` | 현재 실행할 수 있는 위험 템플릿 |
-| `qa/knowledge/guides/` | 승인·재시도·조사에 관한 프로젝트 지침 |
-| `qa/examples/` | 구매 참조 대상·초기 상태·도구·판정기 정답 사건 |
-| `qa/reference/` | 공개 구매 데이터 BPI2019의 표본 |
+먼저 구분할 점은 **RAG 색인의 기준은 `corpus.json` 하나**라는 것입니다. 출처 목록과 조사 파일은 수집·검토 이력을 위한 보조 기록이며 검색 색인을 대신하지 않습니다.
+
+| 위치 | 역할 | 주 사용처 |
+|---|---|---|
+| `qa/contracts/` | 대상·계획·이벤트·판정의 공통 JSON 양식 | Harness·Agent·MCP |
+| `qa/knowledge/corpus.json` | 검색 가능한 문서와 요약의 현재 목록 | Knowledge 색인·Harness 출처 검사 |
+| `qa/knowledge/sources.json` | 출처별 서지·적용 범위·권리 설명 | 사람의 출처 확인·자료 검증 |
+| `qa/knowledge/sources-collected.json` | 초기 자료 조사 묶음과 수집 요약 | 검증 스크립트·기록 비교 |
+| `qa/knowledge/literature.json` | 내려받아 조사한 논문·보고서와 시험 아이디어 | 자료 준비·조사 참고 |
+| `qa/knowledge/risk-library.json` | 위험 분류·필요 기능·검색 힌트 | Scenario Agent 설계·검토 |
+| `qa/knowledge/risk-patterns.json` | 코드 판정기에 연결된 실행 템플릿 | Harness 계획·판정 |
+| `qa/knowledge/test-policy.json` | 중요도·반복·중단·비용 기준 | Harness 실행 관리 |
+| `qa/knowledge/manufacturing-operations.json` | 업무 제약과 합성 상태 변경 예시 | Scenario Agent의 생성 참고 |
+| `qa/knowledge/guides/` | 승인·재시도·조사 해석 가이드 | Scenario·QA 조사 |
+| `qa/examples/` | 참조 Agent와 시험 입력·판정 예시 | [파일별 길잡이](../qa/examples/README.md) |
+| `qa/reference/` | BPI2019 등 외부 자료 표본 | 출처 분석; Agent 정답 데이터가 아님 |
+
+현재 `corpus.json`은 32건입니다. `sources-collected.json`의 28건은 초기 수집 묶음이고, 나머지 참고자료와의 관계 및 문헌별 색인 여부는 `corpus.json`에서 확인합니다. 파일이 비슷해 보여도 용도가 다르므로 출처 설명을 수정할 때는 해당 기록과 색인 기준을 함께 확인합니다.
 
 구매·생산·품질은 검증 대상의 예시 유형입니다. 구매·생산·품질 모두 실행·DB 판정을 지원합니다. 생산·품질은 QA 소유의 `harness_simulation`에 초기 상태·도구 호출·승인·업무 변경을 실행별로 저장합니다. 실제 공장 DB는 사용하지 않습니다.
 
@@ -51,7 +57,7 @@
 
 ## 시험 데이터는 어떻게 사용하는가?
 
-구매 참조 입력은 `purchase-target.json`, `purchase-initial-state.json`, `purchase-tools.json`입니다. `purchase-simulation.json`이 B0/B1과 정책을, `purchase-judge-cases.json`이 판정기 테스트의 기대 결과를 정의합니다.
+구매 참조 입력은 `target.json`, `initial-state.json`, `tools.json`입니다. `simulation.json`이 B0/B1과 정책을, `judge-cases.json`이 판정기 테스트의 기대 결과를 정의합니다.
 
 수량·가격·재고·요청 ID와 버전은 지원 범위 안에서 변경할 수 있습니다. 요청과 초기 상태의 값은 일치해야 합니다. 업체·권한·기존 거래 등 지원하지 않는 변경은 실행 불가로 둡니다. 계획 ID와 사례 ID로 실행하며, 정답·위험 가설은 대상 Agent에 전달하지 않습니다.
 
@@ -69,22 +75,26 @@
 
 [전체 설계](architecture.md) · [평가 기준](evaluation.md)
 
+대상 Agent 등록 필드, 위험 분류 축, 문헌의 발행 주체와 현재 검토 사용 범위는 [대상·위험·근거 데이터 설계](scenario-data-design.md)에 정리했습니다.
+
+시나리오 생성에서 형태학적 변수와 조합 제약을 어떻게 정의할지는 [형태학적 시나리오 설계](morphological-scenario-design.md)를 참고하세요. 현재 구현과 제안된 확장 설계를 구분해 설명합니다.
+
 ## Agent 설명에서 시험안을 설계하기
 
 **화면: 평가 대상 → 새 Agent 등록 → 기능·정책 확인 → 시험 설계 → 근거·미연결 항목 확인. 구매·생산·품질 예시는 실행까지 지원합니다.**
 
 - 입력: Agent의 업무·READ/WRITE 도구·입력 Schema·승인/재시도 정책·샘플 상태. 실제 소스 코드나 실행 경로를 자동 분석한 결과는 아닙니다.
 - 분류: 선언한 `agent_type`으로 유형을 정합니다. 유형이 없으면 입력 필드 조합을 참고하고, 혼합되거나 알려지지 않은 형식은 COMMON으로 남깁니다. 시험 적용 여부는 실제 도구·기능을 별도로 확인합니다.
-- Scenario Agent: `agents/src/agents/scenario/design.py`의 LangGraph가 기능 확인 → 정상 사용 시나리오 구성 → 예외 후보·위험별 근거 검색 → 최대 3개 시험안 → 출처 확인 → 제조업 검토 → Agentic 검토를 수행합니다. 적용 위험 최대 3종 × (출처 유형 4종 + 검토 영역 2종)으로 최대 18회 검색하며 동시에 최대 4회 처리합니다. 같은 검색 질문의 BGE 임베딩은 최대 128개 메모리 캐시에 재사용하고, 자료 종류·영역 필터는 매번 DB에 적용합니다. `analysis.py`는 모델 호출 없이 기능을 분석합니다. offline은 규칙 기반 시연입니다.
+- Scenario Agent: `agents/src/agents/scenario/design.py`의 LangGraph가 기능 확인 → 형태학적 정상 업무·예외 범위 구성 → 위험별 근거 검색 → 최대 3개 시험안 생성 → 출처·데이터 확인 → 제조업 제약·영향 검토 → 에이전틱 실패 경로 검토를 수행합니다. LLM 모드에서는 형태학적 후보와 예외 카탈로그를 재료로 새 상황과 구체적인 입력·상태 변경값을 작성합니다. 모델은 선언된 값·도구·정책·시뮬레이터 지원 범위를 넘을 수 없고, 코드는 생성 결과의 실행 가능성을 검사합니다. 적용 위험 최대 3종 × (출처 유형 4종 + 검토 영역 2종)으로 최대 18회 검색하며 동시에 최대 4회 처리합니다. 같은 검색 질문의 BGE 임베딩은 최대 128개 메모리 캐시에 재사용하고, 자료 종류·영역 필터는 매번 DB에 적용합니다. `analysis.py`는 모델 호출 없이 기능을 분석합니다. 기본 offline은 규칙 기반 시연이지 LLM 생성과 동등한 모드가 아닙니다.
 - Harness: 제안과 실제 시험을 구분하고, 등록된 어댑터·입력 검사·판정 규칙으로 실행 여부를 결정합니다. LLM이 새 정책·도구·판정기를 등록할 수 없습니다.
 - 구매 예시: 초기 재고 20개라면 수량 21개의 새 입력을 만들고, 발주 저장 후 응답 유실을 주입합니다. 실제 수량·변경 이유·사례 데이터 해시를 저장합니다.
 - 성적서 불일치·설비 중복 배정은 해당 기능이 있는 대상에만 제안합니다. 생산·품질은 참조 환경에 채택한 정책과 코드 판정기로 실행합니다. 다른 업무 도구나 미채택 정책은 UNSUPPORTED로 유지합니다.
 
 유형 목록은 `GET /api/qa/targets`에서 이름·점검 항목·실행 지원 상태로 조회합니다.
 
-API: `GET /api/qa/target?target_type=PURCHASE|PRODUCTION|QUALITY`로 참조 입력 조회, `POST /api/qa/design`으로 설계·저장합니다. 커스텀 입력은 target과 sample_data를 함께 보냅니다. `generation_mode: llm`은 새 상황 생성(v4), `offline`은 기존 예시(v3), `configured`는 서버 설정을 사용합니다. 실행은 기존 plan_id + case_id 경로입니다. 실행 때 저장한 설계와 입력으로 다시 검사하며 LLM을 재호출하지 않습니다.
+API: `GET /api/qa/target?target_type=PURCHASE|PRODUCTION|QUALITY`로 참조 입력 조회, `POST /api/qa/design`으로 설계·저장합니다. 커스텀 입력은 target과 sample_data를 함께 보냅니다. `generation_mode: llm`은 형태학적 조건을 구체적인 새 시험 데이터로 작성하는 경로(v4), `offline`은 규칙 기반 시연(v3), `configured`는 서버 설정을 사용합니다. 실행은 기존 plan_id + case_id 경로입니다. 실행 때 저장한 설계와 입력으로 다시 검사하며 LLM을 재호출하지 않습니다.
 
-`qa/examples/manufacturing-targets.json`은 세 유형의 표시 정보와 생산·품질의 가상 설명을 담습니다. 구매의 실행 입력은 별도 참조 파일에서 가져옵니다. 참조 Agent와 시험 도구가 이 설명에 맞춰 구현되어 있습니다. 실제 기업의 Agent·설비를 뜻하지 않습니다. 조회된 문헌의 출처·페이지·요약 여부를 저장하며 의미적 적합성과 업종 적용 범위는 별도 검토 대상입니다.
+`qa/examples/targets/agents.json`의 `agents.PURCHASE|PRODUCTION|QUALITY`는 각 대상의 업무 계약(`target`), 기준 요청·상태(`sample_data`), 허용 샘플 범위(`sample_constraints`), 형태학적 조건(`scenario_model`)을 한 프로필로 관리합니다. 세 프로필은 프로젝트의 참조 모형이며 실제 기업의 Agent·설비를 뜻하지 않습니다. 구매 도구 계약과 결과 검증 자료는 `qa/examples/purchase/`에 남습니다. 조회 문헌의 출처·페이지·요약은 별도 지식 데이터에서 관리하며 의미 적합성과 업종 적용 범위는 계속 검토 대상입니다.
 
 LLM 설계를 켜려면 `.env`에 `QA_DESIGN_MODEL_MODE=openai`, `QA_DESIGN_LLM_MODEL`과 기존 LLM 키를 명시합니다. 서버 기본값은 offline이며 화면은 생성 방식을 명시합니다. 키·허용 모델이 없으면 설정 오류를 표시하고 자동으로 기존 시험으로 바꾸지 않습니다. 실제 유료 모델의 생성·검토와 일부 참조 실행을 확인했습니다. 고정 사례 검토와 자유 생성 결과는 [평가 기록](evaluation.md#시험안-검토-기준-보완-2026-10-22)에서 분리해 보며, 전체 생성 품질은 검증 완료로 보지 않습니다. 기존 모델 허용 목록·공유 비용 상한을 사용합니다. 구조화 출력은 [OpenAI 공식 안내](https://developers.openai.com/api/docs/guides/structured-outputs)를 따르지만 형식 준수가 업무적 타당성을 보장하지는 않습니다.
 
@@ -120,7 +130,7 @@ LLM 설계를 켜려면 `.env`에 `QA_DESIGN_MODEL_MODE=openai`, `QA_DESIGN_LLM_
 - 실행 가능한 설계는 등록된 실행·판정 연결 외에 **연구 근거 + 해당 위험의 채택 정책**이 필요합니다. 사례·기술 자료가 없으면 없다고 기록하며, 네 유형을 억지로 채우지 않습니다.
 - 구매 참조 환경에 채택한 정책은 중복 방지·승인·보고 정확성·공급 자격 4건입니다. 품질 원자료·생산 설비 정책 2건은 해당 가상 참조 환경에만 채택했습니다.
 - 출처 ID와 위험 태그 일치 여부는 코드로 검사합니다. 문헌의 의미와 회사 업무에 대한 적합성은 별도 검토가 필요합니다.
-- `qa/examples/design-review-cases.json`에는 기능 범위 판단 예시 10건과 시험안 검토 예시 7건이 있습니다. 후자는 안전한 기대 행동·위험한 기대 행동·정책 누락·식별자 오류를 포함한 프로젝트 기준입니다. LLM의 설계 품질이나 실제 Agent 안전성이 검증됐다는 뜻은 아닙니다.
+- `qa/examples/scenarios/design-review-cases.json`에는 기능 범위 판단 예시 10건과 시험안 검토 예시 7건이 있습니다. 후자는 안전한 기대 행동·위험한 기대 행동·정책 누락·식별자 오류를 포함한 프로젝트 기준입니다. LLM의 설계 품질이나 실제 Agent 안전성이 검증됐다는 뜻은 아닙니다.
 
 저장한 설계에는 분류표·검색 질문·색인 버전·출처 그룹·누락 유형·정책·위험 분류 버전과 해시를 남깁니다. 실행 시 같은 설계를 다시 확인하며 LLM은 재호출하지 않습니다.
 
@@ -157,7 +167,7 @@ MCP `tools/list`의 배열·`tools`·`result.tools` JSON을 화면에서 가져�
 | 실행·보고서 | `harness/runner.py`, `reporting.py` | `run_id`, `manifest`, `qa_case`, `checks`, `qa_report`; API envelope는 코드 기준 |
 | 단일 검사 | `qa/contracts/check-result.schema.json` | 규칙·범위·판정·이유·근거 ID. PASS/FAIL에는 근거 필수 |
 | 이벤트 | `qa/contracts/event.schema.json` | 사건 ID·발생 주체·시각·상관 ID·payload·근거 ID |
-| 구매 전용 결과·관측 | `qa/examples/purchase-*.schema.json` | 발주·승인 관측. 다른 유형의 공통 필수 양식이 아님 |
+| 구매 전용 결과·관측 | `qa/examples/purchase/result.schema.json`, `observation.schema.json` | 발주·승인 관측. 다른 유형의 공통 필수 양식이 아님 |
 
 전체 실행·보고서, 등록 API를 모두 하나의 JSON Schema로 검사하는 구조는 아닙니다. API 입력은 Pydantic, 대상·계획·단일 검사·이벤트는 JSON Schema, 관계·실행 가능성은 어댑터 코드가 나눠 검사합니다. `analysis`, `design_basis` 같은 일부 중첩 필드는 확장 가능한 object이며 모든 내부 필드를 스키마만으로 보장하지 않습니다.
 

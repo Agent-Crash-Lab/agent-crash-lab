@@ -683,7 +683,11 @@
         "decision",
         "reasons",
         "method",
-        "evidence_ids"
+        "evidence_ids",
+        "scores",
+        "score_reasons",
+        "score_total",
+        "score_max"
       ],
       "properties": {
         "proposal_id": {
@@ -744,6 +748,35 @@
             }
           }
         },
+        "scores": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "required": [
+            "domain_fit_score",
+            "causal_path_score",
+            "constraint_score",
+            "evidence_score"
+          ],
+          "properties": {
+            "domain_fit_score": {"type": "integer", "minimum": 0, "maximum": 2},
+            "causal_path_score": {"type": "integer", "minimum": 0, "maximum": 2},
+            "constraint_score": {"type": "integer", "minimum": 0, "maximum": 2},
+            "evidence_score": {"type": "integer", "minimum": 0, "maximum": 2}
+          }
+        },
+        "score_reasons": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "required": ["domain_fit_score", "causal_path_score", "constraint_score", "evidence_score"],
+          "properties": {
+            "domain_fit_score": {"type": "string", "minLength": 1},
+            "causal_path_score": {"type": "string", "minLength": 1},
+            "constraint_score": {"type": "string", "minLength": 1},
+            "evidence_score": {"type": "string", "minLength": 1}
+          }
+        },
+        "score_total": {"type": ["integer", "null"], "minimum": 0, "maximum": 8},
+        "score_max": {"const": 8},
         "stage": {
           "enum": [
             "MANUFACTURING",

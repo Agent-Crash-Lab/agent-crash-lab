@@ -85,6 +85,15 @@ class AnalyzeRequest(DesignRequest):
 async def design_qa(settings, body, model=None, search=None, reviewer=None):
     root = settings.agent_project_root
     library = json.loads((root / "qa/knowledge/risk-library.json").read_text())
+    profiles = json.loads((root / "qa/examples/targets/agents.json").read_text())["agents"]
+    scenario_model = next(
+        (
+            profile["scenario_model"]
+            for profile in profiles.values()
+            if profile["target"] == body.target
+        ),
+        None,
+    )
     library_hash = hashlib.sha256(
         json.dumps(library, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
@@ -185,7 +194,10 @@ async def design_qa(settings, body, model=None, search=None, reviewer=None):
             r["risk_key"] for r in analysis["risk_screening"] if r["status"] == "APPLICABLE"
         }
         morphology = build_field(
-            body.target, analysis, [r for r in library["risks"] if r["risk_key"] in applicable]
+            body.target,
+            analysis,
+            [r for r in library["risks"] if r["risk_key"] in applicable],
+            scenario_model,
         )
         trace.append({"stage": "BUILD_NORMAL_USE_SCENARIOS"})
         return {"analysis": analysis, "morphology": morphology}
@@ -438,6 +450,10 @@ async def design_qa(settings, body, model=None, search=None, reviewer=None):
                         "decision": "NEEDS_INFORMATION",
                         "method": method,
                         "evidence_ids": [],
+                        "scores": None,
+                        "score_reasons": None,
+                        "score_total": None,
+                        "score_max": 8,
                         "reasons": ["제조업 검토 통과 후 진행합니다."],
                     }
                 )

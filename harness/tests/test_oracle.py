@@ -15,9 +15,9 @@ from harness.oracle import OracleContext
 EXAMPLES = ROOT / "qa/examples"
 CASES = {
     c["case_id"]: c
-    for c in json.loads((EXAMPLES / "purchase-judge-cases.json").read_text())["cases"]
+    for c in json.loads((EXAMPLES / "purchase/judge-cases.json").read_text())["cases"]
 }
-CONFIG = json.loads((ROOT / "qa/examples/purchase-simulation.json").read_text())["evaluation"]
+CONFIG = json.loads((ROOT / "qa/examples/purchase/simulation.json").read_text())["evaluation"]
 QA_CHECK = Draft202012Validator(
     json.loads((ROOT / "qa/contracts/check-result.schema.json").read_text())
 )

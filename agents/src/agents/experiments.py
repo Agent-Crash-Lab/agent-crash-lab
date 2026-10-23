@@ -43,10 +43,12 @@ async def run_case(settings, case):
     started = time.monotonic()
     try:
         if case.startswith("PA"):
-            seed = json.loads((root / "qa/examples/purchase-initial-state.json").read_text())
+            profile = json.loads((root / "qa/examples/targets/agents.json").read_text())[
+                "agents"
+            ]["PURCHASE"]
             body = StartRequest(
                 run_id=run_id,
-                request=PurchaseRequest.model_validate(seed["seed"]["request"]),
+                request=PurchaseRequest.model_validate(profile["sample_data"]["business_input"]),
                 fixture_id="purchase-timeout-once" if case == "PA03" else "purchase-normal",
             )
         else:

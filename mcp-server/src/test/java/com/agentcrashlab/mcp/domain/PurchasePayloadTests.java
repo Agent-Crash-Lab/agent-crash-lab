@@ -30,7 +30,7 @@ class PurchasePayloadTests {
 
 	@Test
 	void hashMatchesDraftFixtures() {
-		// drafts oracle-cases.json, investigation-cases.json, examples.json의 payload_hash
+		// drafts oracle-cases.json, cases.json, examples.json의 payload_hash
 		assertThat(PurchasePayload.fromMap(seedRequest()).hash())
 			.isEqualTo("44f349414b0973935825d379579a30cf137ec3ab49c2b28bc9923f46d4e8bf26");
 	}

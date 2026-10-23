@@ -213,10 +213,11 @@ async def test_live_resume_requires_fresh_token(runtime, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_mock_uses_configured_business_state_and_rejects_unknown_entities(tmp_path):
-    data = json.loads((ROOT / "qa/examples/purchase-initial-state.json").read_text())
-    data["seed"]["parts"][0]["inventory"] = 150
-    data["seed"]["suppliers"][0]["unit_price_minor"] = 15000
-    file = tmp_path / "qa/examples/purchase-initial-state.json"
+    data = json.loads((ROOT / "qa/examples/targets/agents.json").read_text())
+    seed = data["agents"]["PURCHASE"]["sample_data"]["initial_state"]
+    seed["parts"][0]["inventory"] = 150
+    seed["suppliers"][0]["unit_price_minor"] = 15000
+    file = tmp_path / "qa/examples/targets/agents.json"
     file.parent.mkdir(parents=True)
     file.write_text(json.dumps(data))
     tools = MockTools(tmp_path, "purchase-normal")

@@ -132,7 +132,7 @@ class ManufacturingAdapter:
 
 
 def load_adapters(root):
-    examples = json.loads((root / "qa/examples/manufacturing-targets.json").read_text())
+    examples = json.loads((root / "qa/examples/targets/agents.json").read_text())["agents"]
     contract = json.loads((root / "qa/contracts/qa.schema.json").read_text())
     return [
         ManufacturingAdapter(kind, examples[kind], contract["$defs"][kind.lower() + "_state"])

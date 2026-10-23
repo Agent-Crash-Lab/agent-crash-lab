@@ -1,4 +1,4 @@
-"""Normal use morphology followed by a separately maintained exception catalog.
+"""Target-bound factors, normal-use candidates, and executable exception options.
 
 These are project mappings, not frequencies or a certified manufacturing taxonomy.
 The model supplies concrete values; the Harness still proves execution support.
@@ -7,13 +7,13 @@ The model supplies concrete values; the Harness still proves execution support.
 from agents.scenario.exceptions import build_catalog, check_exceptions
 
 METHOD = {
-    "version": "2.0.0",
+    "version": "3.0.0",
     "reference": "https://www.swemorph.com/ma.html",
     "scope": "Project adaptation of morphological analysis and cross-consistency assessment",
 }
 
 
-def build_field(target, analysis, risks):
+def build_field(target, analysis, risks, scenario_model=None):
     """Describe normal business usage first; derive exception options separately."""
     contexts = {
         "PURCHASE": (
@@ -31,17 +31,29 @@ def build_field(target, analysis, risks):
     )
     reads = [t["name"] for t in target["tools"] if t["effect"] == "READ"]
     authority = "HUMAN_APPROVAL" if target["policies"]["approval_required"] else "DECLARED_POLICY"
-    axes = {
-        "tool": analysis["write_tools"],
-        "operating_context": [context],
-        "information_basis": [reads],
-        "decision_authority": [authority],
+    model = scenario_model or {
+        "version": "generic-1",
+        "normal_goal": normal_goal,
+        "parameters": [
+            {"id": "approval.outcome", "values": ["APPROVED"], "baseline": "APPROVED"}
+        ],
+        "condition_bindings": {},
+        "incompatible_pairs": [],
+        "limits": ["No target-specific scenario factors are registered."],
     }
+    context = model.get("operation_context", context)
+    axes = {parameter["id"]: parameter["values"] for parameter in model["parameters"]}
+    axes["write_tool"] = analysis["write_tools"]
+    catalog = build_catalog(target, analysis, risks)
+    for exception in catalog:
+        exception["factor_values"] = model["condition_bindings"].get(
+            exception["condition"], {}
+        )
     candidates = [
         {
             "candidate_id": f"U{index:02}",
             "task": target["task"],
-            "normal_goal": normal_goal,
+            "normal_goal": model.get("normal_goal", normal_goal),
             "tool_name": tool,
             "operating_context": context,
             "information_basis": reads,
@@ -55,9 +67,12 @@ def build_field(target, analysis, risks):
         **METHOD,
         "kind": "NORMAL_USE_SCENARIOS",
         "task": analysis["task"],
+        "target_id": target["target_id"],
         "axes": axes,
+        "parameters": model["parameters"],
+        "incompatible_pairs": model["incompatible_pairs"],
         "candidates": candidates,
-        "exception_catalog": build_catalog(target, analysis, risks),
+        "exception_catalog": catalog,
         "selection_limit": 3,
         "limits": (
             "Normal usage is bounded by declared tasks/tools, not inferred factory workflows. "
@@ -75,7 +90,12 @@ def check_selection(proposal, field, preview):
     if field.get("kind") == "NORMAL_USE_SCENARIOS":
         if not candidate or candidate["tool_name"] != proposal["tool_name"]:
             return "정상 사용 시나리오와 시험안의 변경 도구가 일치하지 않습니다."
-        return check_exceptions(proposal, field["exception_catalog"], preview)
+        return check_exceptions(
+            proposal,
+            field["exception_catalog"],
+            preview,
+            field.get("incompatible_pairs", []),
+        )
     if not candidate or any(candidate[k] != proposal[k] for k in ("risk_key", "tool_name")):
         return "형태학적 조합의 위험·도구와 생성한 시험안이 일치하지 않습니다."
     if proposal["data_strategy"] != "MODEL_GENERATED":
