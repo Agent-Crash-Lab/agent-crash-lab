@@ -96,12 +96,17 @@ function renderChainSvg(chain, faultIndex=-1) {
     const x=step*i+step/2;
     if(i<chain.length-1){
       const x2=x+step, fe=i===faultIndex-1;
-      g+=`<line x1="${x+18}" y1="22" x2="${x2-18}" y2="22" stroke="${fe?'#ff6a3d':'#4a4a52'}" stroke-width="1.5" ${fe?'stroke-dasharray="4 4"':''}/>`;
-      g+=`<circle r="2.5" fill="${fe?'#ff8a5f':'#fff'}"><animate attributeName="cx" from="${x+18}" to="${x2-18}" dur="${1.6+i*0.3}s" repeatCount="indefinite"/><animate attributeName="cy" values="22;22" dur="1s" repeatCount="indefinite"/></circle>`;
+      g+=`<line x1="${x+18}" y1="22" x2="${x2-18}" y2="22" stroke="${fe?'var(--signal, #ff6a3d)':'var(--control, #4a4a52)'}" stroke-width="1.6" ${fe?'stroke-dasharray="4 4" class="fault-wire-glitch"':''}/>`;
+      g+=`<circle r="2.8" fill="${fe?'#ff8a5f':'var(--pos, #3fb68b)'}"><animate attributeName="cx" from="${x+18}" to="${x2-18}" dur="${1.5+i*0.28}s" repeatCount="indefinite"/><animate attributeName="cy" values="22;22" dur="1s" repeatCount="indefinite"/></circle>`;
+      g+=`<circle r="1.6" fill="${fe?'#ff6a3d':'#6fd4ab'}" opacity="0.65"><animate attributeName="cx" from="${x+18}" to="${x2-18}" dur="${1.5+i*0.28}s" begin="0.18s" repeatCount="indefinite"/><animate attributeName="cy" values="22;22" dur="1s" repeatCount="indefinite"/></circle>`;
     }
     const isf=i===faultIndex;
-    g+=`<rect x="${x-14}" y="8" width="28" height="28" rx="6" fill="${isf?'#2a1610':'#1f1f24'}" stroke="${isf?'#ff6a3d':'#3a3a42'}"/>`;
-    g+=`<text x="${x}" y="56" text-anchor="middle" font-size="11" fill="#8b8b93" font-family="Pretendard Variable, Pretendard, sans-serif">${esc(it)}</text>`;
+    if(isf){
+      g+=`<circle cx="${x}" cy="22" r="18" fill="none" stroke="var(--signal, #ff6a3d)" stroke-width="1" opacity="0.45" class="shock"/>`;
+    }
+    g+=`<rect x="${x-14}" y="8" width="28" height="28" rx="6" fill="${isf?'var(--sig-bg, #2a1610)':'var(--raised-2, #1f1f24)'}" stroke="${isf?'var(--signal, #ff6a3d)':'var(--control, #3a3a42)'}" stroke-width="1.4"/>`;
+    g+=`<circle cx="${x}" cy="22" r="3.2" fill="${isf?'var(--signal, #ff6a3d)':'var(--pos, #3fb68b)'}" opacity="0.85"/>`;
+    g+=`<text x="${x}" y="56" text-anchor="middle" font-size="11" font-weight="500" fill="var(--text-2, #8b8b93)" font-family="Pretendard Variable, Pretendard, sans-serif">${esc(it)}</text>`;
   });
   return `<svg class="chain" viewBox="0 0 300 64" aria-hidden="true">${g}</svg>`;
 }
@@ -121,73 +126,118 @@ function renderLoginTopoSvg() {
   const pos={}; NODES.forEach(nd=>pos[nd.id]=[nd.n*1.15, nd.l*1.15-1.7]);
   const poly=(pts,fill,stroke='none',sw=1,extra='')=>`<polygon points="${pts.map(p=>p.join(',')).join(' ')}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" ${extra}/>`;
   let g=`<defs>
+    <linearGradient id="lg-plat-a" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="var(--iso-plat-grad-hi-1, #1e1e24)"/>
+      <stop offset="100%" stop-color="var(--iso-plat-grad-hi-2, #141418)"/>
+    </linearGradient>
+    <linearGradient id="lg-plat-b" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="var(--iso-plat-grad-1, #1a1a20)"/>
+      <stop offset="100%" stop-color="var(--iso-plat-grad-2, #101014)"/>
+    </linearGradient>
     <filter id="lg-glow" x="-20%" y="-20%" width="140%" height="140%">
       <feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
   </defs>`;
-  [0,1,2,3].forEach(l=>{
-    const y0=l*1.15-1.7, a=P(-1.85,y0-0.45), b=P(1.85,y0-0.45), c=P(1.85,y0+0.45), d=P(-1.85,y0+0.45), t=0.12;
-    const ad=[a[0],a[1]+t*S], bd=[b[0],b[1]+t*S], cd=[c[0],c[1]+t*S], dd=[d[0],d[1]+t*S];
-    g+=poly([d,c,cd,dd],'var(--iso-plat-front, #0a0a0d)')+poly([b,c,cd,bd],'var(--iso-plat-side, #060608)')+poly([a,b,c,d],l%2?'var(--iso-plat-grad-1, #19191e)':'var(--iso-plat-grad-hi-1, #1c1c22)','var(--iso-plat-top-edge, #272732)',1);
+  // Ambient Isometric Telemetry Sweep & Floating Data Dust
+  const radarCenter=P(0,0.05,-0.08);
+  g+=`<g class="ambient-backdrop" opacity="0.55">
+    <ellipse cx="${radarCenter[0]}" cy="${radarCenter[1]}" rx="250" ry="138" fill="none" stroke="var(--iso-plat-rim, #343444)" stroke-width="1" stroke-dasharray="14 10" class="radar-sweep"/>
+    <ellipse cx="${radarCenter[0]}" cy="${radarCenter[1]}" rx="185" ry="102" fill="none" stroke="var(--signal, #ff6a3d)" stroke-width="0.9" stroke-dasharray="6 18" class="radar-sweep" opacity="0.45"/>
+  </g>`;
+  [[-2.1,-1.6,0.4],[-1.6,1.5,0.6],[2.0,-1.1,0.5],[1.9,1.3,0.7],[-0.9,-1.9,0.4],[1.1,-1.7,0.7]].forEach(([sx,sy,sz],idx)=>{
+    const sp=P(sx,sy,sz);
+    const col=idx%2===0?'var(--signal, #ff6a3d)':'var(--pos, #3fb68b)';
+    g+=`<circle cx="${sp[0]}" cy="${sp[1]}" r="${idx%3===0?2.1:1.4}" fill="${col}" opacity="0.55"><animate attributeName="cy" values="${sp[1]};${(sp[1]-9).toFixed(1)};${sp[1]}" dur="${2.6+idx*0.35}s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.2;0.75;0.2" dur="${2.2+idx*0.3}s" repeatCount="indefinite"/></circle>`;
   });
+  // Terraced 3D Platforms with Bevels & Coordinate Markers
+  [0,1,2,3].forEach(l=>{
+    const y0=l*1.15-1.7, a=P(-1.85,y0-0.45), b=P(1.85,y0-0.45), c=P(1.85,y0+0.45), d=P(-1.85,y0+0.45), t=0.14;
+    const ad=[a[0],a[1]+t*S], bd=[b[0],b[1]+t*S], cd=[c[0],c[1]+t*S], dd=[d[0],d[1]+t*S];
+    const fillTop=l%2?'url(#lg-plat-a)':'url(#lg-plat-b)';
+    g+=poly([d,c,cd,dd],'var(--iso-plat-front, #0a0a0d)','var(--iso-plat-edge, #141419)',1)+poly([b,c,cd,bd],'var(--iso-plat-side, #060608)','var(--iso-plat-edge, #141419)',1)+poly([a,b,c,d],fillTop,'var(--iso-plat-top-edge, #272732)',1);
+    g+=`<line x1="${d[0]}" y1="${d[1]}" x2="${c[0]}" y2="${c[1]}" stroke="var(--iso-plat-rim, #343444)" stroke-width="1.6"/>`;
+    g+=`<line x1="${c[0]}" y1="${c[1]}" x2="${b[0]}" y2="${b[1]}" stroke="var(--iso-plat-rim-side, #282836)" stroke-width="1.4"/>`;
+    const mA=P(-1.62,y0+0.36), mB=P(1.62,y0-0.36);
+    g+=`<circle cx="${mA[0]}" cy="${mA[1]}" r="1.8" fill="var(--iso-coord-dot, #3a3a4c)"/><circle cx="${mB[0]}" cy="${mB[1]}" r="1.8" fill="var(--iso-coord-dot, #3a3a4c)"/>`;
+  });
+  // Optical Conduits & Energy Packet Trains
   EDGES.forEach(([s,t,st],i)=>{
     const [x1,y1]=pos[s],[x2,y2]=pos[t], off=st==='fault'?0.18:0;
     const pts=[P(x1+off,y1,0.02),P(x1+off,y2,0.02),P(x2+off,y2,0.02)];
     const d=`M${pts[0]} L${pts[1]} L${pts[2]}`;
-    const col=st==='done'?'#50dfb0':st==='fault'?'#ff6a3d':'#2a2a36';
-    g+=`<path d="${d}" fill="none" stroke="var(--iso-track-under, #101014)" stroke-width="4.5" stroke-linecap="round"/>`;
-    g+=`<path id="lg-e${i}" d="${d}" fill="none" stroke="${col}" stroke-width="1.8" ${st==='fault'?'stroke-dasharray="6 5" class="fault-wire-glitch"':''} opacity="${st==='idle'?0.6:0.95}"/>`;
+    const groove=st==='fault'?'var(--iso-wire-groove-fault, #4a1e14)':st==='done'?'var(--iso-wire-groove-seen, #2a3a34)':'var(--iso-wire-groove-idle, #1e1e28)';
+    const col=st==='done'?'var(--iso-wire-seen, #50dfb0)':st==='fault'?'#ff6a3d':'var(--iso-wire-idle, #30303e)';
+    g+=`<path d="${d}" fill="none" stroke="var(--iso-track-under, #101015)" stroke-width="4.8" stroke-linecap="round"/>`;
+    g+=`<path d="${d}" fill="none" stroke="${groove}" stroke-width="2.4" stroke-linecap="round"/>`;
+    g+=`<path id="lg-e${i}" d="${d}" fill="none" stroke="${col}" stroke-width="${st==='fault'?2.2:1.8}" ${st==='fault'?'stroke-dasharray="7 5" class="fault-wire-glitch"':''} opacity="${st==='idle'?0.7:0.95}"/>`;
     if(st==='done'){
-      g+=`<circle r="3.2" fill="#6fd4ab" filter="url(#lg-glow)"><animateMotion dur="${2.0+i*0.35}s" repeatCount="indefinite" path="${d}"/></circle>`;
-      g+=`<circle r="1.8" fill="#34b38a" opacity="0.6"><animateMotion dur="${2.0+i*0.35}s" repeatCount="indefinite" path="${d}" begin="0.1s"/></circle>`;
+      const dur=`${1.9+i*0.32}s`;
+      g+=`<circle r="3.4" fill="#50dfb0" filter="url(#lg-glow)"><animateMotion dur="${dur}" repeatCount="indefinite" path="${d}"/></circle>`;
+      g+=`<circle r="2.2" fill="#34b38a" opacity="0.75"><animateMotion dur="${dur}" repeatCount="indefinite" path="${d}" begin="0.12s"/></circle>`;
+      g+=`<circle r="1.3" fill="#6fd4ab" opacity="0.45"><animateMotion dur="${dur}" repeatCount="indefinite" path="${d}" begin="0.24s"/></circle>`;
     } else if(st==='fault'){
       const m=P(x1+off,(y1+y2)/2,0.02);
       const half=`M${pts[0]} L${m}`;
-      g+=`<circle r="3.8" fill="#ff8a5f"><animateMotion dur="1.5s" repeatCount="indefinite" path="${half}"/></circle>`;
-      g+=`<g transform="translate(${m[0]}, ${m[1]})"><g class="hazard-node"><circle r="12" fill="#200d07" stroke="#ff6a3d" stroke-width="1.8"/><path d="M-4 -4 4 4M4 -4 -4 4" stroke="#ff6a3d" stroke-width="2" stroke-linecap="round"/><circle r="16" fill="none" stroke="#ff6a3d" stroke-width="1" stroke-dasharray="3 3"><animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="4s" repeatCount="indefinite"/></circle></g></g>`;
+      g+=`<circle r="4" fill="#ff8a5f" filter="url(#lg-glow)"><animateMotion dur="1.35s" repeatCount="indefinite" path="${half}"/></circle>`;
+      g+=`<circle r="2.2" fill="#ff3e14" opacity="0.75"><animateMotion dur="1.35s" repeatCount="indefinite" path="${half}" begin="0.12s"/></circle>`;
+      g+=`<g transform="translate(${m[0]}, ${m[1]})"><g class="hazard-node"><circle r="12" fill="var(--iso-hazard-bg, #200d07)" stroke="#ff6a3d" stroke-width="1.8"/><path d="M-4 -4 4 4M4 -4 -4 4" stroke="#ff6a3d" stroke-width="2" stroke-linecap="round"/><circle r="16" fill="none" stroke="#ff6a3d" stroke-width="1.1" stroke-dasharray="3 3"><animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="4s" repeatCount="indefinite"/></circle></g></g>`;
     }
   });
   let labelsHtml='';
   const order=[...NODES].sort((a,b)=>(pos[a.id][0]+pos[a.id][1])-(pos[b.id][0]+pos[b.id][1]));
   order.forEach(nd=>{
-    const [x,y]=pos[nd.id], w=0.27, h=nd.kind==='disc'?0.08:nd.kind==='cyl'?0.42:0.34;
-    const top=nd.fault?'#3a2116':nd.dim?'var(--iso-node-dim-top, #26262b)':'var(--iso-node-default-top, #2e2e35)', left=nd.fault?'#2a170f':nd.dim?'var(--iso-node-dim-left, #1b1b1f)':'var(--iso-node-default-left, #222228)', right=nd.fault?'#1f110b':nd.dim?'var(--iso-node-dim-right, #151518)':'var(--iso-node-default-right, #19191e)';
-    const st=nd.fault?'#ff6a3d':nd.dim?'var(--iso-node-dim-stroke, #2c2c33)':'var(--iso-node-default-stroke, #3d3d46)';
+    const [x,y]=pos[nd.id], w=0.28, h=nd.kind==='disc'?0.09:nd.kind==='cyl'?0.44:0.35;
+    const top=nd.fault?'var(--iso-fault-top, #3d2014)':nd.dim?'var(--iso-node-dim-top, #222227)':'var(--iso-node-default-top, #2b2b34)';
+    const left=nd.fault?'var(--iso-fault-left, #2c150c)':nd.dim?'var(--iso-node-dim-left, #17171b)':'var(--iso-node-default-left, #1e1e24)';
+    const right=nd.fault?'var(--iso-fault-right, #200e07)':nd.dim?'var(--iso-node-dim-right, #111114)':'var(--iso-node-default-right, #17171c)';
+    const st=nd.fault?'#ff6a3d':nd.dim?'var(--iso-node-dim-stroke, #2a2a32)':'var(--iso-node-default-stroke, #3e3e4a)';
     if(nd.fault){
       const c=P(x,y,0);
-      g+=`<ellipse class="shock s1" cx="${c[0]}" cy="${c[1]}" rx="${(0.9*S).toFixed(1)}" ry="${(0.52*S).toFixed(1)}" fill="none" stroke="#ff6a3d" stroke-width="1.6"/>`;
-      g+=`<ellipse class="shock s2" cx="${c[0]}" cy="${c[1]}" rx="${(0.9*S).toFixed(1)}" ry="${(0.52*S).toFixed(1)}" fill="none" stroke="#ff3e14" stroke-width="1.2"/>`;
+      g+=`<ellipse class="shock s1" cx="${c[0]}" cy="${c[1]}" rx="${(0.92*S).toFixed(1)}" ry="${(0.53*S).toFixed(1)}" fill="none" stroke="#ff6a3d" stroke-width="1.8"/>`;
+      g+=`<ellipse class="shock s2" cx="${c[0]}" cy="${c[1]}" rx="${(0.92*S).toFixed(1)}" ry="${(0.53*S).toFixed(1)}" fill="none" stroke="#ff3e14" stroke-width="1.2"/>`;
+      g+=`<ellipse class="shock s3" cx="${c[0]}" cy="${c[1]}" rx="${(0.92*S).toFixed(1)}" ry="${(0.53*S).toFixed(1)}" fill="none" stroke="#ff8a5f" stroke-width="0.9"/>`;
     }
+    g+=`<g class="iso-node-group ${nd.fault?'is-fault iso-float':!nd.dim?'iso-float-delayed':''}">`;
     if(nd.kind==='cyl'){
-      const c0=P(x,y,0), c1=P(x,y,h), rx=+(w*1.2*S).toFixed(1), ry=+(w*0.69*S).toFixed(1);
-      g+=`<path d="M${c0[0]-rx},${c1[1]} L${c0[0]-rx},${c0[1]} A${rx},${ry} 0 0 0 ${c0[0]+rx},${c0[1]} L${c0[0]+rx},${c1[1]} Z" fill="${left}" stroke="${st}"/>`;
-      g+=`<path d="M${c0[0]-rx},${(c0[1]+c1[1])/2} A${rx},${ry} 0 0 0 ${c0[0]+rx},${(c0[1]+c1[1])/2}" fill="none" stroke="${st}"/>`;
-      g+=`<ellipse cx="${c1[0]}" cy="${c1[1]}" rx="${rx}" ry="${ry}" fill="#2b3a44" stroke="#5b8fb5"/>`;
-      g+=`<ellipse class="dbfill" cx="${c1[0]}" cy="${c1[1]}" rx="${(rx*0.55).toFixed(1)}" ry="${(ry*0.55).toFixed(1)}" fill="#9ccaf0" opacity=".35"><animate attributeName="opacity" values="0.2;0.5;0.2" dur="2s" repeatCount="indefinite"/></ellipse>`;
+      const c0=P(x,y,0), c1=P(x,y,h), rx=+(w*1.22*S).toFixed(1), ry=+(w*0.7*S).toFixed(1);
+      g+=`<ellipse cx="${c0[0]}" cy="${c0[1]}" rx="${rx+3}" ry="${ry+2}" fill="var(--iso-shadow, #08080b)" opacity="0.35"/>`;
+      g+=`<path d="M${c0[0]-rx},${c1[1]} L${c0[0]-rx},${c0[1]} A${rx},${ry} 0 0 0 ${c0[0]+rx},${c0[1]} L${c0[0]+rx},${c1[1]} Z" fill="${left}" stroke="${st}" stroke-width="1.2"/>`;
+      const rib1=(c0[1]*0.65+c1[1]*0.35).toFixed(1), rib2=(c0[1]*0.35+c1[1]*0.65).toFixed(1);
+      g+=`<path d="M${c0[0]-rx},${rib1} A${rx},${ry} 0 0 0 ${c0[0]+rx},${rib1}" fill="none" stroke="${st}" stroke-width="1.3"/>`;
+      g+=`<path d="M${c0[0]-rx},${rib2} A${rx},${ry} 0 0 0 ${c0[0]+rx},${rib2}" fill="none" stroke="${st}" stroke-width="1.3"/>`;
+      g+=`<ellipse cx="${c1[0]}" cy="${c1[1]}" rx="${rx}" ry="${ry}" fill="var(--iso-db-lid, #27333d)" stroke="#ff6a88" stroke-width="1.5"/>`;
+      g+=`<ellipse class="dbfill" cx="${c1[0]}" cy="${c1[1]}" rx="${(rx*0.76).toFixed(1)}" ry="${(ry*0.76).toFixed(1)}" fill="#ff6a88" opacity=".48" filter="url(#lg-glow)"><animate attributeName="opacity" values="0.32;0.65;0.32" dur="2.2s" repeatCount="indefinite"/></ellipse>`;
+      g+=`<circle cx="${c1[0]}" cy="${c1[1]}" r="2.8" fill="#ff3e14"/>`;
     } else {
       const A=P(x-w,y-w,h), B=P(x+w,y-w,h), C=P(x+w,y+w,h), D=P(x-w,y+w,h), Bd=P(x+w,y-w,0), Cd=P(x+w,y+w,0), Dd=P(x-w,y+w,0);
-      g+=poly([D,C,Cd,Dd],left,st)+poly([B,C,Cd,Bd],right,st)+poly([A,B,C,D],top,st,1.2);
+      const ShA=P(x-w-0.04,y-w,0), ShB=P(x+w+0.04,y-w,0), ShC=P(x+w+0.04,y+w+0.04,0), ShD=P(x-w-0.04,y+w+0.04,0);
+      g+=poly([ShA,ShB,ShC,ShD],'var(--iso-shadow, #08080b)','none',0,'opacity="0.35"');
+      g+=poly([D,C,Cd,Dd],left,st,1.2)+poly([B,C,Cd,Bd],right,st,1.2)+poly([A,B,C,D],top,st,1.4);
       if(nd.kind==='screen'){
-        const s1=P(x-w*0.55,y-w*0.1,h), s2=P(x+w*0.1,y-w*0.1,h), s3=P(x+w*0.1,y-w*0.1,h+0.36), s4=P(x-w*0.55,y-w*0.1,h+0.36);
-        g+=poly([s1,s2,s3,s4],'#141417',nd.dim?'#2c2c33':'#4a4a55');
+        const s1=P(x-w*0.58,y-w*0.12,h), s2=P(x+w*0.12,y-w*0.12,h), s3=P(x+w*0.12,y-w*0.12,h+0.4), s4=P(x-w*0.58,y-w*0.12,h+0.4);
+        g+=poly([s1,s2,s3,s4],'var(--iso-terminal-bg, #0e1014)',nd.dim?'var(--iso-node-dim-stroke, #282832)':'var(--iso-terminal-stroke, #4e5464)',1.4);
         if(!nd.dim){
-          const l1=P(x-w*0.45,y-w*0.1,h+0.26), l2=P(x-w*0.05,y-w*0.1,h+0.26), l3=P(x-w*0.45,y-w*0.1,h+0.17), l4=P(x-w*0.15,y-w*0.1,h+0.17);
-          g+=`<path d="M${l1}L${l2}M${l3}L${l4}" stroke="#6fd4ab" stroke-width="1.6" class="blink"/>`;
-          const haloPos=P(x,y,h+0.52);
-          g+=`<ellipse cx="${haloPos[0]}" cy="${haloPos[1]}" rx="${(w*0.8*S).toFixed(1)}" ry="${(w*0.45*S).toFixed(1)}" fill="none" stroke="#50dfb0" stroke-width="1" stroke-dasharray="6 4" class="halo-orbit" opacity="0.8"/>`;
+          const l1=P(x-w*0.48,y-w*0.12,h+0.29), l2=P(x+w*0.02,y-w*0.12,h+0.29), l3=P(x-w*0.48,y-w*0.12,h+0.19), l4=P(x-w*0.14,y-w*0.12,h+0.19), l5=P(x-w*0.48,y-w*0.12,h+0.10), l6=P(x-w*0.04,y-w*0.12,h+0.10);
+          g+=`<g filter="url(#lg-glow)"><path d="M${l1}L${l2}" stroke="#6fd4ab" stroke-width="1.8" class="blink"/><path d="M${l3}L${l4}" stroke="#34b38a" stroke-width="1.5"/><path d="M${l5}L${l6}" stroke="#227a5d" stroke-width="1.5"/></g>`;
+          const haloPos=P(x,y,h+0.55);
+          g+=`<ellipse cx="${haloPos[0]}" cy="${haloPos[1]}" rx="${(w*0.88*S).toFixed(1)}" ry="${(w*0.5*S).toFixed(1)}" fill="none" stroke="#50dfb0" stroke-width="1.2" stroke-dasharray="9 5" class="halo-orbit" opacity="0.85"/>`;
         }
       }
       if(nd.kind==='disc'){
-        const c=P(x,y,h+0.02);
-        g+=`<ellipse cx="${c[0]}" cy="${c[1]}" rx="${(w*0.7*S).toFixed(1)}" ry="${(w*0.4*S).toFixed(1)}" fill="#1f2a24" stroke="#3fb68b"/>`;
-        g+=`<ellipse cx="${c[0]}" cy="${c[1]}" rx="${(w*0.45*S).toFixed(1)}" ry="${(w*0.25*S).toFixed(1)}" fill="none" stroke="#6fd4ab" stroke-width="1" stroke-dasharray="4 3" class="halo-orbit-rev"/>`;
+        const c=P(x,y,h+0.03), rxD=+(w*0.82*S).toFixed(1), ryD=+(w*0.46*S).toFixed(1);
+        g+=`<ellipse cx="${c[0]}" cy="${c[1]}" rx="${rxD}" ry="${ryD}" fill="var(--iso-disc-bg, #16221c)" stroke="#34b38a" stroke-width="1.6"/>`;
+        g+=`<ellipse cx="${c[0]}" cy="${c[1]}" rx="${(rxD*0.64).toFixed(1)}" ry="${(ryD*0.64).toFixed(1)}" fill="none" stroke="#6fd4ab" stroke-width="1.3" stroke-dasharray="7 4" class="halo-orbit-rev"/>`;
+        g+=`<circle cx="${c[0]}" cy="${c[1]}" r="3" fill="#50dfb0" filter="url(#lg-glow)"/>`;
       }
       if(nd.fault){
-        const A2=P(x-w*0.6,y-w*0.6,h), C2=P(x+w*0.6,y+w*0.6,h);
-        g+=`<line x1="${A2[0]}" y1="${A2[1]}" x2="${C2[0]}" y2="${C2[1]}" stroke="#ff6a3d" stroke-width="1.8" class="fault-wire-glitch"/>`;
+        const A2=P(x-w*0.62,y-w*0.62,h), C2=P(x+w*0.62,y+w*0.62,h);
+        g+=`<line x1="${A2[0]}" y1="${A2[1]}" x2="${C2[0]}" y2="${C2[1]}" stroke="#ff6a3d" stroke-width="2" class="fault-wire-glitch"/>`;
+        const b0=P(x,y,h), b1=P(x,y,h+0.52);
+        g+=`<line x1="${b0[0]}" y1="${b0[1]}" x2="${b1[0]}" y2="${b1[1]}" stroke="#ff6a3d" stroke-width="1.8" stroke-dasharray="4 4" class="uplink-beam"/>`;
       }
     }
-    const L=P(x,y,h+(nd.kind==='screen'?0.62:0.42));
+    g+=`</g>`;
+    const L=P(x,y,h+(nd.kind==='screen'?0.64:0.46));
     labelsHtml+=`<div class="nlabel ${nd.fault?'fault':''} ${nd.dim?'dim':''}" style="left:${(L[0]/W*100).toFixed(1)}%;top:${(L[1]/H*100).toFixed(1)}%">${esc(nd.label)}<small>${esc(nd.sub)}</small></div>`;
   });
   return `<div class="login-art"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" aria-hidden="true">${g}</svg><div class="login-labels">${labelsHtml}</div></div>`;
@@ -235,8 +285,8 @@ export function mountLive(element, selectedPage='agents', navigate) {
         <div class="login-copy">
           <div class="login-brand">
             <svg width="26" height="28" viewBox="0 0 26 28" fill="none" aria-hidden="true">
-              <path d="M13 1.5 24.5 8v12L13 26.5 1.5 20V8Z" stroke="#f4f4f5" stroke-width="1.8"/>
-              <path d="M1.5 8 13 14.5 24.5 8M13 14.5v12" stroke="#f4f4f5" stroke-width="1.6"/>
+              <path d="M13 1.5 24.5 8v12L13 26.5 1.5 20V8Z" stroke="currentColor" stroke-width="1.8"/>
+              <path d="M1.5 8 13 14.5 24.5 8M13 14.5v12" stroke="currentColor" stroke-width="1.6"/>
               <path d="m15.5 4 -3 5 3.2 1.4-2.6 4.6" stroke="#ff6a3d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
             <span>Crash Lab</span>

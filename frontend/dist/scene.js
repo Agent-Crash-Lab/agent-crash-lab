@@ -76,15 +76,22 @@ function renderIsoScene(container, graph, data = {}, onSelect) {
 
   let g = defs;
 
-  // 0. Ambient Holographic Data Dust / Grid Accents
-  g += `<g class="ambient-backdrop" opacity="0.45">`;
+  // 0. Ambient Holographic Data Dust / Radar Sweep
+  g += `<g class="ambient-backdrop" opacity="0.55">`;
+  const rc = P(0, 0, -0.05);
+  g += `<ellipse cx="${rc[0]}" cy="${rc[1]}" rx="${(2.35 * S).toFixed(1)}" ry="${(1.32 * S).toFixed(1)}" fill="none" stroke="var(--signal)" stroke-width="1" stroke-dasharray="14 28" class="radar-sweep"/>`;
+  g += `<ellipse cx="${rc[0]}" cy="${rc[1]}" rx="${(1.65 * S).toFixed(1)}" ry="${(0.92 * S).toFixed(1)}" fill="none" stroke="var(--pos)" stroke-width="0.9" stroke-dasharray="8 22" opacity="0.25"/>`;
   const stars = [
     [-2.2, -1.8, 0.4], [-1.5, 1.7, 0.6], [2.1, -1.2, 0.5], [1.8, 1.4, 0.7],
     [-0.8, -2.1, 0.3], [0.9, -1.9, 0.8], [-2.1, 0.8, 0.5], [2.3, 0.3, 0.4]
   ];
   stars.forEach(([sx, sy, sz], idx) => {
     const sp = P(sx, sy, sz);
-    g += `<circle cx="${sp[0]}" cy="${sp[1]}" r="1.4" fill="#586e7a" opacity="0.6"><animate attributeName="opacity" values="0.2;0.8;0.2" dur="${3 + (idx % 3)}s" repeatCount="indefinite" begin="${idx * 0.4}s"/></circle>`;
+    const col = idx % 2 === 0 ? 'var(--signal)' : 'var(--pos)';
+    g += `<circle cx="${sp[0]}" cy="${sp[1]}" r="1.6" fill="${col}" opacity="0.55">
+      <animate attributeName="opacity" values="0.15;0.75;0.15" dur="${3 + (idx % 3)}s" repeatCount="indefinite" begin="${idx * 0.4}s"/>
+      <animate attributeName="cy" values="${sp[1]};${sp[1] - 7};${sp[1]}" dur="${3.5 + (idx % 3)}s" repeatCount="indefinite" begin="${idx * 0.3}s"/>
+    </circle>`;
   });
   g += `</g>`;
 
@@ -108,8 +115,8 @@ function renderIsoScene(container, graph, data = {}, onSelect) {
     // Ambient platform coordinate markers
     const pMarkA = P(-1.95, y0 + 0.42);
     const pMarkB = P(1.95, y0 - 0.42);
-    g += `<circle cx="${pMarkA[0]}" cy="${pMarkA[1]}" r="2" fill="#3a3a4c"/>`;
-    g += `<circle cx="${pMarkB[0]}" cy="${pMarkB[1]}" r="2" fill="#3a3a4c"/>`;
+    g += `<circle cx="${pMarkA[0]}" cy="${pMarkA[1]}" r="2" fill="var(--iso-coord-dot, #3a3a4c)"/>`;
+    g += `<circle cx="${pMarkB[0]}" cy="${pMarkB[1]}" r="2" fill="var(--iso-coord-dot, #3a3a4c)"/>`;
     g += `</g>`;
   });
 
@@ -127,10 +134,10 @@ function renderIsoScene(container, graph, data = {}, onSelect) {
 
     // Conduit track underlay
     g += `<path d="${d}" fill="none" stroke="var(--iso-track-under, #101015)" stroke-width="5" stroke-linecap="round"/>`;
-    g += `<path d="${d}" fill="none" stroke="${isFault ? '#4a1e14' : isSeen ? '#2a3a34' : '#1e1e28'}" stroke-width="2.6" stroke-linecap="round"/>`;
+    g += `<path d="${d}" fill="none" stroke="${isFault ? 'var(--iso-wire-groove-fault, #4a1e14)' : isSeen ? 'var(--iso-wire-groove-seen, #2a3a34)' : 'var(--iso-wire-groove-idle, #1e1e28)'}" stroke-width="2.6" stroke-linecap="round"/>`;
 
     // Core fiber optical line
-    const col = isFault ? '#ff6a3d' : isActive ? '#ff8a5f' : isSeen ? '#50dfb0' : '#30303e';
+    const col = isFault ? 'var(--signal)' : isActive ? 'var(--signal)' : isSeen ? 'var(--iso-wire-seen, #50dfb0)' : 'var(--iso-wire-idle, #30303e)';
     g += `<path d="${d}" fill="none" stroke="${col}" stroke-width="${isActive ? 2.4 : 1.6}" ${isFault ? 'stroke-dasharray="8 6" class="fault-wire-glitch"' : ''} opacity="${isSeen ? 0.95 : 0.65}" ${isActive ? 'filter="url(#f-glow)"' : ''}/>`;
 
     if (isFault) {
@@ -140,10 +147,10 @@ function renderIsoScene(container, graph, data = {}, onSelect) {
 
       // Staggered packet attempts that fail at the fault boundary
       g += `<g class="fault-packet-burst">
-        <circle r="4.2" fill="#ff6a3d" filter="url(#f-intense)">
+        <circle r="4.2" fill="var(--signal)" filter="url(#f-intense)">
           <animateMotion dur="1.3s" repeatCount="indefinite" path="${half}"/>
         </circle>
-        <circle r="2.2" fill="#ffffff">
+        <circle r="2.2" fill="var(--bg)">
           <animateMotion dur="1.3s" repeatCount="indefinite" path="${half}"/>
         </circle>
       </g>`;
@@ -152,9 +159,9 @@ function renderIsoScene(container, graph, data = {}, onSelect) {
       g += `<g transform="translate(${m[0]}, ${m[1]})">
         <g class="hazard-node">
           <circle r="22" fill="url(#grad-glow-active)"/>
-          <circle r="13" fill="#200d07" stroke="#ff6a3d" stroke-width="2" filter="url(#f-glow)"/>
-          <path d="M-5 -5 L5 5 M5 -5 L-5 5" stroke="#ff8a5f" stroke-width="2.2" stroke-linecap="round"/>
-          <circle r="17" fill="none" stroke="#ff6a3d" stroke-width="1.2" stroke-dasharray="4 4" opacity="0.8">
+          <circle r="13" fill="var(--iso-hazard-bg, #200d07)" stroke="var(--signal)" stroke-width="2" filter="url(#f-glow)"/>
+          <path d="M-5 -5 L5 5 M5 -5 L-5 5" stroke="var(--signal)" stroke-width="2.2" stroke-linecap="round"/>
+          <circle r="17" fill="none" stroke="var(--signal)" stroke-width="1.2" stroke-dasharray="4 4" opacity="0.8">
             <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="4s" repeatCount="indefinite"/>
           </circle>
         </g>
@@ -163,13 +170,13 @@ function renderIsoScene(container, graph, data = {}, onSelect) {
       // Flowing Energy Packet Train (Head + 2 Staggered Trail Spheres)
       const speed = isActive ? 1.6 : 2.4 + (i % 3) * 0.4;
       g += `<g class="packet-train">
-        <circle r="${isActive ? 4.2 : 3.2}" fill="${isActive ? '#ffffff' : '#6fd4ab'}" filter="${isActive ? 'url(#f-intense)' : 'url(#f-glow)'}">
+        <circle r="${isActive ? 4.2 : 3.2}" fill="${isActive ? 'var(--signal)' : 'var(--pos)'}" filter="${isActive ? 'url(#f-intense)' : 'url(#f-glow)'}">
           <animateMotion dur="${speed}s" repeatCount="indefinite" path="${d}"/>
         </circle>
-        <circle r="${isActive ? 2.6 : 2.0}" fill="${isActive ? '#ff8a5f' : '#34b38a'}" opacity="0.75">
+        <circle r="${isActive ? 2.6 : 2.0}" fill="${isActive ? 'var(--signal)' : 'var(--pos)'}" opacity="0.65">
           <animateMotion dur="${speed}s" repeatCount="indefinite" path="${d}" begin="0.08s"/>
         </circle>
-        <circle r="1.4" fill="${isActive ? '#ff6a3d' : '#1e664e'}" opacity="0.45">
+        <circle r="1.4" fill="${isActive ? 'var(--signal)' : 'var(--pos)'}" opacity="0.35">
           <animateMotion dur="${speed}s" repeatCount="indefinite" path="${d}" begin="0.16s"/>
         </circle>
       </g>`;
@@ -189,30 +196,30 @@ function renderIsoScene(container, graph, data = {}, onSelect) {
     const w = 0.29, h = kind === 'disc' ? 0.09 : kind === 'cyl' ? 0.46 : 0.36;
 
     // Palette per state
-    const top = isFault ? '#3d2014' : isActive ? '#38251c' : isDim ? 'var(--iso-node-dim-top, #222227)' : 'var(--iso-node-default-top, #2b2b34)';
-    const left = isFault ? '#2c150c' : isActive ? '#281811' : isDim ? 'var(--iso-node-dim-left, #17171b)' : 'var(--iso-node-default-left, #1e1e24)';
-    const right = isFault ? '#200e07' : isActive ? '#1c100a' : isDim ? 'var(--iso-node-dim-right, #111114)' : 'var(--iso-node-default-right, #17171c)';
-    const strokeCol = isFault ? '#ff6a3d' : isActive ? '#ff8a5f' : isDim ? 'var(--iso-node-dim-stroke, #2a2a32)' : 'var(--iso-node-default-stroke, #3e3e4a)';
+    const top = isFault ? 'var(--iso-fault-top, #3d2014)' : isActive ? 'var(--iso-active-top, #38251c)' : isDim ? 'var(--iso-node-dim-top, #222227)' : 'var(--iso-node-default-top, #2b2b34)';
+    const left = isFault ? 'var(--iso-fault-left, #2c150c)' : isActive ? 'var(--iso-active-left, #281811)' : isDim ? 'var(--iso-node-dim-left, #17171b)' : 'var(--iso-node-default-left, #1e1e24)';
+    const right = isFault ? 'var(--iso-fault-right, #200e07)' : isActive ? 'var(--iso-active-right, #1c100a)' : isDim ? 'var(--iso-node-dim-right, #111114)' : 'var(--iso-node-default-right, #17171c)';
+    const strokeCol = isFault ? 'var(--signal)' : isActive ? 'var(--signal)' : isDim ? 'var(--iso-node-dim-stroke, #2a2a32)' : 'var(--iso-node-default-stroke, #3e3e4a)';
 
     // Ambient Shockwave & Holographic Base Glow
     if (isFault || isActive) {
       const c = P(x, y, 0);
       const rx = (0.94 * S).toFixed(1), ry = (0.54 * S).toFixed(1);
-      g += `<ellipse class="shock s1" cx="${c[0]}" cy="${c[1]}" rx="${rx}" ry="${ry}" fill="none" stroke="${isFault ? '#ff6a3d' : '#ff8a5f'}" stroke-width="1.8"/>`;
-      g += `<ellipse class="shock s2" cx="${c[0]}" cy="${c[1]}" rx="${rx}" ry="${ry}" fill="none" stroke="${isFault ? '#ff3e14' : '#ff6a3d'}" stroke-width="1.2"/>`;
+      g += `<ellipse class="shock s1" cx="${c[0]}" cy="${c[1]}" rx="${rx}" ry="${ry}" fill="none" stroke="var(--signal)" stroke-width="1.8"/>`;
+      g += `<ellipse class="shock s2" cx="${c[0]}" cy="${c[1]}" rx="${rx}" ry="${ry}" fill="none" stroke="var(--signal)" stroke-width="1.2"/>`;
       if (isFault) {
-        g += `<ellipse class="shock s3" cx="${c[0]}" cy="${c[1]}" rx="${rx}" ry="${ry}" fill="none" stroke="#ff8a5f" stroke-width="0.9"/>`;
+        g += `<ellipse class="shock s3" cx="${c[0]}" cy="${c[1]}" rx="${rx}" ry="${ry}" fill="none" stroke="var(--signal)" stroke-width="0.9"/>`;
       }
     }
 
-    g += `<g data-node-hit="${esc(nd.id)}" class="iso-node-group ${isActive ? 'is-active' : ''} ${isFault ? 'is-fault' : ''}" style="cursor:pointer">`;
+    g += `<g data-node-hit="${esc(nd.id)}" class="iso-node-group ${isActive ? 'is-active' : ''} ${isFault ? 'is-fault iso-float' : ''}" style="cursor:pointer">`;
 
     if (kind === 'cyl') {
       // ── DATABASE: Multi-Tier Pressure Silo with Dynamic Data Ring & Commit Fluid Level ──
       const c0 = P(x, y, 0), c1 = P(x, y, h), rx = +(w * 1.25 * S).toFixed(1), ry = +(w * 0.72 * S).toFixed(1);
 
       // Shadow under cylinder
-      g += `<ellipse cx="${c0[0]}" cy="${c0[1]}" rx="${rx + 4}" ry="${ry + 3}" fill="#0a0a0d" opacity="0.6"/>`;
+      g += `<ellipse cx="${c0[0]}" cy="${c0[1]}" rx="${rx + 4}" ry="${ry + 3}" fill="var(--iso-shadow, #0a0a0d)" opacity="0.6"/>`;
 
       // Silo body wall
       g += `<path d="M${c0[0] - rx},${c1[1]} L${c0[0] - rx},${c0[1]} A${rx},${ry} 0 0 0 ${c0[0] + rx},${c0[1]} L${c0[0] + rx},${c1[1]} Z" fill="${left}" stroke="${strokeCol}" stroke-width="1.2"/>`;
@@ -243,7 +250,7 @@ function renderIsoScene(container, graph, data = {}, onSelect) {
 
       // Block shadow
       const ShA = P(x - w - 0.05, y - w, 0), ShB = P(x + w + 0.05, y - w, 0), ShC = P(x + w + 0.05, y + w + 0.05, 0), ShD = P(x - w - 0.05, y + w + 0.05, 0);
-      g += poly([ShA, ShB, ShC, ShD], '#08080b', 'none', 0, 'opacity="0.55"');
+      g += poly([ShA, ShB, ShC, ShD], 'var(--iso-shadow, #08080b)', 'none', 0, 'opacity="0.55"');
 
       // 3D Box Faces
       g += poly([D, C, Cd, Dd], left, strokeCol, 1.2);
@@ -271,14 +278,14 @@ function renderIsoScene(container, graph, data = {}, onSelect) {
           const l5 = P(x - w * 0.5, y - w * 0.12, h + 0.10), l6 = P(x - w * 0.02, y - w * 0.12, h + 0.10);
 
           g += `<g class="agent-code-lines" filter="url(#f-glow)">
-            <path d="M${l1}L${l2}" stroke="#6fd4ab" stroke-width="1.8" class="blink"/>
-            <path d="M${l3}L${l4}" stroke="#34b38a" stroke-width="1.6"/>
-            <path d="M${l5}L${l6}" stroke="#227a5d" stroke-width="1.6"/>
+            <path d="M${l1}L${l2}" stroke="var(--pos)" stroke-width="1.8" class="blink"/>
+            <path d="M${l3}L${l4}" stroke="var(--pos)" stroke-width="1.6" opacity="0.8"/>
+            <path d="M${l5}L${l6}" stroke="var(--pos)" stroke-width="1.6" opacity="0.55"/>
           </g>`;
 
           // Floating Overhead Holographic Orbit Halo
           const haloPos = P(x, y, h + 0.58);
-          g += `<ellipse cx="${haloPos[0]}" cy="${haloPos[1]}" rx="${(w * 0.92 * S).toFixed(1)}" ry="${(w * 0.52 * S).toFixed(1)}" fill="none" stroke="#50dfb0" stroke-width="1.2" stroke-dasharray="10 6" class="halo-orbit" opacity="0.85"/>`;
+          g += `<ellipse cx="${haloPos[0]}" cy="${haloPos[1]}" rx="${(w * 0.92 * S).toFixed(1)}" ry="${(w * 0.52 * S).toFixed(1)}" fill="none" stroke="var(--pos)" stroke-width="1.2" stroke-dasharray="10 6" class="halo-orbit" opacity="0.85"/>`;
         }
       }
 
@@ -286,15 +293,17 @@ function renderIsoScene(container, graph, data = {}, onSelect) {
         // ── APPROVAL GATE: Dual Rotating Concentric Security Rings ──
         const cDisc = P(x, y, h + 0.03);
         const rxD = +(w * 0.85 * S).toFixed(1), ryD = +(w * 0.48 * S).toFixed(1);
-        g += `<ellipse cx="${cDisc[0]}" cy="${cDisc[1]}" rx="${rxD}" ry="${ryD}" fill="var(--iso-disc-bg, #16221c)" stroke="#34b38a" stroke-width="1.6"/>`;
-        g += `<ellipse cx="${cDisc[0]}" cy="${cDisc[1]}" rx="${(rxD * 0.65).toFixed(1)}" ry="${(ryD * 0.65).toFixed(1)}" fill="none" stroke="#6fd4ab" stroke-width="1.4" stroke-dasharray="8 4" class="halo-orbit-rev"/>`;
-        g += `<circle cx="${cDisc[0]}" cy="${cDisc[1]}" r="3.2" fill="#50dfb0" filter="url(#f-glow)"/>`;
+        g += `<ellipse cx="${cDisc[0]}" cy="${cDisc[1]}" rx="${rxD}" ry="${ryD}" fill="var(--iso-disc-bg, #16221c)" stroke="var(--pos)" stroke-width="1.6"/>`;
+        g += `<ellipse cx="${cDisc[0]}" cy="${cDisc[1]}" rx="${(rxD * 0.65).toFixed(1)}" ry="${(ryD * 0.65).toFixed(1)}" fill="none" stroke="var(--pos)" stroke-width="1.4" stroke-dasharray="8 4" class="halo-orbit-rev"/>`;
+        g += `<circle cx="${cDisc[0]}" cy="${cDisc[1]}" r="3.2" fill="var(--pos)" filter="url(#f-glow)"/>`;
       }
 
       if (isFault) {
-        // Fracture glitch slash on top face
+        // Fracture glitch slash on top face & vertical telemetry beam
         const A2 = P(x - w * 0.65, y - w * 0.65, h), C2 = P(x + w * 0.65, y + w * 0.65, h);
-        g += `<line x1="${A2[0]}" y1="${A2[1]}" x2="${C2[0]}" y2="${C2[1]}" stroke="#ff6a3d" stroke-width="2" class="fault-wire-glitch"/>`;
+        const bTop = P(x, y, h + 0.68), bBase = P(x, y, h);
+        g += `<line x1="${A2[0]}" y1="${A2[1]}" x2="${C2[0]}" y2="${C2[1]}" stroke="var(--signal)" stroke-width="2" class="fault-wire-glitch"/>`;
+        g += `<line x1="${bBase[0]}" y1="${bBase[1]}" x2="${bTop[0]}" y2="${bTop[1]}" stroke="var(--signal)" stroke-width="1.6" stroke-dasharray="3 3" class="uplink-beam"/>`;
       }
     }
 
