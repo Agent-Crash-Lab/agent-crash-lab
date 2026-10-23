@@ -23,6 +23,7 @@ import com.agentcrashlab.mcp.auth.AgentTokens;
 import com.agentcrashlab.mcp.common.ToolErrorCode;
 import com.agentcrashlab.mcp.common.ToolException;
 import com.agentcrashlab.mcp.domain.GuideLibrary;
+import com.agentcrashlab.mcp.domain.InvestigationRuns;
 import com.agentcrashlab.mcp.domain.KnowledgeSearch;
 import com.agentcrashlab.mcp.domain.RunFinalizer;
 import com.agentcrashlab.mcp.event.EventPublisher;
@@ -36,7 +37,8 @@ import com.agentcrashlab.mcp.tool.ToolRunner.ToolCall;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * rag-mcp: 사고 조사 Agent용 읽기 전용 도구 4개와 지침 원문 Resource (MCP_SPEC 1.4).
+ * rag-mcp: 사고 조사 Agent용 읽기 전용 도구와 지침 원문 Resource (MCP_SPEC 1.4).
+ * 구매 실행은 이 서버 DB를, 생산·품질 실행은 Harness 모의 환경 상태를 읽는다 (MCP_SPEC 4.4).
  * INVESTIGATION_AGENT 토큰만 호출할 수 있고, run_id 인자는 토큰에 묶인 조사 대상 실행과 같아야 한다.
  */
 @Configuration(proxyBeanMethods = false)
@@ -60,11 +62,13 @@ class RagTools {
 
 	@Bean
 	List<SyncToolSpecification> ragToolSpecifications(HarnessClient harness, RunFinalizer finalizer,
-			GuideLibrary guides, JdbcClient jdbc, JsonMapper json, KnowledgeSearch knowledge) {
+			GuideLibrary guides, JdbcClient jdbc, JsonMapper json, KnowledgeSearch knowledge,
+			InvestigationRuns runs) {
 		return List.of(tool("search_manufacturing_knowledge", call -> {
             ToolArgs.requireKeys(call.arguments(), Set.of("query"));
             String query = ToolArgs.text(call.arguments(), "query");
-            Map<String,Object> result = knowledge.search(query, "PURCHASE", 3);
+            // 검색 범위는 토큰에 묶인 실행의 업무 유형 (공통 문서는 항상 포함)
+            Map<String,Object> result = knowledge.search(query, runs.agentType(call.principal().runId()), 3);
             this.events.publish(call.principal().runId(), new Event("GUIDE_RETRIEVED", "investigation_agent",
                     Node.GUIDE, call.calledEventId(), call.toolCallId(), List.of(),
                     Map.of("via", "search_manufacturing_knowledge", "index_version", result.get("index_version"))));
@@ -83,11 +87,27 @@ class RagTools {
 			Map<String, Object> result = new LinkedHashMap<>();
 			result.put("run_id", runId);
 			result.put("events", runEvents);
-			result.put("tool_calls", toolCalls(jdbc, json, runId));
-			evidenceFetched(call, "get_run_trace", evidenceIds(runEvents, "evidence_ids"));
+			List<String> ids = evidenceIds(runEvents, "evidence_ids");
+			if (InvestigationRuns.PURCHASE.equals(runs.agentType(runId))) {
+				result.put("tool_calls", toolCalls(jdbc, json, runId));
+			}
+			else {
+				List<Map<String, Object>> calls = maps(fromHarness(() -> harness.simulationState(runId)).get("tool_calls"));
+				result.put("tool_calls", calls);
+				ids.addAll(evidenceIds(calls, "evidence_ids"));
+			}
+			evidenceFetched(call, "get_run_trace", ids);
 			return result;
 		}), tool("get_business_state", call -> {
 			String runId = targetRun(call);
+			if (!InvestigationRuns.PURCHASE.equals(runs.agentType(runId))) {
+				// 생산·품질: Harness 모의 환경이 원본. 도구 호출은 get_run_trace로만 돌려준다
+				Map<String, Object> state = new LinkedHashMap<>(fromHarness(() -> harness.simulationState(runId)));
+				state.remove("tool_calls");
+				state.put("run_id", runId);
+				evidenceFetched(call, "get_business_state", strings(state.get("snapshot_evidence_ids")));
+				return state;
+			}
 			Map<String, Object> state = finalizer.currentState(runId);
 			List<String> ids = new ArrayList<>(strings(state.get("snapshot_evidence_ids")));
 			ids.addAll(strings(state.get("commit_evidence_ids")));
@@ -187,6 +207,14 @@ class RagTools {
 		List<String> ids = new ArrayList<>();
 		items.forEach(item -> ids.addAll(strings(item.get(field))));
 		return ids;
+	}
+
+	@SuppressWarnings("unchecked")
+	private static List<Map<String, Object>> maps(Object value) {
+		if (!(value instanceof List<?>)) {
+			throw new ToolException(ToolErrorCode.INTERNAL_ERROR); // Harness 응답 형식 오류
+		}
+		return (List<Map<String, Object>>) value;
 	}
 
 	private static List<String> strings(Object value) {

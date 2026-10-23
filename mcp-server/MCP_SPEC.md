@@ -157,6 +157,8 @@ hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False, separator
 - Resource: `guide://{document_id}/{version}` → 지침 원문 Markdown (`guides/index.json`의 `document_id`, `version`)
 - `search_failure_guides`는 모델 없이 키워드 일치 점수로 검색한다(제목 3점, 본문 1점). 같은 질문에는 항상 같은 결과가 나온다. 결과는 최대 3건이고, `location`은 가장 많이 일치한 문단(`문단 N`), `snippet`은 그 문단의 앞부분이다.
 - `get_failed_checks`, `get_run_trace`는 Harness 조회(4.3)가 실패하면 `INTERNAL_ERROR`(retryable)를 돌려준다.
+- 생산·품질 실행(3.6으로 등록)은 업무 상태와 대상 Agent의 도구 호출이 Harness 모의 환경에 있다. `get_business_state`와 `get_run_trace`의 `tool_calls[]`는 Harness 조회(4.4)로 채운다. 실패하면 `INTERNAL_ERROR`(retryable)다.
+- `search_manufacturing_knowledge`의 검색 범위는 토큰에 묶인 실행의 업무 유형(`PURCHASE`/`PRODUCTION`/`QUALITY`)이다. 공통 문서는 항상 포함된다. 도구 입력은 바뀌지 않는다.
 - 프론트 데모의 `get_run_evidence`, `retrieve_guide`는 별칭일 뿐이다. MCP는 위 4개 이름만 제공한다.
 
 `tool_calls[]` 항목:
@@ -396,6 +398,22 @@ Harness는 `wait_ms: 5000`으로 호출한다. Oracle은 `oracle_ro`로 업무 D
 - commit 여부를 Agent에 알리지 않는다 (`expose_commit_status_to_target: false`). 사고 설정은 도구 설명·응답·오류 메시지 어디에도 노출하지 않는다.
 - 주입 처리 중 예외가 나면 `INJECTION_ERROR`. 실행은 ERROR이고 Agent 결함과 별도로 집계한다.
 
+### 3.6 생산·품질 실행 조사 등록 `POST /internal/investigation-runs`
+
+Harness 모의 환경에서 실행한 생산·품질 시험을 조사할 때, 조사 Agent를 시작하기 전에 호출한다.
+
+```jsonc
+// 요청
+{ "run_id": "RUN-101", "agent_type": "PRODUCTION", "scenario_id": "PN01", "requested_by": "requester-01" }
+// 201
+{ "run_id": "RUN-101", "agent_type": "PRODUCTION", "agent_tokens": { "investigation_agent": "…" } }
+```
+
+- `agent_type`은 `PRODUCTION` / `QUALITY`만 받는다. 구매 실행은 3.1로 초기화하고 그때 조사 토큰을 받는다.
+- `run_context`에 조사 전용 행(`server_policy_version`, `fixture_id` = `harness-sandbox`)을 만든다. 업무 데이터는 만들지 않는다.
+- 같은 실행을 다시 등록하면 이전 조사 토큰을 폐기하고 새로 발급한다. 다른 `agent_type`으로 등록하면 409.
+- 조사 Agent 토큰으로는 구매 업무 도구를 쓸 수 없다. 조사 도구 호출 기록은 이 실행 ID로 남는다.
+
 ---
 
 ## 4. MCP → Harness 내부 API
@@ -448,6 +466,28 @@ Harness가 제공하고 MCP가 호출한다.
 ```
 
 `scope`: `agent_behavior` / `server_control` / `business_state` / `task_completion` / `report_truthfulness` / `qa_evidence`
+
+### 4.4 생산·품질 모의 환경 상태 `GET /internal/runs/{run_id}/simulation-state`
+
+3.6으로 등록한 실행에만 호출한다. Harness가 제공해야 하는 응답 형식이다.
+
+```json
+{
+  "run_id": "RUN-101",
+  "agent_type": "PRODUCTION",
+  "snapshot_complete": true,
+  "snapshot_evidence_ids": ["SNAP-RUN-101"],
+  "current_state": {},
+  "changes": [],
+  "approval": null,
+  "tool_calls": [
+    { "tool": "assign_operation", "arguments": {}, "effect": "WRITE", "evidence_ids": ["EV-CALL-1"], "is_error": false, "error_code": null }
+  ]
+}
+```
+
+- `get_business_state`는 `tool_calls`를 뺀 나머지를 돌려준다. `tool_calls`는 `get_run_trace`가 돌려준다.
+- `agent_type`은 조사 Agent가 생산·품질을 구분하는 데 쓴다. 모든 근거 ID는 이 실행의 것이어야 한다.
 
 ---
 

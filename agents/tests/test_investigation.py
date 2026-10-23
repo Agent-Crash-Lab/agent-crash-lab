@@ -4,7 +4,8 @@ import pytest
 from conftest import settled
 
 from agents.models import StartRequest
-from agents.qa.investigation import FixtureReportModel
+from agents.qa.investigation import FixtureReportModel, business_type
+from agents.tools.errors import ToolError
 from agents.tools.mock import MockTools
 
 
@@ -113,6 +114,53 @@ async def test_missing_guides_does_not_fabricate_source(runtime, monkeypatch):
     assert run["status"] == "COMPLETED"
     assert not run["result"]["improvements"]
     assert run["result"]["missing_evidence"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("rule", "reason", "kind", "cause_word"),
+    [
+        ("M_DOMAIN", "업무 제약: MACHINE_MAINTENANCE · 변경 시도 1회", "PRODUCTION", "설비"),
+        ("M_DOMAIN", "업무 제약: INSPECTION_FAILED · 변경 시도 1회", "QUALITY", "검사"),
+        ("M_REPORT", "Agent 보고와 DB 변경 건수·완료 상태 대조", "MANUFACTURING", "보고"),
+    ],
+)
+async def test_manufacturing_failure_is_investigated_without_purchase_assumptions(
+    runtime, monkeypatch, rule, reason, kind, cause_word
+):
+    original = MockTools.call
+    queries = []
+
+    async def call(self, name, arguments):
+        if name == "get_failed_checks":
+            check = {"run_id": self.target_run_id, "rule_id": rule, "scope": "agent_behavior"}
+            check |= {"verdict": "FAIL", "reason": reason, "evidence_ids": ["EV-SNAP", "EV-CALL"]}
+            return {"run_id": self.target_run_id, "checks": [check]}
+        if name == "get_business_state":
+            raise ToolError("PERMISSION_DENIED")  # purchase-only today; must surface as a gap
+        if name == "get_run_trace":
+            return {"run_id": self.target_run_id, "events": [], "tool_calls": []}
+        if name == "search_failure_guides":
+            queries.append(arguments["query"])
+        return await original(self, name, arguments)
+
+    monkeypatch.setattr(MockTools, "call", call)
+    body = investigation()
+    await runtime.start(body)
+    run = await settled(runtime, body.run_id)
+    assert run["status"] == "COMPLETED"
+    report = run["result"]
+    assert report["facts"][0] == {
+        "text": f"{rule}(agent_behavior): {reason}",
+        "evidence_ids": ["EV-SNAP", "EV-CALL"],
+    }
+    assert any(cause_word in c for c in report["cause_candidates"])
+    assert "get_business_state 조회 실패" in report["missing_evidence"]
+    assert report["retest_scenario_ids"] == []
+    assert report["improvements"][0]["sources"][0]["document_id"] == "investigation-guide"
+    assert queries and "승인" not in queries[0]
+    assert "발주" not in str(report)
+    assert business_type({"checks": {"checks": [{"rule_id": rule, "reason": reason}]}}) == kind
 
 
 @pytest.mark.asyncio
