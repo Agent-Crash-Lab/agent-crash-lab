@@ -51,6 +51,13 @@ function failure(error) {
   notify(error.details?.decision_saved ? '결정은 저장됐지만 실행 재개 전달에 실패했습니다. 같은 결정을 다시 보내 주세요.' : messages[error.code] || error.message, true);
 }
 export function leaveLive() { leaveApprover(); clearTimeout(timer); clearTimeout(batchTimer); clearInterval(playback); playback=null; generation++; host=null; loading=false; pauseScene(); }
+function logoutWorkspace(){
+  Object.assign(state,{session:null,catalog:null,run:null,runs:[],events:[],selected:null,settled:false,
+    registration:null,registrations:[],capabilityOptions:[],executionRuntimes:[],targetTypes:[],
+    batch:null,batchRequest:null,designPlan:null,designCaseId:null,knowledge:null,knowledgeStatus:null,
+    comparison:null,compareDraft:{left:'',right:''},pendingRunId:null,pendingStart:false});
+  leaveLive();go('agents');
+}
 export function isApproverAccount() { return !!state.session?.roles.includes('APPROVER'); }
 export function accountPage(requested) { return isApproverAccount() ? (['approvals','requests','reports'].includes(requested)?requested:'approvals') : (['approvals','requests','reports'].includes(requested)?'agents':requested); }
 export function isLiveAuthenticated() { return !!state.session; }
@@ -324,7 +331,7 @@ function syncShellChrome() {
       userEl.hidden=false;
       userEl.innerHTML=`<span class="user-chip"><span class="mono">${esc(state.session.user_id)}</span><button type="button" class="chip-logout" data-live-shell-logout>로그아웃</button></span>`;
       const btn=userEl.querySelector('[data-live-shell-logout]');
-      if(btn) btn.onclick=()=>{host?.querySelector('[data-live-logout]')?.click();};
+      if(btn) btn.onclick=logoutWorkspace;
     } else {
       userEl.hidden=true;
     }
@@ -343,9 +350,7 @@ export function mountLive(element, selectedPage='agents', navigate) {
   page=accountPage(page);
   if(isApproverAccount()) {
     syncShellChrome();
-    const logout=()=>{state.session=null;state.run=null;state.runs=[];state.events=[];state.registration=null;state.designPlan=null;state.batch=null;go('agents');};
-    const logoutButton=document.querySelector('[data-live-shell-logout]');if(logoutButton)logoutButton.onclick=logout;
-    mountApprover(host,page,state.session,go,logout);
+    mountApprover(host,page,state.session,go,logoutWorkspace);
     return;
   }
   const [title,description]=pageCopy[page];
@@ -1179,7 +1184,7 @@ function click(event) {
     if(ed){ ed.open=true; ed.scrollIntoView({behavior:'smooth',block:'start'}); }
     return;
   }
-  if(target.hasAttribute('data-live-logout')) {state.registration=null;state.registrations=[];state.capabilityOptions=[];state.batch=null;state.batchRequest=null;state.designPlan=null;state.designCaseId=null;state.targetTypes=[];state.session=null;state.catalog=null;state.run=null;state.events=[];state.runs=[];state.comparison=null;state.compareDraft={left:'',right:''};state.pendingRunId=null;const element=host;leaveLive();mountLive(element,page,go);notify('로그아웃했습니다.');}
+  if(target.hasAttribute('data-live-logout')) {logoutWorkspace();return;}
   if(target.hasAttribute('data-qa-parse')){
     try{renderToolBindings($('[data-qa-registration]'),state.capabilityOptions);notify('도구별 조회·변경과 업무 기능 연결을 확인하세요.');}catch(error){failure(error);}
   }
