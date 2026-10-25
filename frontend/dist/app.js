@@ -310,6 +310,7 @@ function renderCoachmark(){
 }
 function render() {
  leaveLive();
+ document.body.classList.toggle('is-unauthenticated',workspacePage!=='demo'&&!isLiveAuthenticated());
  removeCoachmark();
  document.querySelectorAll('[data-tab=compare]').forEach(button=>{button.hidden=!LIVE_COMPARISON_ENABLED;const arrow=button.previousElementSibling;if(arrow?.classList.contains('step-arrow'))arrow.hidden=!LIVE_COMPARISON_ENABLED;});
  $('#main').classList.toggle('demo-workspace',workspacePage==='demo');
@@ -421,7 +422,7 @@ document.addEventListener('click',async e=>{
  }
 });
 document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.matches('svg [role=button]')){e.preventDefault();e.target.dispatchEvent(new MouseEvent('click',{bubbles:true}));}});
-$('#help-button')?.addEventListener('click',()=>$('#info-dialog').showModal());
+for(const id of ['help-button','login-help'])$('#'+id)?.addEventListener('click',()=>$('#info-dialog').showModal());
 for(const id of ['close-dialog','understood'])$('#'+id).addEventListener('click',()=>$('#info-dialog').close());
 function updateThemeUI() {
   const isLight = document.documentElement.dataset.theme === 'light';
@@ -432,6 +433,7 @@ function updateThemeUI() {
   $('#theme-toggle')?.setAttribute('aria-label', title);
   $('#theme-toggle-rail')?.setAttribute('title', title);
   $('#theme-toggle-rail')?.setAttribute('aria-label', title);
+  for(const id of ['theme-toggle','theme-toggle-rail'])$('#'+id)?.setAttribute('aria-pressed',String(!isLight));
   const meta = $('meta[name="theme-color"]');
   if (meta) meta.setAttribute('content', isLight ? '#f4f5f8' : '#0e0e10');
 }

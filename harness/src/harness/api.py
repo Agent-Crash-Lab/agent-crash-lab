@@ -162,7 +162,7 @@ def create_app(settings: Settings | None = None, mcp=None, agents=None) -> FastA
                 await agent_client.close()
             store.close()
 
-    app = FastAPI(title="Agent Crash Lab — Harness", lifespan=lifespan)
+    app = FastAPI(title="OOPS — Harness", lifespan=lifespan)
 
     @app.exception_handler(ApiError)
     async def api_error(request, exc: ApiError):

@@ -290,6 +290,7 @@ function renderLoginTopoSvg() {
 }
 function syncShellChrome() {
   const authed=!!state.session, approver=isApproverAccount();
+  document.body.classList.toggle('is-unauthenticated',!authed);
   document.querySelectorAll('[data-approver-nav]').forEach(el=>{el.hidden=!approver;});
   document.querySelectorAll('[data-approver-nav] [data-tab]').forEach(el=>{el.classList.toggle('active',el.dataset.tab===page);el.setAttribute('aria-current',el.dataset.tab===page?'page':'false');});
   const scopeEl=document.getElementById('header-scope');
@@ -359,7 +360,7 @@ export function mountLive(element, selectedPage='agents', navigate) {
               <path d="M1.5 8 13 14.5 24.5 8M13 14.5v12" stroke="currentColor" stroke-width="1.6"/>
               <path d="m15.5 4 -3 5 3.2 1.4-2.6 4.6" stroke="#ff6a3d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            <span>Crash Lab</span>
+            <span>OOPS</span>
           </div>
           <h2 class="login-headline rise">QA 워크스페이스</h2>
           <p class="login-lead rise d1">제조 Agent 장애 주입 및 신뢰성 검증 환경</p>
@@ -558,13 +559,14 @@ export function mountLive(element, selectedPage='agents', navigate) {
           <div data-live-comparison class="rise d2" ${page==='compare'?'':'hidden'}></div>
           <section class="card section-pad live-analysis-shell" data-live-analysis hidden>
             <div class="live-row analysis-top-bar">
-              <div>
-
+              <div class="live-flow-heading">
                 <h2>실행 흐름</h2>
+                <button type="button" class="secondary live-replay" data-live-play aria-label="실행 흐름 재생" title="실행 흐름 재생" aria-pressed="false" disabled>
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true" focusable="false"><path class="replay-play" d="M8 5v14l11-7z"/><path class="replay-pause" d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
+                </button>
               </div>
               <div class="live-row">
                 <span class="mono dim" data-live-count></span>
-                <button class="secondary" data-live-play>재생</button>
                 <button class="secondary" data-live-export>근거 JSON 내보내기</button>
               </div>
             </div>
@@ -1237,12 +1239,18 @@ function click(event) {
   if(target.hasAttribute('data-live-close-comparison')){state.comparison=null;$('[data-live-comparison]').innerHTML='';actionHint();}
 }
 
-function stopReplay(){clearInterval(playback);playback=null;const playEl=$('[data-live-play]');if(playEl)playEl.textContent='재생';}
+function replayButton(playing){
+  const button=$('[data-live-play]');if(!button)return;
+  const label=playing?'실행 흐름 일시정지':'실행 흐름 재생';
+  button.setAttribute('aria-label',label);button.title=label;
+  button.setAttribute('aria-pressed',String(playing));
+}
+function stopReplay(){clearInterval(playback);playback=null;replayButton(false);}
 function toggleReplay(){
   if(playback){stopReplay();return;}
   if(!state.events.length)return;
   state.selected=state.selected===null || state.selected>=state.events.length-1 ? 0 : state.selected;
-  const playEl=$('[data-live-play]');if(playEl)playEl.textContent='정지';renderEvents();
+  replayButton(true);renderEvents();
   playback=setInterval(()=>{
     if(!host || !['live','execution'].includes(page) || state.selected>=state.events.length-1){stopReplay();return;}
     state.selected++;renderEvents();

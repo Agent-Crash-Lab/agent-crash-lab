@@ -38,3 +38,15 @@ test('empty design gives a next action without creating or selecting a scenario'
  assert.match(ui.area.innerHTML,/새로운 시험을 제안받아 보세요/);
  assert.equal(ui.state.designCaseId,null);assert.equal(ui.state.designPlan,null);
 });
+
+test('login hides the workspace shell and login/logout restores the appropriate shell',()=>{
+ const classes=new Set();
+ const document={body:{classList:{toggle(name,enabled){enabled?classes.add(name):classes.delete(name);}}},
+  querySelector:()=>null,querySelectorAll:()=>[],getElementById:()=>null};
+ const ui=vm.runInNewContext(source+';({state,syncShellChrome})',{...api,purchaseTopology,document});
+ ui.syncShellChrome();assert.ok(classes.has('is-unauthenticated'));
+ for(const roles of [['REQUESTER'],['APPROVER']]){
+  ui.state.session={roles};ui.syncShellChrome();assert.equal(classes.has('is-unauthenticated'),false);
+ }
+ ui.state.session=null;ui.syncShellChrome();assert.ok(classes.has('is-unauthenticated'));
+});

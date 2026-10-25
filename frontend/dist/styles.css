@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   Agent Crash Lab — Control Room Dark Theme (data-terminal)
+   OOPS — Control Room Dark Theme (data-terminal)
    Tokens & Surface Hierarchy:
    --ground: #0e0e10 | --surface: #141417 | --raised: #1b1b1f | --raised-2: #232328
    --signal: #ff6a3d | --pos: #3fb68b | --neg: #f0566f | --warn: #e0a83e
@@ -1545,6 +1545,14 @@ main#main:has([data-live-auth-split]:not([hidden])) {
   gap: 12px;
   flex-wrap: wrap;
 }
+
+.live-flow-heading { display: flex; align-items: center; gap: 8px; }
+.live-flow-heading h2 { margin: 0; }
+.live-flow-heading .live-replay { width: 36px; padding: 0; flex-shrink: 0; }
+.live-replay .replay-pause, .live-replay[aria-pressed="true"] .replay-play { display: none; }
+.live-replay[aria-pressed="true"] .replay-pause { display: inline; }
+.live-replay[aria-pressed="true"] { color: var(--signal); }
+@media (pointer: coarse) { .live-flow-heading .live-replay { width: 44px; height: 44px; } }
 
 .live-hint, .live-layout small {
   font-size: 12px;
@@ -4326,17 +4334,16 @@ body.is-unauthenticated .login-split {
 /* ═══════════════════════════════════════════════════════════════
    FLOATING ROUND CONTROLS (THEME & HELP TOGGLES)
    ═══════════════════════════════════════════════════════════════ */
-.floating-left-controls {
+.login-utilities {
   position: fixed;
-  left: 20px;
-  bottom: 24px;
+  top: 20px;
+  right: 24px;
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   z-index: 100;
 }
 
-body:not(.is-unauthenticated) .floating-left-controls {
+body:not(.is-unauthenticated) .login-utilities {
   display: none;
 }
 
@@ -4966,3 +4973,7 @@ body.is-approver-mode .prepare-main-col {
 .approver-history { margin-top:32px; }
 @media(max-width:900px) { .workspace-bar:has(.approver-nav:not([hidden])) { flex-wrap:wrap; } .approver-nav { flex-wrap:wrap; } }
 @media(max-width:600px) { .approver-request-fields,.approver-report-grid { grid-template-columns:1fr; gap:16px; } .approver-entry>header,.approver-workspace .page-header { flex-direction:column; gap:12px; } .approver-nav .secondary { padding:10px; font-size:12px; } }
+
+@media (max-width: 760px) {
+  .login-utilities { top: 16px; right: 16px; }
+}

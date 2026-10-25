@@ -1,1 +1,1 @@
-"""Agent Crash Lab Harness."""
+"""OOPS Harness."""
