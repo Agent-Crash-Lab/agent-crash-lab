@@ -8,7 +8,7 @@ import {referenceTargetTypes,targetTypeMeta,renderChainSvg} from '../dist/live.j
 import {purchaseTopology,investigationTopology,registrationExample} from '../dist/topologies.js';
 const clone=structuredClone;
 const source=fs.readFileSync(new URL('../dist/app.js',import.meta.url),'utf8').replace(/^import .*$/mg,'').split("document.addEventListener(")[0];
-function application(document,timers={}){return vm.runInNewContext(source+`;render=()=>{};toast=message=>{state.lastToast=message;};({state,eventsFor,checksFor,loadDemo,selectAgent,verifyAgent,open3DDemo,agentView,executionView,prepareView,compareView,withDraft,structureView,renderCoachmark,navigate,tutorialMilestone,tutorialGuideSteps,setTutorialGuideStep,demoTargetsView,openDemoSample,generateDemoProposals,chooseScenario,finishDemoApproval,demoRunView})`,{document,referenceTargetTypes,targetTypeMeta,renderChainSvg,...registry,restoreProfiles:()=>{},...topology,structuredClone,setTimeout,clearTimeout,...timers,history:{replaceState(){}},console});}
+function application(document,timers={}){return vm.runInNewContext(source+`;render=()=>{};toast=message=>{state.lastToast=message;};({state,eventsFor,checksFor,loadDemo,selectAgent,verifyAgent,open3DDemo,agentView,executionView,prepareView,compareView,withDraft,structureView,renderCoachmark,navigate,tutorialMilestone,tutorialGuideSteps,setTutorialGuideStep,demoTargetsView,openDemoSample,generateDemoProposals,chooseScenario,finishDemoApproval,demoRunView,practiceTutorial})`,{document,referenceTargetTypes,targetTypeMeta,renderChainSvg,...registry,restoreProfiles:()=>{},...topology,structuredClone,setTimeout,clearTimeout,...timers,history:{replaceState(){}},console});}
 
 test('all 9 demo scenarios map every event to the selected graph and retain check references',()=>{
  const app=application();
@@ -157,6 +157,7 @@ test('proposal feedback and execution decisions use fixtures without API calls',
  app.chooseScenario('S03');app.state.draft.config='B1';app.loadDemo();
  assert.equal(app.state.tab,'live');assert.equal(app.state.config,'B1');assert.equal(app.state.demoStarted,false);
  assert.match(app.demoRunView('live'),/실행 전 · 구조 미리보기/);
+ assert.ok(app.demoRunView('live').indexOf('data-action="demo-start"')<app.demoRunView('live').indexOf('class="card section-pad live-analysis-shell"'));
  app.state.demoStarted=true;app.finishDemoApproval(true);
  assert.equal(app.state.demoApproval,'APPROVED');assert.equal(app.state.cursor,app.eventsFor().length-1);
  assert.ok(app.checksFor().every(c=>c.result==='PASS'));
@@ -172,4 +173,30 @@ test('production and quality fixture events map to the same stage and produce do
   assert.ok(app.checksFor().some(c=>c.result==='FAIL'));
   assert.doesNotMatch(app.demoRunView('live'),/undefined|발주/);
  }
+});
+
+
+test('proposal tour previews results before generation and practice resets to the initial screen',()=>{
+ let finish;
+ const app=application(undefined,{setTimeout:callback=>{finish=callback;return 1;}});
+ app.navigate('prepare');
+ assert.match(app.withDraft(app.prepareView),/<div  class="design-board/);
+ assert.doesNotMatch(app.withDraft(app.prepareView),/class="design-empty"/);
+ app.practiceTutorial();
+ assert.match(app.withDraft(app.prepareView),/<div hidden class="design-board/);
+ for(const index of [0,1,2,3]){
+  app.setTutorialGuideStep(index);
+  const html=app.withDraft(app.prepareView);
+  assert.match(html,/<div  class="design-board/);
+  assert.ok(html.indexOf('data-action="load"')<html.indexOf('class="design-selection"'));
+  assert.equal(app.state.demoDesignStatus,'idle');assert.equal(app.state.run,null);
+ }
+ app.generateDemoProposals();
+ app.practiceTutorial();finish();
+ assert.equal(app.state.demoDesignStatus,'idle');assert.equal(app.state.demoSelected,false);
+ assert.equal(app.state.tutorialTour,false);assert.equal(app.state.tutorialGuideIndex.prepare,0);
+ assert.match(app.withDraft(app.prepareView),/<div hidden class="design-board/);
+ app.generateDemoProposals();finish();
+ assert.equal(app.state.demoDesignStatus,'ready');
+ assert.match(app.withDraft(app.prepareView),/<div  class="design-board/);
 });

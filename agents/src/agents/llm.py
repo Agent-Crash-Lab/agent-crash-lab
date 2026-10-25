@@ -117,7 +117,7 @@ class StructuredModel:
 
     async def generate(self, prompt, context):
         # Byte count is a conservative token bound, including schema and message overhead.
-        data = json.dumps(context, ensure_ascii=False, sort_keys=True)
+        data = json.dumps(context, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         response_schema = self.schema.model_json_schema()
         if "allowed_actions" in context and "action" in response_schema.get("properties", {}):
             # Constrain decoding as well as validating the chosen action in application code.
@@ -171,7 +171,7 @@ class StructuredModel:
                             for source in context.get("sources", [])
                             if context["review_stage"] in source.get("evidence_domains", [])
                         ]
-        schema = json.dumps(response_schema, ensure_ascii=False)
+        schema = json.dumps(response_schema, ensure_ascii=False, separators=(",", ":"))
         bound = len((prompt + data + schema).encode("utf-8")) + 1024
         if bound > 64000:
             raise ModelError("LLM_INPUT_LIMIT")

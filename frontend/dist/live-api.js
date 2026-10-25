@@ -80,7 +80,7 @@ export const LIVE_COMPARISON_ENABLED = false;
 export function workspaceRoute(hash) {
   const value=hash.replace(/^#/, '') || 'agents';
   if(value==='compare' && !LIVE_COMPARISON_ENABLED)return {page:'execution'};
-  if(['agents','prepare','live','execution','compare'].includes(value))return {page:value};
+  if(['agents','prepare','live','execution','compare','approvals','requests','reports'].includes(value))return {page:value};
   if(value==='demo' || value.startsWith('demo-')) {
     const tab=value.slice(5);
     return {page:'demo',demoTab:['agents','prepare','execution','compare','structure'].includes(tab)?tab:'agents',show3d:value==='demo-3d'};

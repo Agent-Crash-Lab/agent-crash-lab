@@ -401,7 +401,7 @@ def create_app(settings: Settings | None = None, mcp=None, agents=None) -> FastA
             raise ApiError(
                 503,
                 exc.code
-                if exc.code in {"LLM_KEY_NOT_CONFIGURED", "UNPRICED_MODEL", "LLM_BUDGET_EXHAUSTED"}
+                if exc.code in {"LLM_KEY_NOT_CONFIGURED", "UNPRICED_MODEL", "LLM_BUDGET_EXHAUSTED", "LLM_INPUT_LIMIT"}
                 else "QA_DESIGN_UNAVAILABLE",
             ) from None
         except (ValidationError, SchemaError, ValueError, KeyError, RecursionError):
@@ -428,7 +428,7 @@ def create_app(settings: Settings | None = None, mcp=None, agents=None) -> FastA
             raise ApiError(
                 503,
                 exc.code
-                if exc.code in {"LLM_KEY_NOT_CONFIGURED", "UNPRICED_MODEL", "LLM_BUDGET_EXHAUSTED"}
+                if exc.code in {"LLM_KEY_NOT_CONFIGURED", "UNPRICED_MODEL", "LLM_BUDGET_EXHAUSTED", "LLM_INPUT_LIMIT"}
                 else "QA_DESIGN_UNAVAILABLE",
             ) from None
         except (ValidationError, SchemaError, ValueError, KeyError, Unresolvable, RecursionError):
@@ -547,6 +547,24 @@ def create_app(settings: Settings | None = None, mcp=None, agents=None) -> FastA
                 for run in request.app.state.store.list_runs(limit)
             ]
         }
+
+    @app.get("/api/qa/approver/runs")
+    async def approver_runs(request: Request, who: User):
+        if "APPROVER" not in who[1]:
+            raise ApiError(403, "PERMISSION_DENIED")
+        store = request.app.state.store
+        recent = store.list_runs(200)
+        # Keep every pending decision visible even when newer QA runs fill the history.
+        pending = [r for r in store.all_runs() if r.get("status") == "WAITING_APPROVAL"]
+        runs = {r["run_id"]: r for r in [*recent, *pending]}
+        fields = ("run_id", "test_id", "system_id", "status", "created_at", "created_by",
+                  "request", "approval_request", "approval", "summary")
+        return {"runs": [
+            {**{k: r.get(k) for k in fields},
+             "simulation": bool((r.get("manifest") or {}).get("state_store")),
+             "qa_report": qa_report(r) if r.get("status") == "COMPLETED" else None}
+            for r in sorted(runs.values(), key=lambda r: r.get("created_at", ""), reverse=True)
+        ]}
 
     @app.get("/api/runs/{run_id}")
     async def run_detail(run_id: str, request: Request, who: User):

@@ -36,3 +36,18 @@ test('failed requests hide the ring and allow another attempt',async()=>{
   const ui=request(),done=ui.run();ui.reject(new Error('network unavailable'));await done;
   assert.equal(ui.progress.hidden,true);assert.equal(ui.button.disabled,false);assert.equal(ui.cleared(),1);
 });
+
+
+test('successful login offers tutorial even if subsequent workspace refresh fails',async()=>{
+ let shown=0,failed=0;
+ const form={matches:s=>s==='[data-live-login]',querySelectorAll:()=>[],reset(){}};
+ const context={FormData:class { *[Symbol.iterator](){yield ['user_id','requester-01'];} },
+  generation:1,host:{},state:{session:null},isApproverAccount:()=>false,notify(){},failure(){failed++;},renderRegistrations(){},account(){},renderBatch(){},
+  api:async()=>({access_token:'test'}),refresh:async()=>{throw new Error('Unavailable');},
+  document:{getElementById:id=>{assert.equal(id,'tutorial-invitation');return {showModal(){shown++;}};}}};
+ const {submit}=vm.runInNewContext(logic+';({submit})',context);
+ await submit({preventDefault(){},target:form});
+ assert.equal(shown,1);assert.equal(failed,1);assert.equal(context.state.session.access_token,'test');
+ context.api=async()=>{throw new Error('Unauthorized');};
+ await submit({preventDefault(){},target:form});assert.equal(shown,1);
+});

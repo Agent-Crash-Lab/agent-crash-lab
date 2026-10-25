@@ -107,7 +107,7 @@ def create_app(
                 raise HTTPException(
                     503,
                     code
-                    if code in {"LLM_KEY_NOT_CONFIGURED", "UNPRICED_MODEL", "LLM_BUDGET_EXHAUSTED"}
+                    if code in {"LLM_KEY_NOT_CONFIGURED", "UNPRICED_MODEL", "LLM_BUDGET_EXHAUSTED", "LLM_INPUT_LIMIT"}
                     else "QA_DESIGN_UNAVAILABLE",
                 ) from None
             except (httpx.HTTPError, TimeoutError):

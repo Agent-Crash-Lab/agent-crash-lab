@@ -32,7 +32,7 @@ services:
       dockerfile: knowledge/Dockerfile
     environment:
       KNOWLEDGE_DATABASE_URL: postgresql://harness_app:${HARNESS_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-}
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?Set INTERNAL_API_TOKEN in the root .env before starting services}
       MODEL_DIR: /models
       CORPUS_MANIFEST: /project/qa/knowledge/corpus.json
       CORPUS_RAW_DIR: /data/raw
@@ -59,8 +59,8 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
       SPRING_DATASOURCE_USERNAME: mcp_app
       SPRING_DATASOURCE_PASSWORD: ${MCP_DB_PASSWORD}
-      # 서비스 간 공유 토큰. 비어 있으면 mcp-server 내부 API(/internal/**)는 모두 503
-      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-}
+      # 서비스 간 공유 토큰. 누락 시 시작 전에 설정 오류를 알린다.
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?Set INTERNAL_API_TOKEN in the root .env before starting services}
       # Agent 재개·이벤트 제출 등 MCP → Harness 호출 (MCP_SPEC 4장). depends_on은 순환이 생기므로 두지 않는다
       HARNESS_URL: http://harness:8000
       MCP_PUBLIC_URL: http://mcp-server:8081/mcp
@@ -93,7 +93,7 @@ services:
       QA_DESIGN_LLM_MODEL: ${QA_DESIGN_LLM_MODEL:-}
       QA_REVIEW_LLM_MODEL: ${QA_REVIEW_LLM_MODEL:-}
       LLM_BUDGET_STAGE: ${LLM_BUDGET_STAGE:-smoke}
-      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-}
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?Set INTERNAL_API_TOKEN in the root .env before starting services}
       AGENT_PROJECT_ROOT: /project
       AGENT_STATE_DIR: /state
     volumes:
@@ -120,7 +120,7 @@ services:
       AGENT_URL: http://agents:8090
       LLM_API_KEY: ${LLM_API_KEY}
       LLM_MODEL: ${LLM_MODEL:-}
-      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-}
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?Set INTERNAL_API_TOKEN in the root .env before starting services}
       HARNESS_PROJECT_ROOT: /project
       HARNESS_DEV_AUTH: ${HARNESS_DEV_AUTH:-false}
       EXTERNAL_AGENT_ENDPOINTS: ${EXTERNAL_AGENT_ENDPOINTS:-{}}

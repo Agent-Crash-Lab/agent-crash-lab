@@ -116,6 +116,8 @@ Docker Compose와 `make`가 필요합니다. 기존 `.env` 파일은 덮어쓰�
 make dev-rag-up
 ```
 
+`make dev-harness-up`도 같은 전체 구성을 시작합니다. 두 명령 모두 문헌 검증·검색 색인을 준비한 뒤 문서 검색 서비스를 함께 실행합니다.
+
 화면은 <http://127.0.0.1:5173/#agents>에서 엽니다. 종료는 `make dev-down`입니다. 기본 offline 모드에서는 유료 LLM을 호출하지 않습니다.
 
 ## 더 읽기

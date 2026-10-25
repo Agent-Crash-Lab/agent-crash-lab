@@ -21,6 +21,7 @@ test('design selection summary escapes labels and preserves readiness and eviden
  const ui=workspace();
  ui.state.designPlan={design:{analysis:{target_type:'PURCHASE'},trace:[]},cases:[scenario('ready','READY'),scenario('blocked','ADAPTER_REQUIRED')]};
  ui.state.designCaseId='ready';ui.renderDesign();
+ assert.ok(ui.area.innerHTML.indexOf('data-live-design-next')<ui.area.innerHTML.indexOf('class="design-selection"'));
  assert.match(ui.area.innerHTML,/선택한 시나리오<\/span><strong>&lt;ready&gt;/);
  assert.match(ui.area.innerHTML,/data-live-use-design="ready" aria-pressed="true" >/);
  assert.match(ui.area.innerHTML,/data-live-use-design="blocked" aria-pressed="false" disabled/);

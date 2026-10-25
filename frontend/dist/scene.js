@@ -1,5 +1,5 @@
 import * as THREE from './vendor/three.module.js';
-import { layoutTopology } from './topology.js?v=0.15.1';
+import { layoutTopology } from './topology.js?v=0.15.4';
 
 void THREE;
 const roleNames = {
