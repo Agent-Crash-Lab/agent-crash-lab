@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "node server.mjs",
     "start": "node server.mjs",
-    "check": "node --check dist/app.js && node --check dist/registry.js && node --check dist/topology.js && node --check dist/topologies.js && node --check dist/registration.js && node --check dist/scene.js && node --check dist/live.js && node --check dist/live-api.js && node --check dist/qa-targets.js && node --check server.mjs",
+    "check": "node --check dist/approver.js && node --check dist/app.js && node --check dist/registry.js && node --check dist/topology.js && node --check dist/topologies.js && node --check dist/registration.js && node --check dist/scene.js && node --check dist/live.js && node --check dist/live-api.js && node --check dist/qa-targets.js && node --check server.mjs",
     "test": "node --test tests/*.test.mjs"
   }
 }

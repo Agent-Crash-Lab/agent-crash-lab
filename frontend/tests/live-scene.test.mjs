@@ -8,15 +8,16 @@ import {sceneEvents, escapeHtml} from '../dist/live-api.js';
 
 const source=readFileSync(new URL('../dist/live.js',import.meta.url),'utf8').replace(/^import .*$/mg,'').replace(/^export /mg,'');
 function workspace(page) {
-  const elements=new Map();let mounted=0,paused=0;
+  const elements=new Map();let mounted=0,paused=0,tick;
   const host={querySelector(selector){
-    if(!elements.has(selector))elements.set(selector,{textContent:'',innerHTML:'',scrollTop:0});
+    if(!elements.has(selector))elements.set(selector,{textContent:'',innerHTML:'',scrollTop:0,setAttribute(name,value){this[name]=value;}});
     return elements.get(selector);
   }};
   const context={purchaseTopology,frameFor,sceneEvents,esc:escapeHtml,
+    setInterval(callback){tick=callback;return 1;},clearInterval(){tick=null;},
     mountScene(){mounted++;},pauseScene(){paused++;}};
-  const app=vm.runInNewContext(source+`;host=testHost;page=testPage;({state,renderEvents})`,{...context,testHost:host,testPage:page});
-  return {...app,element:s=>host.querySelector(s),mounted:()=>mounted,paused:()=>paused};
+  const app=vm.runInNewContext(source+`;host=testHost;page=testPage;({state,renderEvents,toggleReplay})`,{...context,testHost:host,testPage:page});
+  return {...app,element:s=>host.querySelector(s),mounted:()=>mounted,paused:()=>paused,tick:()=>tick?.()};
 }
 
 test('live opens an idle 3D structure without claiming a run or enabling replay/export',()=>{
@@ -26,6 +27,23 @@ test('live opens an idle 3D structure without claiming a run or enabling replay/
   assert.equal(ui.element('[data-live-play]').disabled,true);
   assert.equal(ui.element('[data-live-export]').disabled,true);
   assert.match(ui.element('[data-live-events]').innerHTML,/시험을 시작하면/);
+});
+
+test('flow replay toggles its accessible icon state and resets at the end',()=>{
+  const ui=workspace('live'),button=ui.element('[data-live-play]');
+  ui.state.run={run_id:'RUN-1'};
+  ui.state.events=[1,2].map(sequence=>({run_id:'RUN-1',sequence,event_type:'TOOL_CALLED',node_id:'mcp'}));
+  ui.toggleReplay();
+  assert.equal(ui.state.selected,0);
+  assert.equal(button['aria-pressed'],'true');
+  assert.equal(button['aria-label'],'실행 흐름 일시정지');
+  ui.toggleReplay();
+  assert.equal(button['aria-pressed'],'false');
+  assert.equal(button['aria-label'],'실행 흐름 재생');
+  ui.toggleReplay();ui.tick();ui.tick();
+  assert.equal(ui.state.selected,1);
+  assert.equal(button['aria-pressed'],'false');
+  assert.equal(button['aria-label'],'실행 흐름 재생');
 });
 
 test('live and analysis render actual events while other pages pause the scene',()=>{

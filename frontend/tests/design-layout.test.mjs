@@ -21,6 +21,7 @@ test('design selection summary escapes labels and preserves readiness and eviden
  const ui=workspace();
  ui.state.designPlan={design:{analysis:{target_type:'PURCHASE'},trace:[]},cases:[scenario('ready','READY'),scenario('blocked','ADAPTER_REQUIRED')]};
  ui.state.designCaseId='ready';ui.renderDesign();
+ assert.ok(ui.area.innerHTML.indexOf('data-live-design-next')<ui.area.innerHTML.indexOf('class="design-selection"'));
  assert.match(ui.area.innerHTML,/선택한 시나리오<\/span><strong>&lt;ready&gt;/);
  assert.match(ui.area.innerHTML,/data-live-use-design="ready" aria-pressed="true" >/);
  assert.match(ui.area.innerHTML,/data-live-use-design="blocked" aria-pressed="false" disabled/);
@@ -36,4 +37,16 @@ test('empty design gives a next action without creating or selecting a scenario'
  const ui=workspace();ui.renderDesign();
  assert.match(ui.area.innerHTML,/새로운 시험을 제안받아 보세요/);
  assert.equal(ui.state.designCaseId,null);assert.equal(ui.state.designPlan,null);
+});
+
+test('login hides the workspace shell and login/logout restores the appropriate shell',()=>{
+ const classes=new Set();
+ const document={body:{classList:{toggle(name,enabled){enabled?classes.add(name):classes.delete(name);}}},
+  querySelector:()=>null,querySelectorAll:()=>[],getElementById:()=>null};
+ const ui=vm.runInNewContext(source+';({state,syncShellChrome})',{...api,purchaseTopology,document});
+ ui.syncShellChrome();assert.ok(classes.has('is-unauthenticated'));
+ for(const roles of [['REQUESTER'],['APPROVER']]){
+  ui.state.session={roles};ui.syncShellChrome();assert.equal(classes.has('is-unauthenticated'),false);
+ }
+ ui.state.session=null;ui.syncShellChrome();assert.ok(classes.has('is-unauthenticated'));
 });

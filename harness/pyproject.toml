@@ -1,7 +1,7 @@
 [project]
 name = "crashlab-harness"
 version = "0.1.0"
-description = "Harness runner for Agent Crash Lab"
+description = "Harness runner for OOPS"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

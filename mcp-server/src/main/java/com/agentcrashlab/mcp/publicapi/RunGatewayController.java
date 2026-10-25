@@ -40,7 +40,7 @@ class RunGatewayController {
         this.rest = RestClient.builder().baseUrl(properties.harnessUrl()).requestFactory(factory).build();
     }
 
-    @GetMapping({"/api/scenarios", "/api/runs", "/api/runs/{runId}", "/api/runs/{runId}/events", "/api/comparisons", "/api/qa/target", "/api/qa/targets", "/api/qa/plans/{planId}", "/api/qa/plans/{planId}/scenarios", "/api/qa/scenarios/{scenarioId}/runs", "/api/qa/batches", "/api/qa/batches/{batchId}", "/api/qa/registrations", "/api/qa/registrations/{profileId}"})
+    @GetMapping({"/api/qa/approver/runs", "/api/scenarios", "/api/runs", "/api/runs/{runId}", "/api/runs/{runId}/events", "/api/comparisons", "/api/qa/target", "/api/qa/targets", "/api/qa/plans/{planId}", "/api/qa/plans/{planId}/scenarios", "/api/qa/scenarios/{scenarioId}/runs", "/api/qa/batches", "/api/qa/batches/{batchId}", "/api/qa/registrations", "/api/qa/registrations/{profileId}"})
     ResponseEntity<byte[]> read(HttpServletRequest request,
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization) {
         return forward(request, authorization, null);

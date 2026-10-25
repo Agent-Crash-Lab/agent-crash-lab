@@ -124,6 +124,15 @@ async def test_timeout_keeps_reservation_across_restart(transport, tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_compact_context_fits_input_limit_without_dropping_fields(transport):
+    model, _, create, _ = transport
+    context = {"evidence": ["x"] * 14000}
+    assert len(json.dumps(context).encode()) > 64000
+    assert await model.generate("instructions", context) == CHOICE
+    assert json.loads(create.call_args.kwargs["input"]) == context
+
+
+@pytest.mark.asyncio
 async def test_budget_exhaustion_and_input_limit_never_call_sdk(transport):
     model, _, create, _ = transport
     with pytest.raises(ModelError, match="LLM_INPUT_LIMIT"):

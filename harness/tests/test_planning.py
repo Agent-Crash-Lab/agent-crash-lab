@@ -296,6 +296,20 @@ def test_target_registry_distinguishes_design_from_real_execution(client):
         assert plan.status_code == 200, plan.text
 
 
+def test_design_preserves_model_input_limit_error(client, fakes):
+    from harness.clients import ClientError
+
+    async def oversized(body):
+        raise ClientError("agents", 503, "LLM_INPUT_LIMIT")
+
+    fakes[1].design = oversized
+    reference = client.get("/api/qa/target").json()
+    response = client.post("/api/qa/design", json=reference)
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "LLM_INPUT_LIMIT"
+    assert fakes[0].calls == [] and fakes[1].runs == {}
+
+
 def test_qualification_recipe_changes_only_the_selected_flag():
     planner = QaPlanner(ROOT)
     plan = planner.build()

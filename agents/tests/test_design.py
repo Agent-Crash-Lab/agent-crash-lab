@@ -267,6 +267,19 @@ def test_analyze_endpoint_never_calls_model_or_search_and_requires_auth(settings
         )
 
 
+def test_design_preserves_input_limit_error(settings):
+    class Oversized:
+        async def generate(self, prompt, context):
+            raise ModelError("LLM_INPUT_LIMIT")
+
+    with TestClient(create_app(settings, design_model=Oversized(), design_search=found)) as client:
+        response = client.post(
+            "/internal/qa/design", json=reference().model_dump(), headers={"X-Internal-Token": TOKEN}
+        )
+        assert response.status_code == 503
+        assert response.json()["detail"] == "LLM_INPUT_LIMIT"
+
+
 @pytest.mark.parametrize(
     "alignment,evidence,consistency,decision",
     [

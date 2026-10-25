@@ -4,13 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0e0e10">
-<meta name="description" content="Agent Crash Lab — 사고의 흐름과 실제 상태를 관찰하는 검사 워크스페이스">
-<title>Crash Lab · 검사 워크스페이스</title>
+<meta name="description" content="OOPS — 사고의 흐름과 실제 상태를 관찰하는 검사 워크스페이스">
+<title>OOPS · 검사 워크스페이스</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./styles.css?v=0.15.2">
+<link rel="stylesheet" href="./styles.css?v=0.15.4">
 <script>
 (function(){
   try {
@@ -27,10 +27,10 @@
 })();
 </script>
 </head>
-<body>
+<body class="is-unauthenticated">
 <div class="app-shell">
   <aside class="site-rail" aria-label="주 아이콘 탐색">
-    <a href="#agents" class="brand" aria-label="Agent Crash Lab 홈" title="Crash Lab 홈">
+    <a href="#agents" class="brand" aria-label="OOPS 홈" title="OOPS 홈">
       <svg width="26" height="28" viewBox="0 0 26 28" fill="none" aria-hidden="true">
         <path d="M13 1.5 24.5 8v12L13 26.5 1.5 20V8Z" stroke="currentColor" stroke-width="1.8"/>
         <path d="M1.5 8 13 14.5 24.5 8M13 14.5v12" stroke="currentColor" stroke-width="1.6"/>
@@ -54,6 +54,7 @@
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h5v8H3zM10 5h5v8h-5z"/></svg>
       </button>
     </div>
+    <nav data-approver-nav hidden class="approver-rail" aria-label="승인자 메뉴"><button type="button" data-tab="approvals" class="rail-btn" title="승인 목록">승인</button><button type="button" data-tab="requests" class="rail-btn" title="관리자 요청 사항">요청</button><button type="button" data-tab="reports" class="rail-btn" title="보고서 목록">보고</button></nav>
     <div class="rail-spacer"></div>
     <button type="button" class="rail-btn theme-toggle-rail" id="theme-toggle-rail" aria-label="화면 테마 전환 (라이트/다크)" title="화면 테마 전환">
       <svg class="theme-icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
@@ -67,7 +68,7 @@
   <div class="app-main">
     <header class="site-header workspace-bar">
       <div class="header-crumb">
-        <strong class="brand-word">Crash Lab</strong>
+        <strong class="brand-word">OOPS</strong>
         <span class="crumb-sep">/</span>
         <span class="project-title" id="header-scope">자재 구매 · 발주</span>
         <span class="crumb-sep">/</span>
@@ -84,6 +85,7 @@
         <span class="step-arrow" aria-hidden="true">›</span>
         <button type="button" data-tab="compare" hidden class="step-item"><span class="step-k">5</span><span class="step-label">결과 비교</span></button>
       </nav>
+      <nav data-approver-nav hidden class="approver-nav" aria-label="승인자 주 메뉴"><button type="button" class="secondary" data-tab="approvals">승인 목록</button><button type="button" class="secondary" data-tab="requests">관리자 요청 사항</button><button type="button" class="secondary" data-tab="reports">보고서 목록</button></nav>
       <div class="header-end">
         <span class="wait-pill" id="header-approval-pill" hidden><i class="pulse-dot sig"></i><span>승인 대기 1</span></span>
         <div class="header-user" id="header-user" hidden></div>
@@ -104,11 +106,28 @@
 
     <footer class="footer">
       <span>서버에서 조회한 실제 실행·검사·근거를 표시합니다.</span>
-      <span>Agent Crash Lab <span class="footer-dot">·</span> 2026</span>
+      <span>OOPS <span class="footer-dot">·</span> 2026</span>
     </footer>
   </div>
 </div>
 
+<div class="login-utilities" role="group" aria-label="화면 설정과 도움말">
+  <button type="button" class="floating-round-btn" id="theme-toggle" aria-label="화면 테마 전환" aria-pressed="false" title="화면 테마 전환">
+      <svg class="theme-icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+      <svg class="theme-icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+  </button>
+  <button type="button" class="floating-round-btn" id="login-help" aria-label="이용 안내" aria-haspopup="dialog" aria-controls="info-dialog" title="이용 안내">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="9" cy="9" r="7"/><path d="M7 7a2 2 0 1 1 2.5 1.9c-.4.2-.5.5-.5 1.1M9 12.5v.2" stroke-linecap="round"/></svg>
+  </button>
+</div>
+
+<dialog id="tutorial-invitation" class="tutorial-invitation" aria-labelledby="tutorial-invitation-title" aria-describedby="tutorial-invitation-description">
+  <div class="dialog-header"><span>OOPS · 튜토리얼</span><button type="button" class="icon-button" data-action="dismiss-tutorial" aria-label="튜토리얼 안내 닫기">×</button></div>
+  <h2 id="tutorial-invitation-title">첫 시험, 함께 시작할까요?</h2>
+  <p id="tutorial-invitation-description">평가 대상 선택부터 LLM 시험 제안, 3D 실행과 결과 확인까지 예시로 연습해 보세요.</p>
+  <div class="dialog-note">실제 시험을 실행하지 않고 화면 사용법을 익힙니다.</div>
+  <div class="invitation-actions"><button type="button" class="secondary" data-action="dismiss-tutorial">바로 시작하기</button><button type="button" class="primary" data-action="start-tutorial">튜토리얼 시작하기 →</button></div>
+</dialog>
 <dialog id="info-dialog">
   <div class="dialog-header"><span>워크스페이스 안내</span><button class="icon-button" id="close-dialog" aria-label="닫기">×</button></div>
   <h2>사건을 따라가고, 근거를 확인하세요.</h2>
@@ -118,6 +137,6 @@
   <button class="primary" id="understood">확인</button>
 </dialog>
 <div id="toast" role="status"></div>
-<script type="module" src="./app.js?v=0.15.1"></script>
+<script type="module" src="./app.js?v=0.15.4"></script>
 </body>
 </html>

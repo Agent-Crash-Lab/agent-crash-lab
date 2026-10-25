@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   Agent Crash Lab — Control Room Dark Theme (data-terminal)
+   OOPS — Control Room Dark Theme (data-terminal)
    Tokens & Surface Hierarchy:
    --ground: #0e0e10 | --surface: #141417 | --raised: #1b1b1f | --raised-2: #232328
    --signal: #ff6a3d | --pos: #3fb68b | --neg: #f0566f | --warn: #e0a83e
@@ -940,7 +940,7 @@ main#main:has([data-live-auth-split]:not([hidden])) {
 }
 
 .login-copy {
-  padding: 36px 52px 0;
+  padding: 32px 52px 0;
   position: relative;
   z-index: 3;
 }
@@ -952,7 +952,7 @@ main#main:has([data-live-auth-split]:not([hidden])) {
   font-weight: 700;
   font-size: 17px;
   letter-spacing: -0.02em;
-  margin-bottom: 44px;
+  margin-bottom: 24px;
   color: var(--text);
 }
 
@@ -976,8 +976,8 @@ main#main:has([data-live-auth-split]:not([hidden])) {
 .login-art {
   position: relative;
   width: 100%;
-  max-width: 780px;
-  aspect-ratio: 760 / 440;
+  max-width: none;
+  aspect-ratio: 760 / 480;
   margin: auto;
   flex: none;
   z-index: 2;
@@ -1071,7 +1071,7 @@ main#main:has([data-live-auth-split]:not([hidden])) {
 }
 
 .login-ticker {
-  padding: 18px 52px 30px;
+  padding: 16px 52px 24px;
   position: relative;
   z-index: 3;
   display: flex;
@@ -1545,6 +1545,14 @@ main#main:has([data-live-auth-split]:not([hidden])) {
   gap: 12px;
   flex-wrap: wrap;
 }
+
+.live-flow-heading { display: flex; align-items: center; gap: 8px; }
+.live-flow-heading h2 { margin: 0; }
+.live-flow-heading .live-replay { width: 36px; padding: 0; flex-shrink: 0; }
+.live-replay .replay-pause, .live-replay[aria-pressed="true"] .replay-play { display: none; }
+.live-replay[aria-pressed="true"] .replay-pause { display: inline; }
+.live-replay[aria-pressed="true"] { color: var(--signal); }
+@media (pointer: coarse) { .live-flow-heading .live-replay { width: 44px; height: 44px; } }
 
 .live-hint, .live-layout small {
   font-size: 12px;
@@ -3702,7 +3710,12 @@ table.mx tr:last-child td {
 }
 
 /* ── Responsive Breakpoints ── */
+@media (min-width: 1201px) {
+  .login-art { width: min(100%, calc((100dvh - 268px) * 760 / 480)); }
+}
+
 @media (max-width: 1200px) {
+  .login-art { max-width: 720px; }
   .login-split {
     grid-template-columns: 1fr;
   }
@@ -4137,8 +4150,8 @@ table.mx tr:last-child td {
 }
 
 .coachmark-practice {
-  align-self: flex-start;
-  margin-top: 8px;
+  align-self: center;
+  margin-top: 0;
 }
 
 .coachmark-highlight-target {
@@ -4326,17 +4339,16 @@ body.is-unauthenticated .login-split {
 /* ═══════════════════════════════════════════════════════════════
    FLOATING ROUND CONTROLS (THEME & HELP TOGGLES)
    ═══════════════════════════════════════════════════════════════ */
-.floating-left-controls {
+.login-utilities {
   position: fixed;
-  left: 20px;
-  bottom: 24px;
+  top: 20px;
+  right: 24px;
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   z-index: 100;
 }
 
-body:not(.is-unauthenticated) .floating-left-controls {
+body:not(.is-unauthenticated) .login-utilities {
   display: none;
 }
 
@@ -4764,6 +4776,7 @@ body.is-approver-mode .prepare-main-col {
 [data-live-batch-area] > summary { cursor: pointer; }
 [data-live-batch-area][open] > summary { margin-bottom: 20px; }
 .live-condition-editor { margin-bottom: 18px; }
+.live-run-controls .full-cta + .live-condition-editor { margin-top: 16px; margin-bottom: 0; }
 .live-condition-editor > summary { margin-bottom: 12px; cursor: pointer; }
 .live-run-controls > .section-pad { padding: 0; }
 .live-layout[data-page="live"] .live-content { display: flex; flex-direction: column; gap: 20px; }
@@ -4919,7 +4932,7 @@ body.is-approver-mode .prepare-main-col {
 /* Tutorial uses the workspace navigation and stage dimensions. */
 .demo-workspace .tutorial-milestone-top { display: none; }
 .demo-workspace .live-analysis-shell { margin-bottom: 20px; }
-.demo-workspace .demo-run-controls { margin-top: 20px; }
+.demo-workspace .demo-run-controls { margin-block: 20px; }
 .demo-workspace .live-inspector-col .evidence-content { padding: 16px; border: 1px solid var(--border); border-radius: var(--r); min-width: 0; }
 .demo-workspace .live-inspector-col pre { max-width: 100%; overflow: auto; }
 .demo-workspace .demo-qa-report { margin-top: 20px; }
@@ -4929,3 +4942,46 @@ body.is-approver-mode .prepare-main-col {
 .demo-workspace .live-inspector-col .evidence-content { max-height: 420px; overflow: auto; }
 .demo-workspace .live-event small { display: block; margin-top: 4px; }
 .demo-workspace #scene-host.live-scene { position: relative; inset: auto; width: 100%; height: clamp(500px, 60vh, 700px); }
+
+/* Reuse workspace surfaces and the signal accent for the login invitation. */
+.tutorial-invitation { max-width: 460px; border-top: 3px solid var(--signal); }
+.invitation-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+.invitation-actions .primary { width: auto; }
+.design-settings > .design-next { margin: 0 0 20px; }
+
+/* Approval workspace inherits the console's surfaces and semantic colours. */
+.approver-nav,.approver-rail { display:flex; gap:8px; }
+.approver-rail { flex-direction:column; }
+.approver-nav[hidden],.approver-rail[hidden] { display:none; }
+.approver-nav .active,.approver-rail .active { color:var(--signal); background:var(--sig-bg); }
+.approver-rail .rail-btn { font-size:12px; }
+.approver-workspace { max-width:1100px; margin:0 auto; }
+.approver-workspace .page-header,.approver-entry>header { display:flex; justify-content:space-between; align-items:start; gap:20px; }
+.approver-workspace h1 { margin:0 0 12px; }
+.approver-workspace h2 { font-size:18px; margin:0; overflow-wrap:anywhere; }
+.approver-workspace p { line-height:1.7; }
+.approver-search { display:grid; gap:8px; max-width:480px; margin:28px 0 12px; color:var(--text-2); }
+.approver-search input { width:100%; min-height:44px; padding:10px 12px; border:1px solid var(--control); border-radius:var(--r); background:var(--surface); color:var(--text); font:inherit; }
+.approver-search input::placeholder { color:var(--text-2); }
+.approver-search input:focus-visible { outline:2px solid var(--signal); outline-offset:2px; }
+.approver-list-title { padding:20px 0 12px; }
+.approver-entry { padding:28px 0; border-bottom:1px solid var(--control); }
+.approver-entry .badge { flex-shrink:0; }
+.approver-request-fields,.approver-report-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px 32px; margin:24px 0; }
+.approver-request-fields dt,.approver-report-grid dt { color:var(--text-2); font-size:13px; margin-bottom:6px; }
+.approver-request-fields dd,.approver-report-grid dd { margin:0; line-height:1.7; overflow-wrap:anywhere; }
+.approver-conclusion { max-width:72ch; font-size:17px; font-weight:500; }
+.approver-entry details { margin:20px 0; }
+.approver-entry summary,.approver-history>summary { cursor:pointer; padding:12px 0; color:var(--text-2); }
+.approver-entry small { display:block; color:var(--text-2); overflow-wrap:anywhere; }
+.approver-empty { padding:32px 0; color:var(--text-2); }
+.approver-history { margin-top:32px; }
+@media(max-width:900px) { .workspace-bar:has(.approver-nav:not([hidden])) { flex-wrap:wrap; } .approver-nav { flex-wrap:wrap; } }
+@media(max-width:600px) { .approver-request-fields,.approver-report-grid { grid-template-columns:1fr; gap:16px; } .approver-entry>header,.approver-workspace .page-header { flex-direction:column; gap:12px; } .approver-nav .secondary { padding:10px; font-size:12px; } }
+
+@media (max-width: 760px) {
+  .login-utilities { top: 16px; right: 16px; }
+  .login-art .nlabel { font-size: 10px; gap: 5px; padding: 5px 7px; }
+  .login-art .nlabel small { font-size: 8px; }
+  .login-art .nlabel-ico { width: 18px; height: 18px; }
+}

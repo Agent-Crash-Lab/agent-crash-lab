@@ -28,7 +28,7 @@ spring:
   ai:
     mcp:
       server:
-        name: agent-crash-lab-mcp
+        name: OOPS
         version: 0.1.0
         type: sync
         protocol: streamable
