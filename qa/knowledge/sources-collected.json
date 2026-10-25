@@ -611,7 +611,7 @@
       "source_type": "PROJECT_POLICY",
       "title": "Reference duplicate-write and bounded-retry policy",
       "url": "https://github.com/Agent-Crash-Lab/agent-crash-lab",
-      "attribution": "Agent Crash Lab project",
+      "attribution": "OOPS project",
       "roles": [
         "PURCHASE",
         "PRODUCTION",
@@ -657,7 +657,7 @@
       "source_type": "PROJECT_POLICY",
       "title": "Reference approval and request-content policy",
       "url": "https://github.com/Agent-Crash-Lab/agent-crash-lab",
-      "attribution": "Agent Crash Lab project",
+      "attribution": "OOPS project",
       "roles": [
         "PURCHASE",
         "PRODUCTION",
@@ -704,7 +704,7 @@
       "source_type": "PROJECT_POLICY",
       "title": "Reference completion and truthful-reporting policy",
       "url": "https://github.com/Agent-Crash-Lab/agent-crash-lab",
-      "attribution": "Agent Crash Lab project",
+      "attribution": "OOPS project",
       "roles": [
         "PURCHASE",
         "PRODUCTION",
@@ -749,7 +749,7 @@
       "source_type": "PROJECT_POLICY",
       "title": "Reference required-inspection policy",
       "url": "https://github.com/Agent-Crash-Lab/agent-crash-lab",
-      "attribution": "Agent Crash Lab project",
+      "attribution": "OOPS project",
       "roles": [
         "QUALITY"
       ],
@@ -790,7 +790,7 @@
       "source_type": "PROJECT_POLICY",
       "title": "Reference scheduling and readiness policy",
       "url": "https://github.com/Agent-Crash-Lab/agent-crash-lab",
-      "attribution": "Agent Crash Lab project",
+      "attribution": "OOPS project",
       "roles": [
         "PRODUCTION"
       ],
@@ -871,7 +871,7 @@
       "source_type": "PROJECT_POLICY",
       "title": "Reference scoped supplier qualification policy",
       "url": "https://github.com/Agent-Crash-Lab/agent-crash-lab",
-      "attribution": "Agent Crash Lab project",
+      "attribution": "OOPS project",
       "roles": [
         "PURCHASE"
       ],

@@ -59,7 +59,7 @@ class McpServerApplicationTests extends PostgresIntegrationTest {
 
 		assertThat(result).hasStatusOk();
 		String body = result.getResponse().getContentAsString();
-		assertThat(body).contains("\"serverInfo\"", "\"protocolVersion\"", "agent-crash-lab-mcp");
+		assertThat(body).contains("\"serverInfo\"", "\"protocolVersion\"", "OOPS");
 		assertThat(body).doesNotContain("server_info", "protocol_version");
 	}
 

@@ -74,9 +74,11 @@ test('real execution uses selected conditions and never sends a SYSTEM policy to
 
 
 test('all main routes point to real pages and demo routes are isolated',()=>{
-  for(const page of ['agents','prepare','live','execution','compare'])assert.deepEqual(workspaceRoute('#'+page),{page});
+  for(const page of ['agents','prepare','live','execution'])assert.deepEqual(workspaceRoute('#'+page),{page});
   assert.deepEqual(workspaceRoute(''),{page:'agents'});
   assert.deepEqual(workspaceRoute('#unknown'),{page:'agents'});
+  assert.deepEqual(workspaceRoute('#compare'),{page:'execution'});
+  assert.deepEqual(workspaceRoute('#demo-compare'),{page:'demo',demoTab:'compare',show3d:false});
   assert.deepEqual(workspaceRoute('#demo-prepare'),{page:'demo',demoTab:'prepare',show3d:false});
   assert.deepEqual(workspaceRoute('#demo-3d'),{page:'demo',demoTab:'agents',show3d:true});
 });
@@ -84,7 +86,7 @@ test('all main routes point to real pages and demo routes are isolated',()=>{
 
 test('workflow distinguishes approval, report generation, final collection and failed checks',()=>{
   const waiting=runGuidance({status:'WAITING_APPROVAL'});
-  assert.equal(waiting.page,'live');assert.match(waiting.detail,/아직 발주하지/);
+  assert.equal(waiting.page,'live');assert.match(waiting.detail,/업무 변경 요청/);
   const investigating=runGuidance({status:'COMPLETED',investigation:{status:'RUNNING'}});
   assert.match(investigating.title,/작성/);assert.doesNotMatch(investigating.title,/끝났/);
   assert.match(runGuidance({status:'COMPLETED'},false).title,/수집/);
@@ -207,4 +209,22 @@ test('normal usage and multiple exceptions remain separate and escaped in report
   assert.match(html,/선행 공정 지연/);
   assert.ok(!html.includes('<script>'));
   assert.match(scenarioMarkup({morphology:{tool_name:'assign',business_condition:'MAINTENANCE',event:'NONE',phase:'INITIAL'}}),/상황을 만든 조합/);
+});
+
+import {caseReadinessLabel, caseBlockerMarkup} from '../dist/live-api.js';
+test('blocked proposals explain the actual reason outside collapsed details and escape model text',()=>{
+  const execution={status:'UNSUPPORTED',missing_capabilities:['generated_data_validation'],reason:'공급 자격 제한이 필요합니다. <script>alert(1)</script>'};
+  assert.equal(caseReadinessLabel(execution),'시험 데이터 보완 필요');
+  const html=caseBlockerMarkup(execution);
+  assert.match(html,/실행 보류 사유:/);
+  assert.match(html,/공급 자격 제한이 필요합니다\./);
+  assert.match(html,/&lt;script&gt;/);
+  assert.doesNotMatch(html,/<script>|<details|<button/);
+  assert.equal(caseBlockerMarkup({status:'READY'}),'');
+  assert.equal(caseReadinessLabel({status:'READY'}),'실행 가능');
+  assert.equal(caseReadinessLabel({status:'UNSUPPORTED',missing_capabilities:['design_prerequisites']}),'시험 조건 보완 필요');
+  assert.equal(caseReadinessLabel({status:'UNSUPPORTED',missing_capabilities:['adopted_business_policy']}),'근거·정책 보완 필요');
+  assert.equal(caseReadinessLabel({status:'UNSUPPORTED'}),'실행 기능 연결 필요');
+  assert.match(caseBlockerMarkup({status:'UNSUPPORTED'}),/구체적인 보류 사유가 제공되지 않았습니다/);
+  assert.match(caseBlockerMarkup({status:'UNSUPPORTED',reason:'Requires a registered target/data adapter and code evaluator'}),/판정 기능이 연결되지 않았습니다/);
 });

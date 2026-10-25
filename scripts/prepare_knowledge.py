@@ -63,7 +63,7 @@ def main():
             raise ValueError("Source manifest hash mismatch")
         request = urllib.request.Request(
             source["download_url"],
-            headers={"User-Agent": "AgentCrashLab research corpus"},
+            headers={"User-Agent": "OOPS research corpus"},
         )
         with urllib.request.urlopen(request, timeout=60) as response:
             data = response.read(25_000_001)

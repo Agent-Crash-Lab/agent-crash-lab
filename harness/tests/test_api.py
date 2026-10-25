@@ -162,3 +162,63 @@ def test_public_order_count_does_not_expose_observation():
     result = public_view({"observation": {"orders": [{"order_id": "PO-1"}, {"order_id": "PO-2"}]}})
     assert result["observed_order_count"] == 2
     assert "observation" not in result
+
+
+def test_approver_workspace_requires_role_and_includes_pending_and_readable_report(client):
+    approver = {**GATEWAY, "X-User-Id": "approver-01", "X-User-Roles": "APPROVER"}
+    assert client.get("/api/qa/approver/runs").status_code == 403
+    run_id = client.post("/api/runs", json={"test_id": "S01", "system_id": "B0"}).json()["run_id"]
+    wait_for(client, run_id, lambda r: r["status"] == "WAITING_APPROVAL")
+    response = client.get("/api/qa/approver/runs", headers=approver)
+    assert response.status_code == 200
+    row = next(r for r in response.json()["runs"] if r["run_id"] == run_id)
+    assert row["approval_request"]["payload_hash"]
+    assert row["request"] and row["created_by"]
+    assert row["qa_report"] is None
+    assert "observation" not in row
+    # Terminal runs expose a readable report, not a completed-state success claim.
+    stored = client.app.state.store.get_run(run_id)
+    stored["status"] = "COMPLETED"
+    client.app.state.store.put_run(stored)
+    row = next(r for r in client.get("/api/qa/approver/runs", headers=approver).json()["runs"] if r["run_id"] == run_id)
+    assert row["qa_report"]["narrative"]["expected_behavior"]
+    assert row["qa_report"]["conclusion"] == "INSUFFICIENT_EVIDENCE"
+
+
+def test_approver_workspace_keeps_pending_requests_older_than_recent_history(client):
+    store = client.app.state.store
+    store.put_run({"run_id": "OLD-PENDING", "status": "WAITING_APPROVAL",
+                   "created_at": "2020-01-01T00:00:00Z", "approval_request": {"id": "old"}})
+    for i in range(201):
+        store.put_run({"run_id": f"NEW-{i:03}", "status": "ERROR",
+                       "created_at": f"2026-10-25T01:{i // 60:02}:{i % 60:02}Z"})
+    approver = {**GATEWAY, "X-User-Id": "approver-01", "X-User-Roles": "APPROVER"}
+    rows = client.get("/api/qa/approver/runs", headers=approver).json()["runs"]
+    assert len(rows) == 201
+    assert rows[-1]["run_id"] == "OLD-PENDING"
+
+
+def test_run_history_search_status_and_paging_reach_old_runs(client):
+    store = client.app.state.store
+    for number in range(1, 56):
+        store.put_run({
+            "run_id": f"RUN-{number:03}", "test_id": "S01", "system_id": "B0",
+            "status": "WAITING_APPROVAL" if number == 1 else "COMPLETED",
+            "created_at": f"2026-10-25T00:00:{number:02}Z", "created_by": "requester-01",
+        })
+    first = client.get("/api/runs?limit=20").json()
+    second = client.get("/api/runs?limit=20&offset=20").json()
+    last = client.get("/api/runs?limit=20&offset=40").json()
+    assert first["has_more"] and second["has_more"] and not last["has_more"]
+    ids = [r["run_id"] for page in (first, second, last) for r in page["runs"]]
+    assert len(ids) == len(set(ids)) == 55
+    assert ids[-1] == "RUN-001"
+    pending = client.get("/api/runs?status=WAITING_APPROVAL").json()["runs"]
+    assert [r["run_id"] for r in pending] == ["RUN-001"]
+    assert pending[0]["created_by"] == "requester-01"
+    assert client.get("/api/runs?status=ACTIVE").json()["runs"] == pending
+    assert client.get("/api/runs?q=run-001").json()["runs"] == pending
+    assert client.get("/api/runs?q=RUN-001&status=COMPLETED").json()["runs"] == []
+    assert client.get("/api/runs?q=%25").json()["runs"] == []
+    for query in ("offset=-1", "status=unknown", "limit=201"):
+        assert client.get("/api/runs?" + query).status_code == 400

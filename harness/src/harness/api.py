@@ -164,7 +164,7 @@ def create_app(settings: Settings | None = None, mcp=None, agents=None) -> FastA
                 await agent_client.close()
             store.close()
 
-    app = FastAPI(title="Agent Crash Lab — Harness", lifespan=lifespan)
+    app = FastAPI(title="OOPS — Harness", lifespan=lifespan)
 
     @app.exception_handler(ApiError)
     async def api_error(request, exc: ApiError):
@@ -403,7 +403,7 @@ def create_app(settings: Settings | None = None, mcp=None, agents=None) -> FastA
             raise ApiError(
                 503,
                 exc.code
-                if exc.code in {"LLM_KEY_NOT_CONFIGURED", "UNPRICED_MODEL", "LLM_BUDGET_EXHAUSTED"}
+                if exc.code in {"LLM_KEY_NOT_CONFIGURED", "UNPRICED_MODEL", "LLM_BUDGET_EXHAUSTED", "LLM_INPUT_LIMIT"}
                 else "QA_DESIGN_UNAVAILABLE",
             ) from None
         except (ValidationError, SchemaError, ValueError, KeyError, RecursionError):
@@ -430,7 +430,7 @@ def create_app(settings: Settings | None = None, mcp=None, agents=None) -> FastA
             raise ApiError(
                 503,
                 exc.code
-                if exc.code in {"LLM_KEY_NOT_CONFIGURED", "UNPRICED_MODEL", "LLM_BUDGET_EXHAUSTED"}
+                if exc.code in {"LLM_KEY_NOT_CONFIGURED", "UNPRICED_MODEL", "LLM_BUDGET_EXHAUSTED", "LLM_INPUT_LIMIT"}
                 else "QA_DESIGN_UNAVAILABLE",
             ) from None
         except (
@@ -552,16 +552,48 @@ def create_app(settings: Settings | None = None, mcp=None, agents=None) -> FastA
         }
 
     @app.get("/api/runs")
-    async def list_runs(request: Request, _: User, limit: int = Query(50, ge=1, le=200)):
+    async def list_runs(
+        request: Request, _: User, limit: int = Query(50, ge=1, le=200),
+        offset: int = Query(0, ge=0), q: str = Query("", max_length=128),
+        status: Literal["ALL", "ACTIVE", "WAITING_APPROVAL", "COMPLETED", "ERROR"] = "ALL",
+    ):
+        statuses = {
+            "ALL": (), "ACTIVE": ("PREPARING", "RUNNING", "WAITING_APPROVAL", "EVALUATING"),
+            "WAITING_APPROVAL": ("WAITING_APPROVAL",), "COMPLETED": ("COMPLETED",),
+            "ERROR": ("ERROR",),
+        }[status]
+        rows = request.app.state.store.list_runs(limit + 1, offset, q.strip(), statuses)
         return {
             "runs": [
                 {
                     k: run.get(k)
-                    for k in ("run_id", "test_id", "system_id", "status", "summary", "created_at")
+                    for k in (
+                        "run_id", "test_id", "system_id", "status", "summary", "created_at",
+                        "created_by",
+                    )
                 }
-                for run in request.app.state.store.list_runs(limit)
-            ]
+                for run in rows[:limit]
+            ],
+            "has_more": len(rows) > limit,
         }
+
+    @app.get("/api/qa/approver/runs")
+    async def approver_runs(request: Request, who: User):
+        if "APPROVER" not in who[1]:
+            raise ApiError(403, "PERMISSION_DENIED")
+        store = request.app.state.store
+        recent = store.list_runs(200)
+        # Keep every pending decision visible even when newer QA runs fill the history.
+        pending = [r for r in store.all_runs() if r.get("status") == "WAITING_APPROVAL"]
+        runs = {r["run_id"]: r for r in [*recent, *pending]}
+        fields = ("run_id", "test_id", "system_id", "status", "created_at", "created_by",
+                  "request", "approval_request", "approval", "summary")
+        return {"runs": [
+            {**{k: r.get(k) for k in fields},
+             "simulation": bool((r.get("manifest") or {}).get("state_store")),
+             "qa_report": qa_report(r) if r.get("status") == "COMPLETED" else None}
+            for r in sorted(runs.values(), key=lambda r: r.get("created_at", ""), reverse=True)
+        ]}
 
     @app.get("/api/runs/{run_id}")
     async def run_detail(run_id: str, request: Request, who: User):

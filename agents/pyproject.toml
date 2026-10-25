@@ -1,7 +1,7 @@
 [project]
 name = "crashlab-agents"
 version = "0.2.0"
-description = "Reference agents for Agent Crash Lab"
+description = "Reference agents for OOPS"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

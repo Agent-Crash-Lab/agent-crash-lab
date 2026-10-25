@@ -35,7 +35,7 @@ def create_app(
         finally:
             await runtime.close()
 
-    app = FastAPI(title="Agent Crash Lab — Agents", lifespan=lifespan)
+    app = FastAPI(title="OOPS — Agents", lifespan=lifespan)
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request, exc):
@@ -107,7 +107,7 @@ def create_app(
                 raise HTTPException(
                     503,
                     code
-                    if code in {"LLM_KEY_NOT_CONFIGURED", "UNPRICED_MODEL", "LLM_BUDGET_EXHAUSTED"}
+                    if code in {"LLM_KEY_NOT_CONFIGURED", "UNPRICED_MODEL", "LLM_BUDGET_EXHAUSTED", "LLM_INPUT_LIMIT"}
                     else "QA_DESIGN_UNAVAILABLE",
                 ) from None
             except (httpx.HTTPError, TimeoutError):

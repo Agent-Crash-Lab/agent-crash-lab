@@ -1,1 +1,1 @@
-"""Agent Crash Lab reference agents."""
+"""OOPS reference agents."""
