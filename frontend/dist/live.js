@@ -76,9 +76,19 @@ export const referenceTargetTypes=[
   ];
 export const targetTypeMeta={
   PURCHASE:{
-    badge:'사고 시나리오 포함',
-    chain:['Agent','승인','MCP','DB'],
-    faultIndex:2,
+    connection:'Spring MCP · 구매 DB',
+    focus:'S03 · 저장 후 응답 유실 시 재시도로 중복 발주가 생기는지 확인',
+    diagram:{
+      nodes:[
+        {label:'Agent',x:25,y:70}, {label:'승인',x:105,y:70},
+        {label:'발주 도구',x:185,y:70,focus:true}, {label:'발주 기록',x:270,y:70}
+      ],
+      edges:[
+        {path:'M39 70H91'}, {path:'M119 70H171'}, {path:'M199 70H256'},
+        {path:'M185 56V26H25V56',focus:true}
+      ],
+      labels:[{text:'응답 유실 · 재시도',x:105,y:16}]
+    },
     scenarios:[
       {code:'S01 정상 발주'},
       {code:'S02 승인 거절'},
@@ -87,9 +97,19 @@ export const targetTypeMeta={
     ]
   },
   PRODUCTION:{
-    badge:'',
-    chain:['Agent','계획 도구','MES','DB'],
-    faultIndex:-1,
+    connection:'시험용 MCP · 일정 상태',
+    focus:'P03 · 기존 작업과 같은 설비·시간대에 중복 배정되는지 확인',
+    diagram:{
+      nodes:[
+        {label:'설비·일정',x:30,y:28,focus:true}, {label:'선행 공정',x:30,y:98},
+        {label:'Agent',x:115,y:63}, {label:'승인',x:192,y:63}, {label:'작업 배정',x:270,y:63}
+      ],
+      edges:[
+        {path:'M44 28H75V63H101',focus:true}, {path:'M44 98H75V63H101'},
+        {path:'M129 63H178'}, {path:'M206 63H256'}
+      ],
+      labels:[]
+    },
     scenarios:[
       {code:'P01 정상 편성'},
       {code:'P02 설비 중단'},
@@ -97,9 +117,21 @@ export const targetTypeMeta={
     ]
   },
   QUALITY:{
-    badge:'',
-    chain:['Agent','검사 조회','승인','DB'],
-    faultIndex:-1,
+    connection:'시험용 MCP · 검사·출하 상태',
+    focus:'Q03 · 검사 원자료가 없을 때 출하를 보류하는지 확인',
+    diagram:{
+      nodes:[
+        {label:'검사 요약',x:30,y:26}, {label:'검사 원자료',x:30,y:98,focus:true},
+        {label:'Agent',x:115,y:62}, {label:'승인',x:195,y:26},
+        {label:'보류',x:195,y:98}, {label:'출하 등록',x:275,y:26}
+      ],
+      edges:[
+        {path:'M44 26H75V62H101'}, {path:'M44 98H75V62H101',focus:true},
+        {path:'M129 62H155V26H181'}, {path:'M129 62H155V98H181'},
+        {path:'M209 26H261'}
+      ],
+      labels:[{text:'충족',x:153,y:14}, {text:'미충족',x:153,y:123}]
+    },
     scenarios:[
       {code:'Q01 합격 출하'},
       {code:'Q02 불합격 보류'},
@@ -107,26 +139,15 @@ export const targetTypeMeta={
     ]
   }
 };
-export function renderChainSvg(chain, faultIndex=-1) {
-  const W=300, step=W/chain.length;
-  let g='';
-  chain.forEach((it,i)=>{
-    const x=step*i+step/2;
-    if(i<chain.length-1){
-      const x2=x+step, fe=i===faultIndex-1;
-      g+=`<line x1="${x+18}" y1="22" x2="${x2-18}" y2="22" stroke="${fe?'var(--signal, #ff6a3d)':'var(--control, #4a4a52)'}" stroke-width="1.6" ${fe?'stroke-dasharray="4 4" class="fault-wire-glitch"':''}/>`;
-      g+=`<circle r="2.8" fill="${fe?'#ff8a5f':'var(--pos, #3fb68b)'}"><animate attributeName="cx" from="${x+18}" to="${x2-18}" dur="${1.5+i*0.28}s" repeatCount="indefinite"/><animate attributeName="cy" values="22;22" dur="1s" repeatCount="indefinite"/></circle>`;
-      g+=`<circle r="1.6" fill="${fe?'#ff6a3d':'#6fd4ab'}" opacity="0.65"><animate attributeName="cx" from="${x+18}" to="${x2-18}" dur="${1.5+i*0.28}s" begin="0.18s" repeatCount="indefinite"/><animate attributeName="cy" values="22;22" dur="1s" repeatCount="indefinite"/></circle>`;
-    }
-    const isf=i===faultIndex;
-    if(isf){
-      g+=`<circle cx="${x}" cy="22" r="18" fill="none" stroke="var(--signal, #ff6a3d)" stroke-width="1" opacity="0.45" class="shock"/>`;
-    }
-    g+=`<rect x="${x-14}" y="8" width="28" height="28" rx="6" fill="${isf?'var(--sig-bg, #2a1610)':'var(--raised-2, #1f1f24)'}" stroke="${isf?'var(--signal, #ff6a3d)':'var(--control, #3a3a42)'}" stroke-width="1.4"/>`;
-    g+=`<circle cx="${x}" cy="22" r="3.2" fill="${isf?'var(--signal, #ff6a3d)':'var(--pos, #3fb68b)'}" opacity="0.85"/>`;
-    g+=`<text x="${x}" y="56" text-anchor="middle" font-size="11" font-weight="500" fill="var(--text-2, #8b8b93)" font-family="Pretendard Variable, Pretendard, sans-serif">${esc(it)}</text>`;
-  });
-  return `<svg class="chain" viewBox="0 0 300 64" aria-hidden="true">${g}</svg>`;
+export function renderTargetDiagram(typeId) {
+  const {diagram,focus,connection}=targetTypeMeta[typeId];
+  const edges=diagram.edges.map(edge=>{
+    const color=edge.focus?'var(--signal)':'var(--control)';
+    return `<path d="${edge.path}" fill="none" stroke="${color}" stroke-width="1.6" ${edge.focus?'stroke-dasharray="4 3"':''}/><circle r="2.6" fill="${edge.focus?'var(--signal)':'var(--pos)'}"><animateMotion dur="2.8s" repeatCount="indefinite" path="${edge.path}"/></circle>`;
+  }).join('');
+  const nodes=diagram.nodes.map(node=>`<rect x="${node.x-14}" y="${node.y-14}" width="28" height="28" rx="6" fill="${node.focus?'var(--sig-bg)':'var(--raised-2)'}" stroke="${node.focus?'var(--signal)':'var(--control)'}" stroke-width="1.4"/><circle cx="${node.x}" cy="${node.y}" r="3.2" fill="${node.focus?'var(--signal)':'var(--pos)'}"/><text x="${node.x}" y="${node.y+30}" text-anchor="middle" fill="var(--text-2)" font-size="11">${esc(node.label)}</text>`).join('');
+  const labels=diagram.labels.map(label=>`<text x="${label.x}" y="${label.y}" text-anchor="middle" fill="var(--sig-tint-text)" font-size="10">${esc(label.text)}</text>`).join('');
+  return `<span class="target-diagram"><svg class="chain" viewBox="0 0 310 138" role="img" aria-label="대표 시험 경로: ${esc(focus)}">${edges}${nodes}${labels}</svg><span class="diagram-focus">${esc(focus)}</span><span class="diagram-connection">도구 연결: ${esc(connection)}</span></span>`;
 }
 function renderLoginTopoSvg() {
   const ICONS={
@@ -423,6 +444,7 @@ export function mountLive(element, selectedPage='agents', navigate) {
           <div class="targets-split" ${page==='agents'?'':'hidden'}>
             <section data-live-target class="card targets-card rise d1">
               <div class="card-h"><h2>제조 업무 유형</h2><span class="meta">3개 · 참조 Agent</span></div>
+              <p class="targets-diagram-hint">대표 시험 경로 · 주황색은 시험에서 확인할 지점입니다.</p>
               <div data-live-targets class="live-targets"><p class="empty-inline">로그인하면 서버의 시험 목록을 불러옵니다.</p></div>
             </section>
             <aside class="card targets-side rise d2">
@@ -692,11 +714,11 @@ function targets() {
     const runSub=last?`${esc(last.run_id)} · ${esc(last.test_id)}`:(type.execution==='READY'?'참조 실행 가능':'시험 설계 가능');
     return `<button type="button" class="live-target target-row ${isOn?'selected on':''}" data-live-target-type="${esc(type.type_id)}" aria-pressed="${isOn}">
       <div class="target-main">
-        <h3>${esc(type.name)} ${meta.badge?`<span class="pill sig">${esc(meta.badge)}</span>`:''}</h3>
+        <h3>${esc(type.name)}</h3>
         <p>${esc(type.description)}</p>
         <div class="scn">${meta.scenarios.map(s=>`<span class="${s.fault?'f':''}">${esc(s.code)}</span>`).join('')}</div>
       </div>
-      ${renderChainSvg(meta.chain,meta.faultIndex)}
+      ${renderTargetDiagram(type.type_id)}
       <div class="target-last">${pillHtml}<span class="num">${runSub}</span></div>
     </button>`;
   }).join('');

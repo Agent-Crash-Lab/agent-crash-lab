@@ -1,5 +1,5 @@
 import {workspaceRoute,LIVE_COMPARISON_ENABLED,progressEventsMarkup} from './live-api.js?v=0.15.7';
-import {mountLive,leaveLive,isLiveAuthenticated,isApproverAccount,accountPage,referenceTargetTypes,targetTypeMeta,renderChainSvg} from './live.js?v=0.15.7';
+import {mountLive,leaveLive,isLiveAuthenticated,isApproverAccount,accountPage,referenceTargetTypes,targetTypeMeta,renderTargetDiagram} from './live.js?v=0.15.7';
 import { mountScene, pauseScene } from './scene.js?v=0.15.7';
 import { agents, investigationScenarios, investigationEvents, investigationChecks, validateDemoProfile, restoreProfiles } from './registry.js?v=0.15.7';
 import { frameFor, mapEvents } from './topology.js?v=0.15.7';
@@ -205,9 +205,9 @@ function demoChainSvg(agent){
 function demoTargetsView() {
  const selected=referenceTargetTypes.find(t=>t.type_id===state.demoTargetType)||referenceTargetTypes[0];
  return `<div class="targets-split demo-targets">
-  <section class="card targets-card"><div class="card-h"><h2>제조 업무 유형</h2><span class="meta">3개 · 참조 Agent</span></div><div class="live-targets">${referenceTargetTypes.map(type=>{
+  <section class="card targets-card"><div class="card-h"><h2>제조 업무 유형</h2><span class="meta">3개 · 참조 Agent</span></div><p class="targets-diagram-hint">대표 시험 경로 · 주황색은 시험에서 확인할 지점입니다.</p><div class="live-targets">${referenceTargetTypes.map(type=>{
    const meta=targetTypeMeta[type.type_id],active=type.type_id===selected.type_id;
-   return `<button type="button" class="live-target target-row ${active?'selected on':''}" data-demo-target-type="${type.type_id}" aria-pressed="${active}"><div class="target-main"><h3>${esc(type.name)} ${meta.badge?`<span class="pill sig">${esc(meta.badge)}</span>`:''}</h3><p>${esc(type.description)}</p><div class="scn">${meta.scenarios.map(item=>`<span class="${item.fault?'f':''}">${esc(item.code)}</span>`).join('')}</div></div>${renderChainSvg(meta.chain,meta.faultIndex)}<div class="target-last"><span class="pill ${type.type_id==='PURCHASE'?'sig':'neu'}">데모 예시</span><span class="num">예시 시험 가능</span></div></button>`;
+   return `<button type="button" class="live-target target-row ${active?'selected on':''}" data-demo-target-type="${type.type_id}" aria-pressed="${active}"><div class="target-main"><h3>${esc(type.name)}</h3><p>${esc(type.description)}</p><div class="scn">${meta.scenarios.map(item=>`<span class="${item.fault?'f':''}">${esc(item.code)}</span>`).join('')}</div></div>${renderTargetDiagram(type.type_id)}<div class="target-last"><span class="pill neu">데모 예시</span><span class="num">예시 시험 가능</span></div></button>`;
   }).join('')}</div></section>
   <aside class="card targets-side"><div class="card-h"><h2>최근 실행</h2><span class="meta">저장된 데모 예시</span></div><div class="live-history runs-list">${[['S03','B0','중복 발주 2건'],['S03','B1','중복 방지 · 1건'],['S01','B0','정상 발주 · 1건']].map(([scenario,config,label])=>`<button type="button" class="run-row-btn" data-demo-sample="${scenario}" data-sample-config="${config}"><span class="run-id">DEMO-${scenario}-${config}</span><span class="run-sub">${label}</span><span class="run-state-tag">예시</span></button>`).join('')}</div><div class="targets-next"><p><strong>${esc(selected.name)}</strong> 유형을 살펴보고 있습니다.</p><p>선택한 업무의 시험 시나리오를 제안받아 보세요.</p><button type="button" class="primary full-cta" data-action="demo-prepare">시험 설계로 →</button></div></aside>
  </div>`;

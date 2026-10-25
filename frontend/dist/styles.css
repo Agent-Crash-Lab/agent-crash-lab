@@ -1312,9 +1312,39 @@ main#main:has([data-live-auth-split]:not([hidden])) {
 }
 
 .chain {
-  height: 64px;
+  height: 138px;
   width: 100%;
   display: block;
+  overflow: visible;
+  font-family: var(--font);
+}
+
+.targets-diagram-hint {
+  margin: 0;
+  padding: 12px 24px;
+  color: var(--text-2);
+  font-size: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.target-diagram, .diagram-focus, .diagram-connection {
+  display: block;
+}
+
+.diagram-focus {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--sig-tint-text);
+  word-break: keep-all;
+}
+
+.diagram-connection {
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--text-2);
 }
 
 .target-last {
