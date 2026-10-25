@@ -140,7 +140,7 @@ function renderLoginTopoSvg() {
   };
   const NODES=[
     {id:'mcp',label:'MCP Server',sub:'인증·승인·구매 도구',l:0,n:-1,kind:'mcp',ox:-8,oy:-8},
-    {id:'scenario',label:'Scenario Agent',sub:'시험 설계·검토',l:0,n:1,kind:'screen',ox:22,oy:-4},
+    {id:'scenario',label:'Scenario Agent',sub:'시험 설계·검토',l:0,n:1,kind:'screen',ox:0,oy:-4},
     {id:'harness',label:'Harness',sub:'시험 운영·판정',l:1,n:-1,kind:'disc',ox:-6,oy:-18},
     {id:'mfg',label:'Manufacturing Operation Agent',sub:'시험 대상 · 도구 호출',l:1,n:1,kind:'screen',fault:true,ox:18,oy:6},
     {id:'rag',label:'Knowledge / RAG',sub:'자료 검색 · 문헌 색인',l:2,n:-1,kind:'rag',ox:-32,oy:6},
@@ -156,7 +156,7 @@ function renderLoginTopoSvg() {
     ['mfg','db','done'],
     ['mfg','qa','done']
   ];
-  const W=760, H=440, S=86, cx=W*0.5, cy=H*0.54;
+  const W=760, H=480, S=94, cx=W*0.5, cy=H*0.55;
   const P=(x,y,z=0)=>[+(cx+(x-y)*0.866*S).toFixed(1),+(cy+(x+y)*0.5*S-z*S).toFixed(1)];
   const pos={}; NODES.forEach(nd=>pos[nd.id]=[nd.n*1.15, nd.l*1.15-1.7]);
   const poly=(pts,fill,stroke='none',sw=1,extra='')=>`<polygon points="${pts.map(p=>p.join(',')).join(' ')}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" ${extra}/>`;

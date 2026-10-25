@@ -940,7 +940,7 @@ main#main:has([data-live-auth-split]:not([hidden])) {
 }
 
 .login-copy {
-  padding: 36px 52px 0;
+  padding: 32px 52px 0;
   position: relative;
   z-index: 3;
 }
@@ -952,7 +952,7 @@ main#main:has([data-live-auth-split]:not([hidden])) {
   font-weight: 700;
   font-size: 17px;
   letter-spacing: -0.02em;
-  margin-bottom: 44px;
+  margin-bottom: 24px;
   color: var(--text);
 }
 
@@ -976,8 +976,8 @@ main#main:has([data-live-auth-split]:not([hidden])) {
 .login-art {
   position: relative;
   width: 100%;
-  max-width: 780px;
-  aspect-ratio: 760 / 440;
+  max-width: none;
+  aspect-ratio: 760 / 480;
   margin: auto;
   flex: none;
   z-index: 2;
@@ -1071,7 +1071,7 @@ main#main:has([data-live-auth-split]:not([hidden])) {
 }
 
 .login-ticker {
-  padding: 18px 52px 30px;
+  padding: 16px 52px 24px;
   position: relative;
   z-index: 3;
   display: flex;
@@ -3710,7 +3710,12 @@ table.mx tr:last-child td {
 }
 
 /* ── Responsive Breakpoints ── */
+@media (min-width: 1201px) {
+  .login-art { width: min(100%, calc((100dvh - 268px) * 760 / 480)); }
+}
+
 @media (max-width: 1200px) {
+  .login-art { max-width: 720px; }
   .login-split {
     grid-template-columns: 1fr;
   }
@@ -4976,4 +4981,7 @@ body.is-approver-mode .prepare-main-col {
 
 @media (max-width: 760px) {
   .login-utilities { top: 16px; right: 16px; }
+  .login-art .nlabel { font-size: 10px; gap: 5px; padding: 5px 7px; }
+  .login-art .nlabel small { font-size: 8px; }
+  .login-art .nlabel-ico { width: 18px; height: 18px; }
 }
