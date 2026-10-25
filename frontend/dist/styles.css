@@ -4985,3 +4985,43 @@ body.is-approver-mode .prepare-main-col {
   .login-art .nlabel small { font-size: 8px; }
   .login-art .nlabel-ico { width: 18px; height: 18px; }
 }
+
+/* Run records stay separate from the steps for creating a new experiment. */
+.run-nav-link.active { border-color: var(--signal); color: var(--signal); background: var(--sig-bg); }
+.run-workspace h2 { margin: 0; }
+.run-search { max-width: 520px; margin-top: 24px; }
+.run-search > label { display: block; margin-bottom: 8px; color: var(--text-2); font-size: 13px; }
+.run-search > div { display: flex; gap: 8px; }
+.run-search input { min-width: 0; flex: 1; font-family: var(--mono); }
+.run-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 16px; }
+.run-filters [aria-pressed="true"] { border-color: var(--signal); color: var(--signal); background: var(--sig-bg); }
+.run-records { border-top: 1px solid var(--border); }
+.run-record { display: grid; grid-template-columns: minmax(120px,.7fr) minmax(180px,1.8fr) minmax(180px,1.2fr) auto; align-items: center; gap: 20px; padding: 22px 16px; border-bottom: 1px solid var(--border); border-left: 3px solid transparent; }
+.run-record[data-status="WAITING_APPROVAL"] { border-left-color: var(--warn); background: var(--warn-bg); }
+.run-record-id { display: flex; flex-direction: column; gap: 6px; font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
+.run-record-id small { color: var(--muted); font: 11px var(--font); }
+.run-record-info h3 { margin: 0 0 6px; font-size: 15px; line-height: 1.5; overflow-wrap: anywhere; }
+.run-record-info p { margin: 0 0 4px; color: var(--text-2); font-size: 12px; overflow-wrap: anywhere; }
+.run-record-info time { color: var(--muted); font-size: 12px; }
+.run-record-state { display: flex; flex-direction: column; gap: 8px; }
+.run-record-state strong { font-size: 13px; }
+.run-record-state small { color: var(--muted); line-height: 1.6; }
+.run-record[data-status="WAITING_APPROVAL"] .run-record-state strong { color: var(--warn-text); }
+.run-record[data-status="ERROR"] .run-record-state strong { color: var(--neg-text); }
+.run-record[data-status="COMPLETED"] .run-record-state strong { color: var(--pos-text); }
+.run-record > button { white-space: nowrap; min-height: 44px; }
+.run-pagination { display: flex; align-items: center; justify-content: flex-end; gap: 16px; margin-top: 20px; }
+.run-pagination span { font-size: 12px; color: var(--muted); }
+.run-list-empty { padding: 48px 16px; text-align: center; }
+.run-list-empty p { color: var(--text-2); line-height: 1.7; }
+.run-workspace button:focus-visible { outline: 2px solid var(--signal); outline-offset: 4px; }
+@media (max-width: 1100px) {
+  .run-record { grid-template-columns: minmax(110px,.7fr) minmax(160px,1.6fr) minmax(170px,1fr); }
+  .run-record > button { grid-column: 3; }
+}
+@media (max-width: 640px) {
+  .run-record { grid-template-columns: 1fr; gap: 14px; padding: 20px 12px; }
+  .run-record > button { grid-column: 1; width: 100%; }
+  .run-record-id { flex-direction: row; align-items: center; gap: 12px; }
+  .run-pagination { justify-content: space-between; gap: 8px; }
+}

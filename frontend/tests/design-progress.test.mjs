@@ -38,7 +38,7 @@ test('failed requests hide the ring and allow another attempt',async()=>{
 });
 
 
-test('successful login offers tutorial even if subsequent workspace refresh fails',async()=>{
+test('successful login preserves the session and reports a failed workspace refresh',async()=>{
  let shown=0,failed=0;
  const form={matches:s=>s==='[data-live-login]',querySelectorAll:()=>[],reset(){}};
  const context={FormData:class { *[Symbol.iterator](){yield ['user_id','requester-01'];} },
@@ -47,7 +47,7 @@ test('successful login offers tutorial even if subsequent workspace refresh fail
   document:{getElementById:id=>{assert.equal(id,'tutorial-invitation');return {showModal(){shown++;}};}}};
  const {submit}=vm.runInNewContext(logic+';({submit})',context);
  await submit({preventDefault(){},target:form});
- assert.equal(shown,1);assert.equal(failed,1);assert.equal(context.state.session.access_token,'test');
+ assert.equal(shown,0);assert.equal(failed,1);assert.equal(context.state.session.access_token,'test');
  context.api=async()=>{throw new Error('Unauthorized');};
- await submit({preventDefault(){},target:form});assert.equal(shown,1);
+ await submit({preventDefault(){},target:form});assert.equal(shown,0);
 });

@@ -275,10 +275,18 @@ class Store:
             row = db.execute(select(runs.c.body).where(runs.c.run_id == run_id)).first()
         return json.loads(row[0]) if row else None
 
-    def list_runs(self, limit: int = 50) -> list[dict]:
+    def list_runs(
+        self, limit: int = 50, offset: int = 0, query: str = "", statuses: tuple = ()
+    ) -> list[dict]:
+        statement = select(runs.c.body)
+        if query:
+            statement = statement.where(runs.c.run_id.icontains(query, autoescape=True))
+        if statuses:
+            statement = statement.where(runs.c.status.in_(statuses))
         with self.engine.connect() as db:
             rows = db.execute(
-                select(runs.c.body).order_by(runs.c.created_at.desc()).limit(limit)
+                statement.order_by(runs.c.created_at.desc(), runs.c.run_id.desc())
+                .offset(offset).limit(limit)
             ).all()
         return [json.loads(row[0]) for row in rows]
 

@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./styles.css?v=0.15.4">
+<link rel="stylesheet" href="./styles.css?v=0.15.5">
 <script>
 (function(){
   try {
@@ -50,6 +50,9 @@
       <button type="button" data-tab="execution" class="rail-btn" aria-label="실행 분석" title="4. 실행 분석">
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 15V9M8 15V4M13 15v-4"/></svg>
       </button>
+      <button type="button" data-tab="runs" data-run-nav hidden class="rail-btn" aria-label="실행 목록" title="실행 목록">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="2" y="2" width="14" height="14" rx="2"/><path d="M6 6h7M6 9h7M6 12h4M4 6h.1M4 9h.1M4 12h.1"/></svg>
+      </button>
       <button type="button" data-tab="compare" hidden class="rail-btn" aria-label="결과 비교" title="5. 결과 비교">
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h5v8H3zM10 5h5v8h-5z"/></svg>
       </button>
@@ -87,6 +90,7 @@
       </nav>
       <nav data-approver-nav hidden class="approver-nav" aria-label="승인자 주 메뉴"><button type="button" class="secondary" data-tab="approvals">승인 목록</button><button type="button" class="secondary" data-tab="requests">관리자 요청 사항</button><button type="button" class="secondary" data-tab="reports">보고서 목록</button></nav>
       <div class="header-end">
+        <button type="button" class="secondary run-nav-link" data-tab="runs" data-run-nav hidden>실행 목록</button>
         <span class="wait-pill" id="header-approval-pill" hidden><i class="pulse-dot sig"></i><span>승인 대기 1</span></span>
         <div class="header-user" id="header-user" hidden></div>
         <button type="button" class="secondary demo-entry" data-tab="demo">튜토리얼 시작하기</button>
@@ -137,6 +141,6 @@
   <button class="primary" id="understood">확인</button>
 </dialog>
 <div id="toast" role="status"></div>
-<script type="module" src="./app.js?v=0.15.4"></script>
+<script type="module" src="./app.js?v=0.15.5"></script>
 </body>
 </html>

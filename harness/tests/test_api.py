@@ -196,3 +196,29 @@ def test_approver_workspace_keeps_pending_requests_older_than_recent_history(cli
     rows = client.get("/api/qa/approver/runs", headers=approver).json()["runs"]
     assert len(rows) == 201
     assert rows[-1]["run_id"] == "OLD-PENDING"
+
+
+def test_run_history_search_status_and_paging_reach_old_runs(client):
+    store = client.app.state.store
+    for number in range(1, 56):
+        store.put_run({
+            "run_id": f"RUN-{number:03}", "test_id": "S01", "system_id": "B0",
+            "status": "WAITING_APPROVAL" if number == 1 else "COMPLETED",
+            "created_at": f"2026-10-25T00:00:{number:02}Z", "created_by": "requester-01",
+        })
+    first = client.get("/api/runs?limit=20").json()
+    second = client.get("/api/runs?limit=20&offset=20").json()
+    last = client.get("/api/runs?limit=20&offset=40").json()
+    assert first["has_more"] and second["has_more"] and not last["has_more"]
+    ids = [r["run_id"] for page in (first, second, last) for r in page["runs"]]
+    assert len(ids) == len(set(ids)) == 55
+    assert ids[-1] == "RUN-001"
+    pending = client.get("/api/runs?status=WAITING_APPROVAL").json()["runs"]
+    assert [r["run_id"] for r in pending] == ["RUN-001"]
+    assert pending[0]["created_by"] == "requester-01"
+    assert client.get("/api/runs?status=ACTIVE").json()["runs"] == pending
+    assert client.get("/api/runs?q=run-001").json()["runs"] == pending
+    assert client.get("/api/runs?q=RUN-001&status=COMPLETED").json()["runs"] == []
+    assert client.get("/api/runs?q=%25").json()["runs"] == []
+    for query in ("offset=-1", "status=unknown", "limit=201"):
+        assert client.get("/api/runs?" + query).status_code == 400

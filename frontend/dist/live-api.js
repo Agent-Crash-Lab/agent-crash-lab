@@ -78,14 +78,34 @@ export function startPayload(catalog, draft) {
 export const LIVE_COMPARISON_ENABLED = false;
 
 export function workspaceRoute(hash) {
-  const value=hash.replace(/^#/, '') || 'agents';
+  const [path,query]=hash.replace(/^#/, '').split('?');
+  const value=path || 'agents';
+  const runId=new URLSearchParams(query).get('run');
+  if(['live','execution'].includes(value) && runId)return {page:value,runId};
   if(value==='compare' && !LIVE_COMPARISON_ENABLED)return {page:'execution'};
-  if(['agents','prepare','live','execution','compare','approvals','requests','reports'].includes(value))return {page:value};
+  if(['agents','prepare','live','execution','runs','compare','approvals','requests','reports'].includes(value))return {page:value};
   if(value==='demo' || value.startsWith('demo-')) {
     const tab=value.slice(5);
     return {page:'demo',demoTab:['agents','prepare','execution','compare','structure'].includes(tab)?tab:'agents',show3d:value==='demo-3d'};
   }
   return {page:'agents'};
+}
+
+export function runListMarkup(runs, catalog, selectedId) {
+  const labels={PREPARING:'실행 준비 중',RUNNING:'실행 중',WAITING_APPROVAL:'담당자 승인 대기',EVALUATING:'결과 검사 중',COMPLETED:'실행 완료',ERROR:'실행 오류'};
+  return runs.map(run=>{
+    const test=catalog?.tests.find(test=>test.test_id===run.test_id);
+    const date=new Date(run.created_at);
+    const time=Number.isNaN(date.getTime())?'시각 미상':date.toLocaleString('ko-KR',{dateStyle:'medium',timeStyle:'short'});
+    const summary=run.summary || {}, count=(summary.PASS || 0)+(summary.FAIL || 0)+(summary.INCONCLUSIVE || 0);
+    const verdict=run.status==='ERROR'?'오류 기록 확인':count?`통과 ${summary.PASS || 0} · 미충족 ${summary.FAIL || 0} · 보류 ${summary.INCONCLUSIVE || 0}`:'아직 판정이 없습니다';
+    return `<article class="run-record" data-status="${escapeHtml(run.status)}" ${run.run_id===selectedId?'data-selected="true"':''}>
+      <div class="run-record-id"><span class="mono">${escapeHtml(run.run_id)}</span>${run.run_id===selectedId?'<small>열어 본 실행</small>':''}</div>
+      <div class="run-record-info"><h3>${escapeHtml(test?.title || run.test_id)}</h3><p>${escapeHtml(run.test_id)}${run.system_id?` · ${escapeHtml(run.system_id)}`:''}${run.created_by?` · 요청자 ${escapeHtml(run.created_by)}`:''}</p><time datetime="${escapeHtml(run.created_at || '')}">${escapeHtml(time)}</time></div>
+      <div class="run-record-state"><strong>${escapeHtml(labels[run.status] || run.status)}</strong><small>${escapeHtml(verdict)}</small></div>
+      <button type="button" class="secondary" data-live-run="${escapeHtml(run.run_id)}" aria-label="${escapeHtml(run.run_id)} 실행 분석 열기">${run.status==='WAITING_APPROVAL'?'승인 대기 확인':'실행 분석 열기'} →</button>
+    </article>`;
+  }).join('');
 }
 
 // Guidance follows observed server state; a finished process is not a passing verdict.

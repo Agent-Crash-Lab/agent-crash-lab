@@ -1,9 +1,9 @@
-import {workspaceRoute,LIVE_COMPARISON_ENABLED} from './live-api.js?v=0.15.4';
-import {mountLive,leaveLive,isLiveAuthenticated,isApproverAccount,accountPage,referenceTargetTypes,targetTypeMeta,renderChainSvg} from './live.js?v=0.15.4';
-import { mountScene, pauseScene } from './scene.js?v=0.15.4';
-import { agents, investigationScenarios, investigationEvents, investigationChecks, validateDemoProfile, restoreProfiles } from './registry.js?v=0.15.4';
-import { frameFor, mapEvents } from './topology.js?v=0.15.4';
-import { initRegistration, openRegistration } from './registration.js?v=0.15.4';
+import {workspaceRoute,LIVE_COMPARISON_ENABLED} from './live-api.js?v=0.15.5';
+import {mountLive,leaveLive,isLiveAuthenticated,isApproverAccount,accountPage,referenceTargetTypes,targetTypeMeta,renderChainSvg} from './live.js?v=0.15.5';
+import { mountScene, pauseScene } from './scene.js?v=0.15.5';
+import { agents, investigationScenarios, investigationEvents, investigationChecks, validateDemoProfile, restoreProfiles } from './registry.js?v=0.15.5';
+import { frameFor, mapEvents } from './topology.js?v=0.15.5';
+import { initRegistration, openRegistration } from './registration.js?v=0.15.5';
 restoreProfiles();
 const $ = (s) => document.querySelector(s);
 const purchaseScenarios = {
@@ -90,7 +90,7 @@ function checksFor(scenario = state.scenario, config = state.config) {
 function focusDemoHeading(){if(typeof document==='undefined')return;const heading=$('#main h1');if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});heading.scrollIntoView({block:'start'});}}
 function startTutorialPage(tab){state.tutorialTour=true;state.tutorialGuideIndex[tab]=0;}
 function navigate(tab) { if(tab==='compare')tab='execution';startTutorialPage(tab);stopPlayback(); workspacePage='demo'; state.tab=tab;state.selected=null;history.replaceState(null,'',`#demo-${tab}`);render();focusDemoHeading(); }
-function navigateWorkspace(tab){stopPlayback();tab=accountPage(tab);if(tab==='demo'){stopPlayback();startTutorialPage('agents');workspacePage='demo';state.tab='agents';history.replaceState(null,'','#demo-agents');render();focusDemoHeading();return;}if(tab==='compare' && !LIVE_COMPARISON_ENABLED)tab='execution';if(typeof isLiveAuthenticated==='function'&&!isLiveAuthenticated()){workspacePage='agents';history.replaceState(null,'','#agents');render();return;}stopPlayback();if(tab==='demo'){startTutorialPage('agents');workspacePage='demo';state.tab='agents';state.selected=null;history.replaceState(null,'','#demo-agents');render();focusDemoHeading();return;}workspacePage=tab;history.replaceState(null,'',`#${tab}`);render();const heading=$('#main h1');if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});heading.scrollIntoView({block:'start'});}}
+function navigateWorkspace(tab,runId){stopPlayback();tab=accountPage(tab);if(tab==='demo'){stopPlayback();startTutorialPage('agents');workspacePage='demo';state.tab='agents';history.replaceState(null,'','#demo-agents');render();focusDemoHeading();return;}if(tab==='compare' && !LIVE_COMPARISON_ENABLED)tab='execution';if(typeof isLiveAuthenticated==='function'&&!isLiveAuthenticated()){workspacePage='agents';history.replaceState(null,'','#agents');render();return;}stopPlayback();if(tab==='demo'){startTutorialPage('agents');workspacePage='demo';state.tab='agents';state.selected=null;history.replaceState(null,'','#demo-agents');render();focusDemoHeading();return;}workspacePage=tab;history.replaceState(null,'',`#${tab}${runId?`?${new URLSearchParams({run:runId})}`:''}`);render();const heading=$('#main h1');if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});heading.scrollIntoView({block:'start'});}}
 function chooseScenario(id) { if(!scenarioMap(state.draft.agentId)[id])return;state.draft.scenario=id;state.demoSelected=true;render(); }
 function header(title, description, actions = '') { return `<div class="page-heading"><div><h1>${title}</h1><p>${description}</p></div><div class="heading-actions">${actions}</div></div>`; }
 function tutorialGuideSteps(stage) {
@@ -314,6 +314,7 @@ function render() {
  document.querySelectorAll('[data-tab=compare]').forEach(button=>{button.hidden=!LIVE_COMPARISON_ENABLED;const arrow=button.previousElementSibling;if(arrow?.classList.contains('step-arrow'))arrow.hidden=!LIVE_COMPARISON_ENABLED;});
  $('#main').classList.toggle('demo-workspace',workspacePage==='demo');
  $('#demo-navigation').hidden=true;
+ document.querySelectorAll('[data-run-nav]').forEach(button=>{if(workspacePage==='demo')button.hidden=true;});
  const stepNav=$('.step-nav');
  if(stepNav && workspacePage==='demo') stepNav.hidden=false;
  document.querySelectorAll('.workspace-bar [data-tab], .site-rail [data-tab]').forEach(button=>{button.classList.toggle('active',button.dataset.tab===(workspacePage==='demo'?state.tab:workspacePage));button.setAttribute('aria-current',button.dataset.tab===(workspacePage==='demo'?state.tab:workspacePage)?'page':'false');});
