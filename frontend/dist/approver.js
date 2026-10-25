@@ -1,4 +1,4 @@
-import {api, escapeHtml as esc, qaReportDocument} from './live-api.js?v=0.15.4';
+import {api, escapeHtml as esc, qaReportDocument} from './live-api.js?v=0.15.7';
 
 const titles={approvals:'승인 목록',requests:'관리자 요청 사항',reports:'보고서 목록'};
 const statusNames={WAITING_APPROVAL:'승인 대기',COMPLETED:'실행 완료',ERROR:'실행 오류',RUNNING:'실행 중',CREATED:'접수',APPROVED:'승인',REJECTED:'거절'};

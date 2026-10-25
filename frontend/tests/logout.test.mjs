@@ -11,7 +11,7 @@ function workspace(){
  const document={body:{classList:{toggle(){}}},querySelector:()=>null,querySelectorAll:()=>[],getElementById:id=>id==='header-user'?user:null};
  const app=vm.runInNewContext(source+`;go=tab=>routes.push(tab);({state,syncShellChrome,leaveLive,isLiveAuthenticated,click})`,{
   purchaseTopology,document,routes,esc:escapeHtml,clearTimeout(){},clearInterval(){},pauseScene(){},leaveApprover(){}});
- Object.assign(app.state,{session:{user_id:'requester-01',roles:['REQUESTER']},registration:{name:'User target'},registrations:[{}],catalog:{},run:{run_id:'RUN-1'},runs:[{}],events:[{}],designPlan:{},designCaseId:'CASE-1',batch:{},batchRequest:{},pendingRunId:'RUN-1'});
+ Object.assign(app.state,{runList:{runs:[{}],q:'RUN-1',status:'ACTIVE',offset:20,hasMore:true},session:{user_id:'requester-01',roles:['REQUESTER']},registration:{name:'User target'},registrations:[{}],catalog:{},run:{run_id:'RUN-1'},runs:[{}],events:[{}],designPlan:{},designCaseId:'CASE-1',batch:{},batchRequest:{},pendingRunId:'RUN-1'});
  return {...app,headerButton,routes};
 }
 
@@ -27,4 +27,5 @@ test('in-page logout uses the same cleanup and returns to the login route',()=>{
  ui.click({target:{closest:()=>button}});
  assert.equal(ui.isLiveAuthenticated(),false);assert.deepEqual(ui.routes,['agents']);
  assert.equal(ui.state.designPlan,null);assert.equal(ui.state.registrations.length,0);
+ assert.equal(ui.state.runList.runs.length,0);assert.equal(ui.state.runList.q,'');assert.equal(ui.state.runList.offset,0);
 });

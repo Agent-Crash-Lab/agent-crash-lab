@@ -73,14 +73,33 @@ export function startPayload(catalog, draft) {
   return {test_id:test.test_id, ...(test.test_kind === 'SYSTEM' ? {system_id:draft.system_id} : {})};
 }
 
+export function designStartPayload(catalog, plan, caseId, systemId) {
+  const selected=plan?.cases.find(c=>c.case_id===caseId);
+  if (!plan?.plan_id || selected?.execution.status!=='READY') throw new Error('실행 가능한 설계 시험을 먼저 선택해 주세요.');
+  if (!catalog?.systems.some(s=>s.system_id===systemId)) throw new Error('시험 설계에서 서버 정책을 확인해 주세요.');
+  return {plan_id:plan.plan_id,case_id:caseId,system_id:systemId};
+}
+
+export const runDestination = run => ['COMPLETED','ERROR'].includes(run.status) ? 'execution' : 'live';
+export function progressEventsMarkup(events) {
+  const names={RUN_STATUS_CHANGED:'실행 상태 변경',RUN_STARTED:'시험 시작',AGENT_DISPATCHED:'Agent 실행 시작',AGENT_STEP:'Agent 처리',TOOL_CALLED:'도구 호출',AGENT_TOOL_CALLED:'도구 호출',TOOL_RESPONDED:'도구 응답 수신',AGENT_TOOL_RESPONDED:'도구 응답 수신',APPROVAL_REQUESTED:'담당자 승인 요청',AGENT_WAITING_APPROVAL:'담당자 승인 대기',APPROVAL_DECIDED:'담당자 승인·거절',AGENT_APPROVAL_RECEIVED:'승인 결정 수신',SCENARIO_STATE_CHANGED:'시험 상태 변경',BUSINESS_COMMITTED:'업무 변경 저장',FAULT_INJECTED:'예외 적용',FAULT_APPLIED:'예외 적용',IDEMPOTENT_RETURNED:'기존 처리 결과 반환',AGENT_FINISHED:'Agent 처리 종료',RUN_FINISHED:'시험 처리 종료',SNAPSHOT_FINALIZED:'최종 업무 상태 확인',VERDICT_CREATED:'검사 결과 기록',REPORT_READY:'보고서 작성 완료'};
+  return events.length?`<ol class="run-progress-events">${events.slice(-5).reverse().map(e=>{
+    const date=new Date(e.occurred_at), time=Number.isNaN(date.getTime())?e.occurred_at || '':date.toLocaleTimeString('ko-KR');
+    return `<li><span class="mono">#${escapeHtml(e.sequence)}</span><strong>${escapeHtml(names[e.event_type || e.type] || '실행 기록')}</strong><time datetime="${escapeHtml(e.occurred_at || '')}">${escapeHtml(time)}</time></li>`;
+  }).join('')}</ol>`:'<p class="live-hint">서버에서 진행 기록을 받으면 표시합니다.</p>';
+}
+
 
 // Temporarily hide real-run comparison; keep its implementation for reactivation.
 export const LIVE_COMPARISON_ENABLED = false;
 
 export function workspaceRoute(hash) {
-  const value=hash.replace(/^#/, '') || 'agents';
+  const [path,query]=hash.replace(/^#/, '').split('?');
+  const value=path || 'agents';
+  const runId=new URLSearchParams(query).get('run');
+  if(['live','execution'].includes(value) && runId)return {page:value,runId};
   if(value==='compare' && !LIVE_COMPARISON_ENABLED)return {page:'execution'};
-  if(['agents','prepare','live','execution','compare','approvals','requests','reports'].includes(value))return {page:value};
+  if(['agents','prepare','live','execution','runs','compare','approvals','requests','reports'].includes(value))return {page:value};
   if(value==='demo' || value.startsWith('demo-')) {
     const tab=value.slice(5);
     return {page:'demo',demoTab:['agents','prepare','execution','compare','structure'].includes(tab)?tab:'agents',show3d:value==='demo-3d'};
@@ -88,18 +107,36 @@ export function workspaceRoute(hash) {
   return {page:'agents'};
 }
 
+export function runListMarkup(runs, catalog, selectedId) {
+  const labels={PREPARING:'실행 준비 중',RUNNING:'실행 중',WAITING_APPROVAL:'담당자 승인 대기',EVALUATING:'결과 검사 중',COMPLETED:'실행 완료',ERROR:'실행 오류'};
+  return runs.map(run=>{
+    const test=catalog?.tests.find(test=>test.test_id===run.test_id);
+    const date=new Date(run.created_at);
+    const time=Number.isNaN(date.getTime())?'시각 미상':date.toLocaleString('ko-KR',{dateStyle:'medium',timeStyle:'short'});
+    const summary=run.summary || {}, count=(summary.PASS || 0)+(summary.FAIL || 0)+(summary.INCONCLUSIVE || 0);
+    const verdict=run.status==='ERROR'?'오류 기록 확인':count?`통과 ${summary.PASS || 0} · 미충족 ${summary.FAIL || 0} · 보류 ${summary.INCONCLUSIVE || 0}`:'아직 판정이 없습니다';
+    return `<article class="run-record" data-status="${escapeHtml(run.status)}" ${run.run_id===selectedId?'data-selected="true"':''}>
+      <div class="run-record-id"><span class="mono">${escapeHtml(run.run_id)}</span>${run.run_id===selectedId?'<small>열어 본 실행</small>':''}</div>
+      <div class="run-record-info"><h3>${escapeHtml(test?.title || run.test_id)}</h3><p>${escapeHtml(run.test_id)}${run.system_id?` · ${escapeHtml(run.system_id)}`:''}${run.created_by?` · 요청자 ${escapeHtml(run.created_by)}`:''}</p><time datetime="${escapeHtml(run.created_at || '')}">${escapeHtml(time)}</time></div>
+      <div class="run-record-state"><strong>${escapeHtml(labels[run.status] || run.status)}</strong><small>${escapeHtml(verdict)}</small></div>
+      <button type="button" class="secondary" data-live-run="${escapeHtml(run.run_id)}" aria-label="${escapeHtml(run.run_id)} ${runDestination(run)==='live'?'실험 실행 열기':'실행 분석 열기'}">${run.status==='WAITING_APPROVAL'?'승인 대기 확인':runDestination(run)==='live'?'진행 상태 보기':'실행 분석 열기'} →</button>
+    </article>`;
+  }).join('');
+}
+
 // Guidance follows observed server state; a finished process is not a passing verdict.
-export function runGuidance(run, settled=false) {
+export function runGuidance(run, settled=false, page='execution') {
   if (run.status === 'ERROR') return {title:'실행이 오류로 종료됐습니다', detail:'자동으로 다시 실행하지 않습니다. 실행 분석에서 오류와 마지막 기록을 확인해 주세요.', action:'오류 기록 확인 →', page:'execution'};
-  if (run.status === 'WAITING_APPROVAL') return {title:'담당자 승인을 기다리고 있습니다', detail:'아직 발주하지 않았습니다. 실제 실행 화면에서 승인 대상을 확인한 뒤 승인하거나 거절해 주세요.', action:'승인·거절 처리 →', page:'live'};
-  if (run.investigation?.status === 'RUNNING') return {title:'사고 조사 보고서를 작성하고 있습니다', detail:'실행은 접수됐습니다. 근거와 지침을 조회해 보고서를 작성 중이며, 완료되면 이 화면에 표시합니다.', action:'조사 진행 보기 →', page:'execution'};
+  if (run.status === 'WAITING_APPROVAL') return {title:'담당자 승인을 기다리고 있습니다', detail:'업무 변경 요청과 내용을 확인한 뒤 승인자 계정으로 승인하거나 거절해 주세요.', action:'승인 처리로 이동 →', page:'live'};
+  if (run.investigation?.status === 'RUNNING') return {title:'사고 조사 보고서를 작성하고 있습니다', detail:'근거와 지침을 조회해 보고서를 작성 중입니다. 완료 후 실행 분석에서 확인할 수 있습니다.', page:'live'};
   if (run.status === 'COMPLETED' && settled) {
+    if(page==='live')return {title:'실행과 근거 수집이 끝났습니다',detail:'실행 종료와 검사 통과는 별개입니다. 실행 분석에서 판정과 근거를 확인하세요.',action:'결과 분석 보기 →',page:'execution'};
     const failed=run.summary?.FAIL || 0, unknown=run.summary?.INCONCLUSIVE || 0;
     return {title:'실행과 결과 수집이 끝났습니다', detail:run.investigation?.status === 'ERROR' ? '조사 보고서 생성에 실패했습니다. 실행 분석에서 검사 결과와 오류 기록을 확인해 주세요.' : failed || unknown ? `미충족 기준 ${failed}개 · 판정 보류 ${unknown}개가 있습니다. 실행 분석에서 검사 근거${run.investigation?.report?'와 조사 보고서':''}를 확인해 주세요.` : '실행 분석에서 검사 결과'+(run.investigation?.report?'와 조사 보고서':'와 실행 근거')+'를 확인해 주세요.', action:'결과 확인 →', page:'execution'};
   }
   const copy={PREPARING:['실행을 준비하고 있습니다','요청이 접수됐습니다. 시험 환경을 준비한 뒤 Agent를 실행합니다.'],EVALUATING:['실행 결과를 검사하고 있습니다','Agent 처리가 끝나 검사 결과와 근거를 수집하고 있습니다. 잠시 기다려 주세요.'],COMPLETED:['마지막 실행 기록을 수집하고 있습니다','검사 결과와 이벤트를 모두 받은 뒤 완료 상태를 안내합니다.']};
   const [title,detail]=copy[run.status] || ['Agent가 실행 중입니다','요청이 접수됐습니다. 도구 호출과 모델 응답을 기다리고 있습니다. 승인이 필요하면 이곳에 안내합니다.'];
-  return {title,detail,action:'진행 기록 보기 →',page:'execution'};
+  return {title,detail,page:'live'};
 }
 
 export function nextActionHint({page, session, run, settled, pendingStart, comparison}) {

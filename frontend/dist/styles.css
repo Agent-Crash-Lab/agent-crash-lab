@@ -1312,9 +1312,39 @@ main#main:has([data-live-auth-split]:not([hidden])) {
 }
 
 .chain {
-  height: 64px;
+  height: 138px;
   width: 100%;
   display: block;
+  overflow: visible;
+  font-family: var(--font);
+}
+
+.targets-diagram-hint {
+  margin: 0;
+  padding: 12px 24px;
+  color: var(--text-2);
+  font-size: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.target-diagram, .diagram-focus, .diagram-connection {
+  display: block;
+}
+
+.diagram-focus {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--sig-tint-text);
+  word-break: keep-all;
+}
+
+.diagram-connection {
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--text-2);
 }
 
 .target-last {
@@ -2671,7 +2701,7 @@ input[type=range] {
 }
 
 .prepare-work-grid[data-page-mode="execution"] {
-  grid-template-columns: minmax(0, 1.5fr) minmax(340px, 0.9fr);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .prepare-main-col,
@@ -4984,4 +5014,75 @@ body.is-approver-mode .prepare-main-col {
   .login-art .nlabel { font-size: 10px; gap: 5px; padding: 5px 7px; }
   .login-art .nlabel small { font-size: 8px; }
   .login-art .nlabel-ico { width: 18px; height: 18px; }
+}
+
+/* Run records stay separate from the steps for creating a new experiment. */
+.run-nav-link.active { border-color: var(--signal); color: var(--signal); background: var(--sig-bg); }
+.run-workspace h2 { margin: 0; }
+.run-search { max-width: 520px; margin-top: 24px; }
+.run-search > label { display: block; margin-bottom: 8px; color: var(--text-2); font-size: 13px; }
+.run-search > div { display: flex; gap: 8px; }
+.run-search input { min-width: 0; flex: 1; font-family: var(--mono); }
+.run-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 16px; }
+.run-filters [aria-pressed="true"] { border-color: var(--signal); color: var(--signal); background: var(--sig-bg); }
+.run-records { border-top: 1px solid var(--border); }
+.run-record { display: grid; grid-template-columns: minmax(120px,.7fr) minmax(180px,1.8fr) minmax(180px,1.2fr) auto; align-items: center; gap: 20px; padding: 22px 16px; border-bottom: 1px solid var(--border); border-left: 3px solid transparent; }
+.run-record[data-status="WAITING_APPROVAL"] { border-left-color: var(--warn); background: var(--warn-bg); }
+.run-record-id { display: flex; flex-direction: column; gap: 6px; font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
+.run-record-id small { color: var(--muted); font: 11px var(--font); }
+.run-record-info h3 { margin: 0 0 6px; font-size: 15px; line-height: 1.5; overflow-wrap: anywhere; }
+.run-record-info p { margin: 0 0 4px; color: var(--text-2); font-size: 12px; overflow-wrap: anywhere; }
+.run-record-info time { color: var(--muted); font-size: 12px; }
+.run-record-state { display: flex; flex-direction: column; gap: 8px; }
+.run-record-state strong { font-size: 13px; }
+.run-record-state small { color: var(--muted); line-height: 1.6; }
+.run-record[data-status="WAITING_APPROVAL"] .run-record-state strong { color: var(--warn-text); }
+.run-record[data-status="ERROR"] .run-record-state strong { color: var(--neg-text); }
+.run-record[data-status="COMPLETED"] .run-record-state strong { color: var(--pos-text); }
+.run-record > button { white-space: nowrap; min-height: 44px; }
+.run-pagination { display: flex; align-items: center; justify-content: flex-end; gap: 16px; margin-top: 20px; }
+.run-pagination span { font-size: 12px; color: var(--muted); }
+.run-list-empty { padding: 48px 16px; text-align: center; }
+.run-list-empty p { color: var(--text-2); line-height: 1.7; }
+.run-workspace button:focus-visible { outline: 2px solid var(--signal); outline-offset: 4px; }
+@media (max-width: 1100px) {
+  .run-record { grid-template-columns: minmax(110px,.7fr) minmax(160px,1.6fr) minmax(170px,1fr); }
+  .run-record > button { grid-column: 3; }
+}
+@media (max-width: 640px) {
+  .run-record { grid-template-columns: 1fr; gap: 14px; padding: 20px 12px; }
+  .run-record > button { grid-column: 1; width: 100%; }
+  .run-record-id { flex-direction: row; align-items: center; gap: 12px; }
+  .run-pagination { justify-content: space-between; gap: 8px; }
+}
+
+/* Run controls show current server state; evidence exploration belongs to analysis. */
+.prepare-work-grid[data-page-mode="live"] { grid-template-columns: minmax(0, 1fr) minmax(280px, 340px); }
+.run-condition-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 28px; margin: 24px 0; }
+.run-condition-fields > div, .run-input-fields > div { min-width: 0; }
+.run-condition-fields dt, .run-input-fields dt { color: var(--muted); font-size: 13px; margin-bottom: 6px; }
+.run-condition-fields dd, .run-input-fields dd { margin: 0; overflow-wrap: anywhere; line-height: 1.6; }
+.run-input-fields { display: grid; gap: 12px; margin: 12px 0; }
+.run-input-fields > div { padding: 10px 14px; background: var(--raised); border-radius: var(--r); }
+.live-selected-design > h3 { margin-top: 24px; font-size: 22px; line-height: 1.4; text-wrap: balance; }
+.live-run-controls [data-live-setup] { margin-top: 24px; }
+.live-run-controls details > summary { min-height: 44px; padding: 12px 0; }
+.run-progress-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 24px 0 12px; font-size: 16px; }
+.run-progress-heading small { color: var(--muted); font-size: 12px; font-weight: 400; }
+.run-progress-events { list-style: none; padding: 0; margin: 0; }
+.run-progress-events li { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; gap: 12px; align-items: baseline; padding: 14px 0; border-bottom: 1px solid var(--border); }
+.run-progress-events li > span, .run-progress-events time { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.run-progress-events strong { font-size: 14px; font-weight: 500; }
+@media (max-width: 960px) {
+  .prepare-work-grid[data-page-mode="live"] { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 600px) {
+  .run-condition-fields { grid-template-columns: minmax(0, 1fr); }
+  .run-progress-events li { grid-template-columns: 40px minmax(0, 1fr); }
+  .run-progress-events time { grid-column: 2; }
+  .run-progress-heading { flex-wrap: wrap; }
+}
+.approval-payload-box > .run-input-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 600px) {
+  .approval-payload-box > .run-input-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

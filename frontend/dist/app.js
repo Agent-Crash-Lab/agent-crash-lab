@@ -1,9 +1,9 @@
-import {workspaceRoute,LIVE_COMPARISON_ENABLED} from './live-api.js?v=0.15.4';
-import {mountLive,leaveLive,isLiveAuthenticated,isApproverAccount,accountPage,referenceTargetTypes,targetTypeMeta,renderChainSvg} from './live.js?v=0.15.4';
-import { mountScene, pauseScene } from './scene.js?v=0.15.4';
-import { agents, investigationScenarios, investigationEvents, investigationChecks, validateDemoProfile, restoreProfiles } from './registry.js?v=0.15.4';
-import { frameFor, mapEvents } from './topology.js?v=0.15.4';
-import { initRegistration, openRegistration } from './registration.js?v=0.15.4';
+import {workspaceRoute,LIVE_COMPARISON_ENABLED,progressEventsMarkup} from './live-api.js?v=0.15.7';
+import {mountLive,leaveLive,isLiveAuthenticated,isApproverAccount,accountPage,referenceTargetTypes,targetTypeMeta,renderTargetDiagram} from './live.js?v=0.15.7';
+import { mountScene, pauseScene } from './scene.js?v=0.15.7';
+import { agents, investigationScenarios, investigationEvents, investigationChecks, validateDemoProfile, restoreProfiles } from './registry.js?v=0.15.7';
+import { frameFor, mapEvents } from './topology.js?v=0.15.7';
+import { initRegistration, openRegistration } from './registration.js?v=0.15.7';
 restoreProfiles();
 const $ = (s) => document.querySelector(s);
 const purchaseScenarios = {
@@ -90,7 +90,7 @@ function checksFor(scenario = state.scenario, config = state.config) {
 function focusDemoHeading(){if(typeof document==='undefined')return;const heading=$('#main h1');if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});heading.scrollIntoView({block:'start'});}}
 function startTutorialPage(tab){state.tutorialTour=true;state.tutorialGuideIndex[tab]=0;}
 function navigate(tab) { if(tab==='compare')tab='execution';startTutorialPage(tab);stopPlayback(); workspacePage='demo'; state.tab=tab;state.selected=null;history.replaceState(null,'',`#demo-${tab}`);render();focusDemoHeading(); }
-function navigateWorkspace(tab){stopPlayback();tab=accountPage(tab);if(tab==='demo'){stopPlayback();startTutorialPage('agents');workspacePage='demo';state.tab='agents';history.replaceState(null,'','#demo-agents');render();focusDemoHeading();return;}if(tab==='compare' && !LIVE_COMPARISON_ENABLED)tab='execution';if(typeof isLiveAuthenticated==='function'&&!isLiveAuthenticated()){workspacePage='agents';history.replaceState(null,'','#agents');render();return;}stopPlayback();if(tab==='demo'){startTutorialPage('agents');workspacePage='demo';state.tab='agents';state.selected=null;history.replaceState(null,'','#demo-agents');render();focusDemoHeading();return;}workspacePage=tab;history.replaceState(null,'',`#${tab}`);render();const heading=$('#main h1');if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});heading.scrollIntoView({block:'start'});}}
+function navigateWorkspace(tab,runId){stopPlayback();tab=accountPage(tab);if(tab==='demo'){stopPlayback();startTutorialPage('agents');workspacePage='demo';state.tab='agents';history.replaceState(null,'','#demo-agents');render();focusDemoHeading();return;}if(tab==='compare' && !LIVE_COMPARISON_ENABLED)tab='execution';if(typeof isLiveAuthenticated==='function'&&!isLiveAuthenticated()){workspacePage='agents';history.replaceState(null,'','#agents');render();return;}stopPlayback();if(tab==='demo'){startTutorialPage('agents');workspacePage='demo';state.tab='agents';state.selected=null;history.replaceState(null,'','#demo-agents');render();focusDemoHeading();return;}workspacePage=tab;history.replaceState(null,'',`#${tab}${runId?`?${new URLSearchParams({run:runId})}`:''}`);render();const heading=$('#main h1');if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});heading.scrollIntoView({block:'start'});}}
 function chooseScenario(id) { if(!scenarioMap(state.draft.agentId)[id])return;state.draft.scenario=id;state.demoSelected=true;render(); }
 function header(title, description, actions = '') { return `<div class="page-heading"><div><h1>${title}</h1><p>${description}</p></div><div class="heading-actions">${actions}</div></div>`; }
 function tutorialGuideSteps(stage) {
@@ -103,9 +103,9 @@ function tutorialGuideSteps(stage) {
    {title:'LLM 제안 받기',desc:'지금은 LLM 제안 받기 후의 예시 결과를 먼저 보여드립니다. 시나리오와 실행 설정을 살펴본 뒤 직접 해보기를 누르면 제안 받기 전 화면으로 돌아갑니다.',selector:'[data-action="demo-generate"]'},
    {title:'시나리오 선택',desc:'제안 카드를 눌러 시험을 선택하고 상세 조건을 펼쳐보세요.',selector:'.design-proposals .live-design-case'},
    {title:'서버 정책 선택',desc:'B0 또는 B1을 선택하세요. 자세히 보기에서 정책의 차이를 확인할 수 있습니다.',selector:'.config-grid'},
-   {title:'3D 실행 화면으로 이동',desc:'실행 설정 상단의 버튼으로 선택한 시험을 준비합니다. 직접 해보기를 누르면 LLM 제안 받기 전 화면으로 돌아갑니다.',selector:'[data-action="load"]'}],
+   {title:'실험 실행으로 이동',desc:'실행 설정 상단의 버튼으로 선택한 시험을 준비합니다. 직접 해보기를 누르면 LLM 제안 받기 전 화면으로 돌아갑니다.',selector:'[data-action="load"]'}],
   live:[
-   {title:'선택한 조건 확인',desc:'설계에서 고른 시나리오와 정책으로 3D 구조를 표시합니다. 아직 시작 전입니다.',selector:'.live-analysis-shell'},
+   {title:'선택한 조건 확인',desc:'설계에서 고른 시험과 정책을 확인하세요. 변경하려면 시험 설계로 돌아갑니다.',selector:'.demo-run-controls'},
    {title:'시험 시작',desc:'시험 시작을 누르면 준비된 사건이 순서대로 나타납니다. 실제 Agent와 API는 호출하지 않습니다.',selector:'[data-action="demo-start"]'},
    {title:'승인과 결과 확인',desc:'승인 대기에서 승인 또는 거절을 연습한 뒤 실행 분석으로 이동하세요.',selector:'.demo-run-controls'}],
   execution:[
@@ -146,36 +146,22 @@ function tutorialMilestone(stage) {
   ${tutorialGuide(stage)}
  </section>`;
 }
-function divergenceCard(events, checks, isIA) {
- if(isIA)return '';
- const isS03=state.scenario==='S03',isB0=state.config==='B0',isS02=state.scenario==='S02';
- const axis=events.map((_,i)=>`<span>${String(i+1).padStart(2,'0')}</span>`).join('');
- return `<section class="card div-card"><div class="card-h"><h2>Agent가 본 것과 실제 DB</h2><span class="meta">같은 순번에서 두 기록을 대조합니다</span></div>
- <div class="lanes">
-  <div class="lane"><label>업무 DB<small>실제 상태</small></label><div class="lane-track">
-   ${isS03?`<div class="gap-zone" style="left:41%;width:${isB0?'35%':'24%'}"></div>`:''}
-   ${isS02?'<span class="ev ok" style="left:50%">발주 0건 유지 (거절 준수)</span>':`<span class="ev db" style="left:37.5%">CMT-001 · PO-001 저장</span>`}
-   ${isS03&&isB0?'<span class="ev bad" style="left:64%">CMT-002 · PO-002 중복 저장</span>':isS03?'<span class="ev ok" style="left:64%">REQ-001 중복 방지 · PO-001 반환</span>':''}
-   <span class="ev" style="left:90%">Oracle 판정 · ${isS02?0:isS03&&isB0?2:1}건</span>
-  </div></div>
-  <div class="lane"><label>발주 Agent<small>받은 결과</small></label><div class="lane-track">
-   <span class="ev" style="left:26%">${isS02?'승인 거절 REJECTED':'승인 APR-001'}</span>
-   ${isS03?'<span class="ev sig" style="left:46%">◆ timeout 수신</span><span class="ev" style="left:57%">같은 REQ-001 재시도</span>':''}
-   <span class="ev ${isS03&&isB0?'bad':'ok'}" style="left:78%">${isS02?'“거절됨” · 발주 0건 보고':isS03&&isB0?'“발주 완료” · PO-002 보고':'“발주 완료” · PO-001 보고'}</span>
-  </div></div>
-  <div class="lane-axis"><span></span><div class="ax">${axis}</div></div>
- </div>
- <div class="checks">${checks.map((c,i)=>`<button class="chk ${c.result==='FAIL'?'f':'p'}" data-check="${i}"><span class="ic">${c.result==='PASS'?'✓':c.result==='FAIL'?'×':'…'}</span><div><strong>${c.name}</strong><p>${c.detail}</p></div><span class="r">${badge(c.result,c.result.toLowerCase())}</span></button>`).join('')}</div></section>`;
-}
 function executionView(){return demoRunView('execution');}
 function demoRunView(stage) {
- const running=stage==='live',events=state.run?eventsFor():[],visible=running?events.slice(0,state.demoStarted?state.cursor+1:0):events;
- const checks=checksFor(),active=state.selected?.kind==='check'?events[checks[state.selected.index].evidence]:visible[Math.min(state.cursor,visible.length-1)];
- return `${header(running?'실제 실행':'실행 분석',running?'설정한 조건으로 실행하고 담당자 승인·거절을 처리합니다.':'실행 흐름과 QA 보고서를 확인합니다.')}${tutorialMilestone(stage)}
- <section class="live-guidance"><div class="live-guidance-copy"><strong>${running?(state.demoStarted?(state.demoApproval===null?'승인 대기':'실행 완료'):'실행 준비'):'결과 확인'}</strong><p>${esc(scenarioMap()[state.scenario]?.subtitle || state.scenario)} · ${state.config} · 데모 예시</p></div></section>
- ${running?`<section class="card section-pad demo-run-controls"><h2>선택한 시험</h2><p>${esc(scenarioMap()[state.scenario]?.subtitle || state.scenario)} · ${state.config}</p><details><summary>시험 시나리오 · 서버 정책 변경</summary><div class="config-grid">${Object.entries(scenarioMap()).map(([id,item])=>`<button class="secondary" data-demo-run-scenario="${id}" aria-pressed="${state.demoSelected&&state.scenario===id}" ${state.demoStarted?'disabled':''}>${id} ${esc(item.subtitle)}</button>`).join('')}${['B0','B1'].map(id=>`<button class="secondary" data-demo-run-config="${id}" aria-pressed="${state.config===id}" ${state.demoStarted?'disabled':''}>${id}</button>`).join('')}</div></details>${!state.demoStarted?'<button class="primary full" data-action="demo-start">시험 시작</button>':state.demoApproval===null?'<div class="approval-form"><h3>담당자 승인 대기</h3><p>선택한 업무 변경 요청의 내용을 확인하고 결정하세요. 데모 승인입니다.</p><button class="primary" data-action="demo-approve">요청 승인</button><button class="secondary" data-action="demo-reject">요청 거절</button></div>':'<button class="primary" data-demo-tab="execution">실행 분석으로</button>'}</section>`:''}
- <section class="card section-pad live-analysis-shell"><div class="live-row analysis-top-bar"><h2>실행 흐름</h2><span>${visible.length}개 저장 이벤트 · ${state.demoStarted||!running?'예시 기록':'실행 전 · 구조 미리보기'}</span></div><div class="live-stage-grid"><div class="live-stage-col"><div id="scene-host" class="live-scene" role="group" aria-label="데모 이벤트 기반 서비스 구조"></div><label class="scrubber-wrap">확인할 이벤트 순서<input id="scrubber" type="range" min="0" max="${Math.max(0,visible.length-1)}" value="${Math.max(0,state.cursor)}" ${!visible.length||running?'disabled':''}></label><div class="live-row"><button class="secondary" data-action="play" ${!visible.length||running?'disabled':''}>${state.playing?'일시정지':'재생'}</button><button class="secondary" data-action="speed" ${running?'disabled':''}>${state.speed}×</button><button class="secondary" data-action="export" ${visible.length&&(!running||state.demoApproval!==null)?'':'disabled'}>근거 JSON 내보내기</button></div></div><aside class="live-inspector-col"><div class="inspector-subhead"><h3>실행 이벤트</h3><span>클릭하여 시점 이동</span></div><div class="live-events">${visible.map((e,i)=>`<button class="live-event ${i===state.cursor?'selected':''}" data-event="${i}" ${running&&state.demoApproval===null?'disabled':''}><span>${e.sequence}</span><span>${esc(e.title)}<small>${esc(e.type)}</small></span></button>`).join('')||'<p class="live-hint">위에서 시험을 시작하면 호출과 승인 과정을 표시합니다.</p>'}</div><div class="inspector-subhead"><h3>선택한 근거</h3></div>${active?evidenceView(active):'<p class="live-hint">아직 이벤트가 없습니다.</p>'}</aside></div></section>
- ${running?'':`<section class="card section-pad demo-qa-report"><h2>QA 보고서</h2><p>검사 통과 ${checks.filter(c=>c.result==='PASS').length} / ${checks.length} · 데모 예시</p><div class="checks">${checks.map((c,i)=>`<button class="check-card ${c.result.toLowerCase()}" data-check="${i}"><strong>${esc(c.name)}</strong><p>${esc(c.detail)}</p>${badge(c.result)}</button>`).join('')}</div><button class="secondary" data-action="prepare">새 시험 설계</button></section>`}`;
+ const running=stage==='live',events=state.run?eventsFor():[],checks=checksFor();
+ const active=state.selected?.kind==='check'?events[checks[state.selected.index].evidence]:events[Math.min(state.cursor,events.length-1)];
+ const scenario=scenarioMap()[state.scenario];
+ if(running){
+  const visible=state.demoStarted?events.slice(0,state.cursor+1):[];
+  return `${header('실험 실행','선택한 시험을 시작하고 진행 상태와 담당자 승인을 관리합니다.')}${tutorialMilestone(stage)}
+   <section class="card section-pad demo-run-controls"><div class="live-row"><h2>선택한 시험</h2><button type="button" class="secondary" data-action="prepare">시험 설계에서 변경</button></div><h3>${esc(scenario?.title || state.scenario)}</h3><dl class="run-condition-fields"><div><dt>평가 대상</dt><dd>${esc(referenceTargetTypes.find(t=>t.type_id===state.demoTargetType)?.name || agents[state.agentId].name)}</dd></div><div><dt>시험 상황</dt><dd>${esc(scenario?.subtitle || state.scenario)}</dd></div><div><dt>기대 행동</dt><dd>${esc(scenario?.description || '준비된 사건과 판정을 확인합니다.')}</dd></div><div><dt>서버 정책</dt><dd>${esc(state.config)} · 데모 예시</dd></div></dl><details><summary>적용 입력·상세 데이터</summary><p>시험 설계에서 선택한 고정 예시 데이터를 사용합니다. 실제 Agent와 API는 호출하지 않습니다.</p></details>${!state.demoStarted?`<button class="primary full" data-action="demo-start" ${state.run?'':'disabled'}>시험 시작</button>`:''}</section>
+   ${state.demoStarted && state.demoApproval===null?'<section class="card section-pad approval-form"><h2>담당자 승인 대기</h2><p>선택한 업무 변경 요청의 내용을 확인하고 결정하세요. 데모 승인입니다.</p><button class="primary" data-action="demo-approve">요청 승인</button><button class="secondary" data-action="demo-reject">요청 거절</button></section>':''}
+   <section class="card section-pad"><h2>${state.demoStarted?(state.demoApproval===null?'담당자 승인 대기':'실행·근거 수집 완료'):'실행 준비'}</h2><h3 class="run-progress-heading">최근 진행 기록 <small>최신 5건 · 데모 예시</small></h3>${progressEventsMarkup(visible)}${state.demoApproval!==null?'<p class="live-hint">실행 종료와 검사 통과는 별개입니다. 판정과 근거는 실행 분석에서 확인하세요.</p><button class="primary" data-demo-tab="execution">결과 분석 보기 →</button>':''}</section>`;
+ }
+ return `${header('실행 분석','판정과 QA 보고서를 확인하고, 3D와 이벤트에서 근거를 살펴봅니다.')}${tutorialMilestone(stage)}
+
+ <section class="card section-pad live-analysis-shell"><div class="live-row analysis-top-bar"><h2>실행 흐름</h2><span>${events.length}개 저장 이벤트 · 예시 기록</span></div><div class="live-stage-grid"><div class="live-stage-col"><div id="scene-host" class="live-scene" role="group" aria-label="데모 이벤트 기반 서비스 구조"></div><label class="scrubber-wrap">확인할 이벤트 순서<input id="scrubber" type="range" min="0" max="${Math.max(0,events.length-1)}" value="${Math.max(0,state.cursor)}" ${!events.length?'disabled':''}></label><div class="live-row"><button class="secondary" data-action="play" ${!events.length?'disabled':''}>${state.playing?'일시정지':'재생'}</button><button class="secondary" data-action="speed">${state.speed}×</button><button class="secondary" data-action="export" ${events.length?'':'disabled'}>근거 JSON 내보내기</button></div></div><aside class="live-inspector-col"><div class="inspector-subhead"><h3>실행 이벤트</h3><span>클릭하여 시점 이동</span></div><div class="live-events">${events.map((e,i)=>`<button class="live-event ${i===state.cursor?'selected':''}" data-event="${i}"><span>${e.sequence}</span><span>${esc(e.title)}<small>${esc(e.type)}</small></span></button>`).join('')}</div><div class="inspector-subhead"><h3>선택한 근거</h3></div>${active?evidenceView(active):'<p class="live-hint">아직 이벤트가 없습니다.</p>'}</aside></div></section>
+ <section class="card section-pad demo-qa-report"><h2>QA 보고서</h2><p>검사 통과 ${checks.filter(c=>c.result==='PASS').length} / ${checks.length} · 데모 예시</p><div class="checks">${checks.map((c,i)=>`<button class="check-card ${c.result.toLowerCase()}" data-check="${i}"><strong>${esc(c.name)}</strong><p>${esc(c.detail)}</p>${badge(c.result)}</button>`).join('')}</div><button class="secondary" data-action="prepare">새 시험 설계</button></section>`;
 }
 function evidenceView(active) {
  const events=eventsFor(); const selected=state.selected; const check=selected?.kind==='check'?checksFor()[selected.index]:null;
@@ -198,13 +184,13 @@ function prepareView() {
  ${designStatus==='loading'?'<div class="design-progress" role="status"><strong>시험 제안을 준비하고 있어요</strong><p>업무 분석 → 근거 확인 → 시나리오 구성</p></div>':''}
  ${designStatus!=='ready'?'<div class="design-empty"><h3>새로운 시험을 제안받아 보세요</h3><p>버튼을 누르면 준비된 예시 제안을 표시합니다.</p></div>':''}
  <div ${designStatus==='ready'?'':'hidden'} class="design-board prepare-layout"><div class="design-proposals"><div class="design-list-heading"><h3>제안된 시나리오 <span>${Object.keys(scenarioMap()).length}</span></h3><span>조건을 확인한 뒤 선택하세요</span></div><div class="scenario-options live-scenario-options">${Object.entries(scenarioMap()).map(([id,item])=>`<article class="live-design-case"><button type="button" data-scenario="${id}" class="scenario-option ${state.demoSelected&&state.scenario===id?'selected':''}" aria-pressed="${state.demoSelected&&state.scenario===id}"><span class="live-case-heading"><span class="case-readiness is-ready">실행 가능</span><span class="scenario-id">${id}</span><span class="radio-mark" aria-hidden="true"></span></span><strong>${esc(item.subtitle)}</strong><p>${esc(item.description)}</p></button><details class="design-evidence"><summary>시험 근거와 상세 조건</summary><p>${esc(item.description)}</p><p>고정 사건·판정 예시를 사용합니다. 실제 LLM 생성 및 새 업무 변경은 수행하지 않습니다.</p></details></article>`).join('')}</div><details class="design-analysis"><summary>${isIA?'검사 기준':'고정 시험 데이터'}</summary><p>${isIA?'근거 ID · 읽기 전용 도구 · 사실과 원인 후보 구분':'품목 PART-A · 공급업체 SUP-01 · 요청 수량 100 · 재고 20'}</p></details></div>
- <aside class="design-settings prepare-aside"><div class="design-settings-heading"><h2>실행 설정</h2><span>데모에 적용</span></div><div class="design-next"><p class="live-hint">선택한 조건이 다음 화면에 그대로 적용됩니다.</p><button class="primary" data-action="load" ${state.demoSelected?'':'disabled'}>3D 실행 화면으로</button></div><div class="design-selection"><span>선택한 시나리오</span><strong>${state.demoSelected?esc(scenarioMap()[state.scenario].subtitle):'시나리오를 선택하세요'}</strong></div><h3 class="section-title">서버 정책</h3>${isIA?'<p class="live-hint">조사 Agent는 고정 사건을 읽으며 B0/B1 정책을 적용하지 않습니다.</p>':`<details class="policy-details" data-policy-details ><summary><span>자세히 보기</span><span class="policy-details-icon" aria-hidden="true">+</span></summary><div class="policy-details-content"><p>B0·B1은 같은 Agent에 연결하는 서버의 처리 방식입니다. Agent나 모델을 바꾸는 설정은 아닙니다.</p><h3>B0 · 기본 서버 정책</h3><p>동일한 요청을 다시 보내면 업무 변경이 중복 저장될 수 있습니다. 응답 유실 후 재시도할 때의 위험을 확인합니다.</p><h3>B1 · 중복 방지 서버 정책</h3><p>요청 키로 이미 처리한 요청인지 확인하고, 같은 요청이면 새로 저장하지 않고 기존 결과를 반환합니다. 생산·품질 참조 시험에서는 일정·검사 조건도 저장 전에 확인합니다.</p><p class="policy-details-example"><strong>예시</strong> 발주는 저장됐지만 응답이 사라져 같은 요청을 재시도하면, B0는 중복 발주가 생길 수 있고 B1은 기존 발주를 반환합니다.</p><p>두 정책 모두 담당자 승인을 확인합니다. B1에서 문제가 막혔더라도 Agent의 행동이 올바른지는 검사 근거를 함께 확인하세요.</p></div></details><p class="section-description">선택한 시험에 적용합니다.</p><div class="config-grid">${['B0','B1'].map(id=>`<button type="button" data-config="${id}" class="config-card ${state.config===id?'selected':''}" aria-pressed="${state.config===id}"><strong>${id}</strong><span>${id==='B0'?'기본 서버 정책':'중복 방지 서버 정책'}</span><p>${id==='B0'?'중복 방지 미적용':'요청 키 기반 중복 방지'}</p><i class="radio-mark" aria-hidden="true"></i></button>`).join('')}</div>`}</aside></div></section>`;
+ <aside class="design-settings prepare-aside"><div class="design-settings-heading"><h2>실행 설정</h2><span>데모에 적용</span></div><div class="design-next"><p class="live-hint">선택한 조건이 다음 화면에 그대로 적용됩니다.</p><button class="primary" data-action="load" ${state.demoSelected?'':'disabled'}>실험 실행으로</button></div><div class="design-selection"><span>선택한 시나리오</span><strong>${state.demoSelected?esc(scenarioMap()[state.scenario].subtitle):'시나리오를 선택하세요'}</strong></div><h3 class="section-title">서버 정책</h3>${isIA?'<p class="live-hint">조사 Agent는 고정 사건을 읽으며 B0/B1 정책을 적용하지 않습니다.</p>':`<details class="policy-details" data-policy-details ><summary><span>자세히 보기</span><span class="policy-details-icon" aria-hidden="true">+</span></summary><div class="policy-details-content"><p>B0·B1은 같은 Agent에 연결하는 서버의 처리 방식입니다. Agent나 모델을 바꾸는 설정은 아닙니다.</p><h3>B0 · 기본 서버 정책</h3><p>동일한 요청을 다시 보내면 업무 변경이 중복 저장될 수 있습니다. 응답 유실 후 재시도할 때의 위험을 확인합니다.</p><h3>B1 · 중복 방지 서버 정책</h3><p>요청 키로 이미 처리한 요청인지 확인하고, 같은 요청이면 새로 저장하지 않고 기존 결과를 반환합니다. 생산·품질 참조 시험에서는 일정·검사 조건도 저장 전에 확인합니다.</p><p class="policy-details-example"><strong>예시</strong> 발주는 저장됐지만 응답이 사라져 같은 요청을 재시도하면, B0는 중복 발주가 생길 수 있고 B1은 기존 발주를 반환합니다.</p><p>두 정책 모두 담당자 승인을 확인합니다. B1에서 문제가 막혔더라도 Agent의 행동이 올바른지는 검사 근거를 함께 확인하세요.</p></div></details><p class="section-description">선택한 시험에 적용합니다.</p><div class="config-grid">${['B0','B1'].map(id=>`<button type="button" data-config="${id}" class="config-card ${state.config===id?'selected':''}" aria-pressed="${state.config===id}"><strong>${id}</strong><span>${id==='B0'?'기본 서버 정책':'중복 방지 서버 정책'}</span><p>${id==='B0'?'중복 방지 미적용':'요청 키 기반 중복 방지'}</p><i class="radio-mark" aria-hidden="true"></i></button>`).join('')}</div>`}</aside></div></section>`;
 }
 function compareView(){return executionView();}
 function selectAgent(id){if(!agents[id])return;if(id==='purchase')state.demoTargetType='PURCHASE';state.draft={agentId:id,scenario:agents[id].defaultScenario,config:'B0'};render();}
 function verifyAgent(){const id=state.draft.agentId;state.verified[id]=validateDemoProfile(id,scenario=>eventsFor(scenario,'B0'),checksFor);state.tutorialTour=state.verified[id].ok;if(state.verified[id].ok)state.tutorialGuideIndex.agents=2;render();toast(state.verified[id].ok?'데모 데이터 점검 완료. 시험 설계로 이동하세요.':'데모 데이터 점검 실패');}
 function loadDemo(){const d=state.draft;if(agents[d.agentId].custom||!scenarioMap(d.agentId)[d.scenario])return;Object.assign(state,d);state.run={...d,topology:demoTopology(d.agentId)};if(state.demoTargetType!=='PURCHASE'){const name=referenceTargetTypes.find(t=>t.type_id===state.demoTargetType)?.name;state.run.topology.nodes=state.run.topology.nodes.map(n=>({...n,label:n.id==='agent'?`${name} Agent`:n.id==='mcp'?'제조업 시험 MCP':n.label}));}state.cursor=0;state.mode='spatial';state.demoPlaybackInteracted=false;state.demoStarted=false;state.demoApproval=null;navigate('live');}
-function open3DDemo(){const result=validateDemoProfile('purchase',scenario=>eventsFor(scenario,'B0'),checksFor);if(!result.ok){toast('3D 데모 데이터를 확인할 수 없습니다.');return;}state.verified.purchase=result;state.draft={agentId:'purchase',scenario:'S03',config:'B0'};loadDemo();state.cursor=5;render();toast('발주 Agent · 응답 유실 시나리오의 저장된 3D 데모입니다.');}
+function open3DDemo(){const result=validateDemoProfile('purchase',scenario=>eventsFor(scenario,'B0'),checksFor);if(!result.ok){toast('3D 데모 데이터를 확인할 수 없습니다.');return;}state.verified.purchase=result;state.draft={agentId:'purchase',scenario:'S03',config:'B0'};loadDemo();state.demoStarted=true;state.demoApproval='APPROVED';state.cursor=5;navigate('execution');toast('발주 Agent · 응답 유실 시나리오의 저장된 3D 데모입니다.');}
 function targetContext(draft=false){const a=agents[state.agentId];return `<div class="target-context"><span class="agent-icon small ${state.agentId}">${a.initials}</span><div><span class="context-label">평가 대상${draft?'':' · 이 실행에 고정됨'}</span><strong>${esc(a.name)} <span>${esc(a.version)}</span></strong></div><div class="target-metadata"><span>프롬프트 <b>${esc(a.prompt)}</b></span><span>모델 <b>미지정 · 데모</b></span></div><span class="target-type">${esc(a.evaluation)}<br><span class="mono">${esc(draft?a.topology.version:runTopology().version)}</span></span></div>`;}
 function emptyRunView(){return `${header('실행 분석','시험을 시작하면 결과와 근거를 확인할 수 있습니다.')}${tutorialMilestone('execution')}<section class="empty-run"><span class="empty-glyph">◈</span><h2>아직 불러온 시험이 없습니다.</h2><p>Agent 선택 → 데모 데이터 점검 → 시험 조건 설정 순서로 시작하거나, 아래 S03 데모를 바로 불러오세요.</p><div class="flow-actions"><button class="primary" data-action="agents">평가 대상 선택 <span>→</span></button><button class="secondary" data-action="demo-3d">◈ S03 응답 유실 데모 바로 불러오기</button></div></section>`;}
 function demoChainSvg(agent){
@@ -219,9 +205,9 @@ function demoChainSvg(agent){
 function demoTargetsView() {
  const selected=referenceTargetTypes.find(t=>t.type_id===state.demoTargetType)||referenceTargetTypes[0];
  return `<div class="targets-split demo-targets">
-  <section class="card targets-card"><div class="card-h"><h2>제조 업무 유형</h2><span class="meta">3개 · 참조 Agent</span></div><div class="live-targets">${referenceTargetTypes.map(type=>{
+  <section class="card targets-card"><div class="card-h"><h2>제조 업무 유형</h2><span class="meta">3개 · 참조 Agent</span></div><p class="targets-diagram-hint">대표 시험 경로 · 주황색은 시험에서 확인할 지점입니다.</p><div class="live-targets">${referenceTargetTypes.map(type=>{
    const meta=targetTypeMeta[type.type_id],active=type.type_id===selected.type_id;
-   return `<button type="button" class="live-target target-row ${active?'selected on':''}" data-demo-target-type="${type.type_id}" aria-pressed="${active}"><div class="target-main"><h3>${esc(type.name)} ${meta.badge?`<span class="pill sig">${esc(meta.badge)}</span>`:''}</h3><p>${esc(type.description)}</p><div class="scn">${meta.scenarios.map(item=>`<span class="${item.fault?'f':''}">${esc(item.code)}</span>`).join('')}</div></div>${renderChainSvg(meta.chain,meta.faultIndex)}<div class="target-last"><span class="pill ${type.type_id==='PURCHASE'?'sig':'neu'}">데모 예시</span><span class="num">예시 시험 가능</span></div></button>`;
+   return `<button type="button" class="live-target target-row ${active?'selected on':''}" data-demo-target-type="${type.type_id}" aria-pressed="${active}"><div class="target-main"><h3>${esc(type.name)}</h3><p>${esc(type.description)}</p><div class="scn">${meta.scenarios.map(item=>`<span class="${item.fault?'f':''}">${esc(item.code)}</span>`).join('')}</div></div>${renderTargetDiagram(type.type_id)}<div class="target-last"><span class="pill neu">데모 예시</span><span class="num">예시 시험 가능</span></div></button>`;
   }).join('')}</div></section>
   <aside class="card targets-side"><div class="card-h"><h2>최근 실행</h2><span class="meta">저장된 데모 예시</span></div><div class="live-history runs-list">${[['S03','B0','중복 발주 2건'],['S03','B1','중복 방지 · 1건'],['S01','B0','정상 발주 · 1건']].map(([scenario,config,label])=>`<button type="button" class="run-row-btn" data-demo-sample="${scenario}" data-sample-config="${config}"><span class="run-id">DEMO-${scenario}-${config}</span><span class="run-sub">${label}</span><span class="run-state-tag">예시</span></button>`).join('')}</div><div class="targets-next"><p><strong>${esc(selected.name)}</strong> 유형을 살펴보고 있습니다.</p><p>선택한 업무의 시험 시나리오를 제안받아 보세요.</p><button type="button" class="primary full-cta" data-action="demo-prepare">시험 설계로 →</button></div></aside>
  </div>`;
@@ -314,6 +300,7 @@ function render() {
  document.querySelectorAll('[data-tab=compare]').forEach(button=>{button.hidden=!LIVE_COMPARISON_ENABLED;const arrow=button.previousElementSibling;if(arrow?.classList.contains('step-arrow'))arrow.hidden=!LIVE_COMPARISON_ENABLED;});
  $('#main').classList.toggle('demo-workspace',workspacePage==='demo');
  $('#demo-navigation').hidden=true;
+ document.querySelectorAll('[data-run-nav]').forEach(button=>{if(workspacePage==='demo')button.hidden=true;});
  const stepNav=$('.step-nav');
  if(stepNav && workspacePage==='demo') stepNav.hidden=false;
  document.querySelectorAll('.workspace-bar [data-tab], .site-rail [data-tab]').forEach(button=>{button.classList.toggle('active',button.dataset.tab===(workspacePage==='demo'?state.tab:workspacePage));button.setAttribute('aria-current',button.dataset.tab===(workspacePage==='demo'?state.tab:workspacePage)?'page':'false');});
@@ -340,7 +327,7 @@ function render() {
  document.querySelectorAll('[data-demo-tab]').forEach(b=>{b.classList.toggle('active',b.dataset.demoTab===(state.tab==='structure'?'agents':state.tab));b.setAttribute('aria-current',b.dataset.demoTab===(state.tab==='structure'?'agents':state.tab)?'page':'false');});
  $('#scenario-select')?.addEventListener('change',e=>chooseScenario(e.target.value));
  if(state.tab==='structure'&&state.previewMode!=='timeline'){const{graph,events}=previewData();const frame={...frameFor(graph,events,state.previewCursor??0),preview:true};if(state.previewNode){frame.activeNode=state.previewNode;frame.activeEdge=null;}mountScene($('#structure-host'),graph,frame,id=>{state.previewNode=id;render();});}
- else if((state.run||state.tab==='live')&&['live','execution'].includes(state.tab)&&state.mode==='spatial'){const selected=state.selected?.kind==='event'?state.selected.index:state.selected?.kind==='check'?checksFor()[state.selected.index].evidence:state.cursor;mountScene($('#scene-host'),runTopology(),{...frameFor(runTopology(),eventsFor(),state.tab==='live'&&!state.demoStarted?-1:state.cursor,selected),playing:state.playing},selectNode);}else pauseScene();
+ else if(state.run&&state.tab==='execution'&&state.mode==='spatial'){const selected=state.selected?.kind==='event'?state.selected.index:state.selected?.kind==='check'?checksFor()[state.selected.index].evidence:state.cursor;mountScene($('#scene-host'),runTopology(),{...frameFor(runTopology(),eventsFor(),state.tab==='live'&&!state.demoStarted?-1:state.cursor,selected),playing:state.playing},selectNode);}else pauseScene();
  $('#scrubber')?.addEventListener('change',e=>{const val=Number(e.target.value);stopPlayback();state.cursor=val;state.selected=null;state.demoPlaybackInteracted=true;render();$('#scrubber').focus();});
  renderCoachmark();
 }
@@ -374,8 +361,6 @@ function selectNode(id){const matches=eventsFor().filter(e=>e.node_id===id&&e.se
 document.addEventListener('click',async e=>{
  const button=e.target.closest('button,[data-node],[data-event]');if(!button)return;
  if(button.dataset.guideStep!==undefined){setTutorialGuideStep(Number(button.dataset.guideStep));return;}
- if(button.dataset.demoRunScenario){state.scenario=button.dataset.demoRunScenario;state.draft.scenario=state.scenario;render();return;}
- if(button.dataset.demoRunConfig){state.config=button.dataset.demoRunConfig;state.draft.config=state.config;render();return;}
  if(button.dataset.demoTargetType){state.demoTargetType=button.dataset.demoTargetType;state.draft={agentId:'purchase',scenario:Object.keys(scenarioMap('purchase'))[0],config:'B0'};state.demoSelected=false;state.demoDesignStatus='idle';state.tutorialTour=false;render();return;}
  if(button.dataset.demoSample){openDemoSample(button.dataset.demoSample,button.dataset.sampleConfig);return;}
  if(button.dataset.demoTab){navigate(button.dataset.demoTab);return;}
@@ -393,7 +378,7 @@ document.addEventListener('click',async e=>{
  switch(button.dataset.action){
  case 'demo-prepare':state.demoDesignStatus='idle';state.demoSelected=false;navigate('prepare');break;
  case 'demo-generate':generateDemoProposals();break;
- case 'demo-start':if(!state.run)loadDemo();state.demoStarted=true;state.cursor=2;state.demoApproval=null;render();break;
+ case 'demo-start':if(!state.run)break;state.demoStarted=true;state.cursor=2;state.demoApproval=null;render();break;
  case 'demo-approve':finishDemoApproval(true);break;
  case 'demo-reject':finishDemoApproval(false);break;
  case 'agents':navigate('agents');break;
@@ -413,7 +398,7 @@ document.addEventListener('click',async e=>{
  case 'close-tour':state.tutorialTour=false;removeCoachmark();render();break;
  case 'toggle-tour':state.tutorialTour=!state.tutorialTour;render();break;
  case 'exit-tutorial':state.tutorialTour=false;removeCoachmark();navigateWorkspace('agents');break;
- case 'play':state.demoPlaybackInteracted=true;if(state.playing){stopPlayback();render();}else{if(state.cursor===eventsFor().length-1)state.cursor=0;state.playing=true;state.selected=null;render();scheduleNext();}break;
+ case 'play':if(state.tab!=='execution')break;state.demoPlaybackInteracted=true;if(state.playing){stopPlayback();render();}else{if(state.cursor===eventsFor().length-1)state.cursor=0;state.playing=true;state.selected=null;render();scheduleNext();}break;
  case 'speed':state.speed=state.speed===1?2:state.speed===2?.5:1;render();scheduleNext();break;
  case 'export':exportEvidence();break;
  case 'copy':try{await navigator.clipboard.writeText($('#evidence-json').textContent);toast('선택한 근거 JSON을 복사했습니다.');}catch{toast('복사할 수 없습니다. 근거 JSON을 직접 선택해 복사해 주세요.');}break;
@@ -482,6 +467,7 @@ if(typeof window!=='undefined'){
 initRegistration(result=>{state.draft={agentId:result.profile.id,scenario:'CUSTOM',config:'B0'};state.previewMode='spatial';state.previewCursor=0;state.previewNode=null;navigate('structure');toast(result.persisted?'Agent 구조를 이 브라우저에 등록했습니다.':'구조를 등록했습니다. 저장소를 사용할 수 없어 새로고침하면 사라집니다.');});
 function readRoute(){
  if(isApproverAccount()){workspacePage=accountPage(location.hash.slice(1));return {page:workspacePage,show3d:false};}
+ if(location.hash==='#demo-3d'){workspacePage='demo';return {page:'demo',show3d:true};}
  if(location.hash.startsWith('#demo')){const requested=location.hash.slice(6);workspacePage='demo';state.tab=['agents','prepare','live','execution'].includes(requested)?requested:'agents';if(['live','execution'].includes(state.tab)&&!state.run){state.run={...state.draft,topology:demoTopology('purchase')};state.cursor=state.tab==='execution'?eventsFor().length-1:0;}return {page:'demo',demoTab:state.tab,show3d:false};}
  if(!isLiveAuthenticated()){workspacePage='agents';return {page:'agents',show3d:false};}
  const route=workspaceRoute(location.hash);if(route.page==='demo'&&(workspacePage!=='demo'||route.demoTab!==state.tab))startTutorialPage(route.demoTab||'agents');workspacePage=route.page;

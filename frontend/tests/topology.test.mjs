@@ -3,12 +3,25 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import * as topology from '../dist/topology.js';
+import {progressEventsMarkup} from '../dist/live-api.js';
 import * as registry from '../dist/registry.js';
-import {referenceTargetTypes,targetTypeMeta,renderChainSvg} from '../dist/live.js';
+import {referenceTargetTypes,targetTypeMeta,renderTargetDiagram} from '../dist/live.js';
 import {purchaseTopology,investigationTopology,registrationExample} from '../dist/topologies.js';
 const clone=structuredClone;
 const source=fs.readFileSync(new URL('../dist/app.js',import.meta.url),'utf8').replace(/^import .*$/mg,'').split("document.addEventListener(")[0];
-function application(document,timers={}){return vm.runInNewContext(source+`;render=()=>{};toast=message=>{state.lastToast=message;};({state,eventsFor,checksFor,loadDemo,selectAgent,verifyAgent,open3DDemo,agentView,executionView,prepareView,compareView,withDraft,structureView,renderCoachmark,navigate,tutorialMilestone,tutorialGuideSteps,setTutorialGuideStep,demoTargetsView,openDemoSample,generateDemoProposals,chooseScenario,finishDemoApproval,demoRunView,practiceTutorial})`,{document,referenceTargetTypes,targetTypeMeta,renderChainSvg,...registry,restoreProfiles:()=>{},...topology,structuredClone,setTimeout,clearTimeout,...timers,history:{replaceState(){}},console});}
+function application(document,timers={}){return vm.runInNewContext(source+`;render=()=>{};toast=message=>{state.lastToast=message;};({state,eventsFor,checksFor,loadDemo,selectAgent,verifyAgent,open3DDemo,agentView,executionView,prepareView,compareView,withDraft,structureView,renderCoachmark,navigate,tutorialMilestone,tutorialGuideSteps,setTutorialGuideStep,demoTargetsView,openDemoSample,generateDemoProposals,chooseScenario,finishDemoApproval,demoRunView,practiceTutorial})`,{document,referenceTargetTypes,targetTypeMeta,renderTargetDiagram,progressEventsMarkup,...registry,restoreProfiles:()=>{},...topology,structuredClone,setTimeout,clearTimeout,...timers,history:{replaceState(){}},console});}
+
+test('target diagrams preserve animated square nodes and distinguish retry, constraints and evidence branches',()=>{
+ const purchase=renderTargetDiagram('PURCHASE'),production=renderTargetDiagram('PRODUCTION'),quality=renderTargetDiagram('QUALITY');
+ for(const html of [purchase,production,quality]){
+  assert.match(html,/<rect /);assert.match(html,/<animateMotion /);assert.match(html,/role="img" aria-label="대표 시험 경로/);
+  assert.doesNotMatch(html,/MES|class="shock"/);
+ }
+ assert.match(purchase,/응답 유실 · 재시도/);assert.match(purchase,/Spring MCP · 구매 DB/);
+ assert.match(production,/설비·일정/);assert.match(production,/선행 공정/);assert.match(production,/P03 · 기존 작업/);
+ assert.match(quality,/검사 원자료/);assert.match(quality,/>보류<\/text>/);assert.match(quality,/Q03 · 검사 원자료가 없을 때/);
+ assert.deepEqual([purchase,production,quality].map(html=>(html.match(/<rect /g)||[]).length),[4,5,6]);
+});
 
 test('all 9 demo scenarios map every event to the selected graph and retain check references',()=>{
  const app=application();
@@ -60,7 +73,7 @@ test('registration stores a new profile, restores it and cannot overwrite a buil
  delete registry.agents['research-demo'];
 });
 test('switching draft Agent preserves current run and pins a topology snapshot; both demos open in 3D',()=>{
- const app=application();app.open3DDemo();assert.equal(app.state.mode,'spatial');const current=clone(app.state.run.topology);
+ const app=application();app.open3DDemo();assert.equal(app.state.mode,'spatial');assert.equal(app.state.tab,'execution');const current=clone(app.state.run.topology);
  app.selectAgent('investigator');assert.equal(app.state.agentId,'purchase');assert.deepEqual(clone(app.state.run.topology),current);
  app.verifyAgent();app.loadDemo();assert.equal(app.state.agentId,'investigator');assert.equal(app.state.mode,'spatial');assert.equal(app.state.run.topology.nodes.length,6);
  assert.notEqual(app.state.run.topology,registry.agents.investigator.topology);
@@ -156,8 +169,10 @@ test('proposal feedback and execution decisions use fixtures without API calls',
  finish();assert.equal(app.state.demoDesignStatus,'ready');assert.equal(app.state.demoSelected,false);
  app.chooseScenario('S03');app.state.draft.config='B1';app.loadDemo();
  assert.equal(app.state.tab,'live');assert.equal(app.state.config,'B1');assert.equal(app.state.demoStarted,false);
- assert.match(app.demoRunView('live'),/실행 전 · 구조 미리보기/);
- assert.ok(app.demoRunView('live').indexOf('data-action="demo-start"')<app.demoRunView('live').indexOf('class="card section-pad live-analysis-shell"'));
+ assert.match(app.demoRunView('live'),/실행 준비/);
+ assert.doesNotMatch(app.demoRunView('live'),/scene-host|scrubber|원문|JSON|data-demo-run-scenario|data-demo-run-config/);
+ assert.doesNotMatch(app.demoRunView('live'),/live-analysis-shell/);
+ assert.ok(app.demoRunView('execution').indexOf('live-analysis-shell')<app.demoRunView('execution').indexOf('demo-qa-report'));
  app.state.demoStarted=true;app.finishDemoApproval(true);
  assert.equal(app.state.demoApproval,'APPROVED');assert.equal(app.state.cursor,app.eventsFor().length-1);
  assert.ok(app.checksFor().every(c=>c.result==='PASS'));

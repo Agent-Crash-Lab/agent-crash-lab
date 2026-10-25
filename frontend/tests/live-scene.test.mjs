@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {purchaseTopology} from '../dist/topologies.js';
 import {frameFor} from '../dist/topology.js';
-import {sceneEvents, escapeHtml} from '../dist/live-api.js';
+import {sceneEvents, escapeHtml, progressEventsMarkup} from '../dist/live-api.js';
 
 const source=readFileSync(new URL('../dist/live.js',import.meta.url),'utf8').replace(/^import .*$/mg,'').replace(/^export /mg,'');
 function workspace(page) {
@@ -13,24 +13,22 @@ function workspace(page) {
     if(!elements.has(selector))elements.set(selector,{textContent:'',innerHTML:'',scrollTop:0,setAttribute(name,value){this[name]=value;}});
     return elements.get(selector);
   }};
-  const context={purchaseTopology,frameFor,sceneEvents,esc:escapeHtml,
+  const context={purchaseTopology,frameFor,sceneEvents,progressEventsMarkup,esc:escapeHtml,
     setInterval(callback){tick=callback;return 1;},clearInterval(){tick=null;},
     mountScene(){mounted++;},pauseScene(){paused++;}};
   const app=vm.runInNewContext(source+`;host=testHost;page=testPage;({state,renderEvents,toggleReplay})`,{...context,testHost:host,testPage:page});
   return {...app,element:s=>host.querySelector(s),mounted:()=>mounted,paused:()=>paused,tick:()=>tick?.()};
 }
 
-test('live opens an idle 3D structure without claiming a run or enabling replay/export',()=>{
-  const ui=workspace('live');ui.renderEvents();
-  assert.equal(ui.mounted(),1);assert.equal(ui.state.run,null);
-  assert.match(ui.element('[data-live-count]').textContent,/실행 전/);
-  assert.equal(ui.element('[data-live-play]').disabled,true);
-  assert.equal(ui.element('[data-live-export]').disabled,true);
-  assert.match(ui.element('[data-live-events]').innerHTML,/시험을 시작하면/);
+test('live never mounts a scene or starts replay, and shows pending progress without a run',()=>{
+  const ui=workspace('live');ui.renderEvents();ui.toggleReplay();
+  assert.equal(ui.mounted(),0);assert.equal(ui.paused(),1);assert.equal(ui.state.run,null);
+  assert.equal(ui.tick(),undefined);
+  assert.match(ui.element('[data-live-progress-events]').innerHTML,/서버에서 진행 기록/);
 });
 
 test('flow replay toggles its accessible icon state and resets at the end',()=>{
-  const ui=workspace('live'),button=ui.element('[data-live-play]');
+  const ui=workspace('execution'),button=ui.element('[data-live-play]');
   ui.state.run={run_id:'RUN-1'};
   ui.state.events=[1,2].map(sequence=>({run_id:'RUN-1',sequence,event_type:'TOOL_CALLED',node_id:'mcp'}));
   ui.toggleReplay();
@@ -46,16 +44,20 @@ test('flow replay toggles its accessible icon state and resets at the end',()=>{
   assert.equal(button['aria-label'],'실행 흐름 재생');
 });
 
-test('live and analysis render actual events while other pages pause the scene',()=>{
+test('only analysis mounts actual event evidence; live and other pages pause the scene',()=>{
   for(const page of ['live','execution','prepare']){
     const ui=workspace(page);
     ui.state.run={run_id:'RUN-1'};
     ui.state.events=[{run_id:'RUN-1',event_id:'EV-1',sequence:1,event_type:'TOOL_CALLED',node_id:'mcp'}];
     ui.renderEvents();
-    assert.equal(ui.mounted(),page==='prepare'?0:1);
-    assert.equal(ui.paused(),page==='prepare'?1:0);
-    assert.equal(ui.element('[data-live-play]').disabled,false);
-    assert.equal(ui.element('[data-live-export]').disabled,false);
-    assert.match(ui.element('[data-live-events]').innerHTML,/TOOL_CALLED/);
+    assert.equal(ui.mounted(),page==='execution'?1:0);
+    assert.equal(ui.paused(),page==='execution'?0:1);
+    if(page==='execution'){
+      assert.equal(ui.element('[data-live-play]').disabled,false);
+      assert.match(ui.element('[data-live-events]').innerHTML,/TOOL_CALLED/);
+    }else{
+      assert.equal(ui.element('[data-live-evidence]').textContent,'');
+      assert.match(ui.element('[data-live-progress-events]').innerHTML,/도구 호출/);
+    }
   }
 });

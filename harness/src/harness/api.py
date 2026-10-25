@@ -537,15 +537,29 @@ def create_app(settings: Settings | None = None, mcp=None, agents=None) -> FastA
         }
 
     @app.get("/api/runs")
-    async def list_runs(request: Request, _: User, limit: int = Query(50, ge=1, le=200)):
+    async def list_runs(
+        request: Request, _: User, limit: int = Query(50, ge=1, le=200),
+        offset: int = Query(0, ge=0), q: str = Query("", max_length=128),
+        status: Literal["ALL", "ACTIVE", "WAITING_APPROVAL", "COMPLETED", "ERROR"] = "ALL",
+    ):
+        statuses = {
+            "ALL": (), "ACTIVE": ("PREPARING", "RUNNING", "WAITING_APPROVAL", "EVALUATING"),
+            "WAITING_APPROVAL": ("WAITING_APPROVAL",), "COMPLETED": ("COMPLETED",),
+            "ERROR": ("ERROR",),
+        }[status]
+        rows = request.app.state.store.list_runs(limit + 1, offset, q.strip(), statuses)
         return {
             "runs": [
                 {
                     k: run.get(k)
-                    for k in ("run_id", "test_id", "system_id", "status", "summary", "created_at")
+                    for k in (
+                        "run_id", "test_id", "system_id", "status", "summary", "created_at",
+                        "created_by",
+                    )
                 }
-                for run in request.app.state.store.list_runs(limit)
-            ]
+                for run in rows[:limit]
+            ],
+            "has_more": len(rows) > limit,
         }
 
     @app.get("/api/qa/approver/runs")
