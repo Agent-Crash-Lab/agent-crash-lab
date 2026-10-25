@@ -267,7 +267,6 @@ function renderCoachmark(){
     <div class="coachmark-bubble-tail"></div>
     <div class="coachmark-bubble-head">
      <span class="coachmark-step-badge">${cfg.step}</span>
-     <button type="button" class="text-button" data-action="exit-tutorial">실제 실행으로</button>
      <button type="button" class="coachmark-close-btn" data-action="close-tour" title="말풍선 가이드 닫기" aria-label="말풍선 가이드 닫기">✕</button>
     </div>
     <strong class="coachmark-bubble-title">${cfg.title}</strong>
