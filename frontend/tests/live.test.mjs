@@ -86,7 +86,7 @@ test('all main routes point to real pages and demo routes are isolated',()=>{
 
 test('workflow distinguishes approval, report generation, final collection and failed checks',()=>{
   const waiting=runGuidance({status:'WAITING_APPROVAL'});
-  assert.equal(waiting.page,'live');assert.match(waiting.detail,/아직 발주하지/);
+  assert.equal(waiting.page,'live');assert.match(waiting.detail,/업무 변경 요청/);
   const investigating=runGuidance({status:'COMPLETED',investigation:{status:'RUNNING'}});
   assert.match(investigating.title,/작성/);assert.doesNotMatch(investigating.title,/끝났/);
   assert.match(runGuidance({status:'COMPLETED'},false).title,/수집/);

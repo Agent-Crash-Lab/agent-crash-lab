@@ -2671,7 +2671,7 @@ input[type=range] {
 }
 
 .prepare-work-grid[data-page-mode="execution"] {
-  grid-template-columns: minmax(0, 1.5fr) minmax(340px, 0.9fr);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .prepare-main-col,
@@ -5024,4 +5024,35 @@ body.is-approver-mode .prepare-main-col {
   .run-record > button { grid-column: 1; width: 100%; }
   .run-record-id { flex-direction: row; align-items: center; gap: 12px; }
   .run-pagination { justify-content: space-between; gap: 8px; }
+}
+
+/* Run controls show current server state; evidence exploration belongs to analysis. */
+.prepare-work-grid[data-page-mode="live"] { grid-template-columns: minmax(0, 1fr) minmax(280px, 340px); }
+.run-condition-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 28px; margin: 24px 0; }
+.run-condition-fields > div, .run-input-fields > div { min-width: 0; }
+.run-condition-fields dt, .run-input-fields dt { color: var(--muted); font-size: 13px; margin-bottom: 6px; }
+.run-condition-fields dd, .run-input-fields dd { margin: 0; overflow-wrap: anywhere; line-height: 1.6; }
+.run-input-fields { display: grid; gap: 12px; margin: 12px 0; }
+.run-input-fields > div { padding: 10px 14px; background: var(--raised); border-radius: var(--r); }
+.live-selected-design > h3 { margin-top: 24px; font-size: 22px; line-height: 1.4; text-wrap: balance; }
+.live-run-controls [data-live-setup] { margin-top: 24px; }
+.live-run-controls details > summary { min-height: 44px; padding: 12px 0; }
+.run-progress-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 24px 0 12px; font-size: 16px; }
+.run-progress-heading small { color: var(--muted); font-size: 12px; font-weight: 400; }
+.run-progress-events { list-style: none; padding: 0; margin: 0; }
+.run-progress-events li { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; gap: 12px; align-items: baseline; padding: 14px 0; border-bottom: 1px solid var(--border); }
+.run-progress-events li > span, .run-progress-events time { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.run-progress-events strong { font-size: 14px; font-weight: 500; }
+@media (max-width: 960px) {
+  .prepare-work-grid[data-page-mode="live"] { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 600px) {
+  .run-condition-fields { grid-template-columns: minmax(0, 1fr); }
+  .run-progress-events li { grid-template-columns: 40px minmax(0, 1fr); }
+  .run-progress-events time { grid-column: 2; }
+  .run-progress-heading { flex-wrap: wrap; }
+}
+.approval-payload-box > .run-input-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 600px) {
+  .approval-payload-box > .run-input-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

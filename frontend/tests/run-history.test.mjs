@@ -22,17 +22,28 @@ test('each saved run has its own analysis action, status, conditions and escaped
  assert.doesNotMatch(html,/<script>|<admin>|<발주 시험>/);
 });
 
-test('selecting another saved run schedules that run before navigating to its own URL',()=>{
- const routes=[];
- const ui=vm.runInNewContext(source+`;go=(...args)=>routes.push(args);({state,click})`,{...api,purchaseTopology,routes,clearInterval(){},esc:api.escapeHtml});
- ui.state.run={run_id:'RUN-old'};
- const button={dataset:{liveRun:'RUN-001'},hasAttribute:name=>name==='data-live-run'};
- ui.click({target:{closest:()=>button}});
- assert.equal(ui.state.pendingRunId,'RUN-001');assert.deepEqual(routes.map(args=>Array.from(args)),[['execution','RUN-001']]);
+test('run links fetch current state and open control or analysis with the selected run URL',async()=>{
+ for(const [status,destination] of [['RUNNING','live'],['WAITING_APPROVAL','live'],['COMPLETED','execution'],['ERROR','execution']]){
+  const routes=[];
+  const ui=vm.runInNewContext(source+`;host={querySelector:()=>null};go=(...args)=>routes.push(args);({state,click})`,{...api,purchaseTopology,routes,clearInterval(){},esc:api.escapeHtml,api:async()=>({status}),failure(error){throw error;}});
+  ui.state.session={access_token:'session'};ui.state.run={run_id:'RUN-old'};
+  const button={dataset:{liveRun:'RUN-001'},hasAttribute:name=>name==='data-live-run'};
+  await ui.click({target:{closest:()=>button}});
+  assert.equal(ui.state.pendingRunId,'RUN-001');assert.deepEqual(routes.map(args=>Array.from(args)),[[destination,'RUN-001']]);
+ }
 });
 
-test('requester login reopens a bookmarked run, returns existing users to history, and guides new users',async()=>{
- for(const [hash,runs,expected] of [['#execution?run=RUN-001',[{}],['execution','RUN-001']],['#agents',[{}],['runs']],['#runs',[],['runs']],['#agents',[],null]]){
+test('a slower run-link lookup cannot replace the most recently selected run',async()=>{
+ const requests=[],routes=[];
+ const ui=vm.runInNewContext(source+`;host={querySelector:()=>null};go=(...args)=>routes.push(args);({state,openRunDestination})`,{...api,purchaseTopology,routes,clearInterval(){},esc:api.escapeHtml,api:()=>new Promise(resolve=>requests.push(resolve))});
+ ui.state.session={access_token:'session'};
+ const first=ui.openRunDestination('RUN-001'),second=ui.openRunDestination('RUN-002');
+ requests[1]({status:'RUNNING'});await second;requests[0]({status:'COMPLETED'});await first;
+ assert.deepEqual(routes.map(args=>Array.from(args)),[['live','RUN-002']]);
+});
+
+test('requester login always offers the tutorial, defaults to targets, and preserves bookmarked runs',async()=>{
+ for(const [hash,runs,expected] of [['#execution?run=RUN-001',[{}],['execution','RUN-001']],['#agents',[{}],['agents']],['#runs',[{}],['agents']],['#agents',[],['agents']]]){
   const routes=[];let tutorials=0;
   const context={...api,location:{hash},FormData:class { *[Symbol.iterator](){yield ['user_id','requester-01'];} },
    generation:1,host:{},state:{session:null,runs},isApproverAccount:()=>false,notify(){},failure(error){throw error;},renderRegistrations(){},account(){},renderBatch(){},
@@ -40,7 +51,7 @@ test('requester login reopens a bookmarked run, returns existing users to histor
    document:{getElementById:()=>({showModal(){tutorials++;}})}};
   const {submit}=vm.runInNewContext(logic+';({submit})',context);
   await submit({preventDefault(){},target:{matches:s=>s==='[data-live-login]',querySelectorAll:()=>[],reset(){}}});
-  assert.deepEqual(routes,expected?[expected]:[]);assert.equal(tutorials,expected?0:1);
+  assert.deepEqual(routes,expected?[expected]:[]);assert.equal(tutorials,1);
   if(expected?.[1])assert.equal(context.state.pendingRunId,'RUN-001');
  }
 });
