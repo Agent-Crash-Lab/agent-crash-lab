@@ -1,0 +1,106 @@
+{
+  "version": "1.0.0",
+  "status": "CANDIDATES_NOT_INDEXED",
+  "review_status": "PENDING_TEAM_MAPPING",
+  "records": [
+    {
+      "source_id": "CAND-CSB-CHEVRON-RICHMOND",
+      "source_type": "OFFICIAL_INCIDENT_REPORT",
+      "title": "Chevron Richmond Refinery Fire",
+      "publisher": "U.S. Chemical Safety and Hazard Investigation Board (CSB)",
+      "occurred": "2012-08-06",
+      "report_status": "FINAL_REPORT_RELEASED_2015-01-28",
+      "url": "https://www.csb.gov/chevron-richmond-refinery-fire/",
+      "verified_facts": [
+        "CSB identifies a catastrophic pipe failure and flammable vapor release.",
+        "The report discusses corrosion, inspection limitations, and recommendations for inspection and material verification."
+      ],
+      "candidate_use": "Manufacturing consequence analogy for degraded equipment evidence and inspection/maintenance decisions.",
+      "agent_link_limit": "The incident does not involve an AI Agent or a production scheduler. Do not claim an Agent caused it.",
+      "candidate_risk_keys": ["RESOURCE_CONSTRAINT", "UNVERIFIED_EVIDENCE"],
+      "mapping_confidence": "MEDIUM",
+      "rights_note": "Link and self-written summary only; confirm source terms before storing full text."
+    },
+    {
+      "source_id": "CAND-CSB-EXXONMOBIL-TORRANCE",
+      "source_type": "OFFICIAL_INCIDENT_REPORT",
+      "title": "ExxonMobil Refinery Explosion (Torrance)",
+      "publisher": "U.S. Chemical Safety and Hazard Investigation Board (CSB)",
+      "occurred": "2015-02-18",
+      "url": "https://www.csb.gov/recommendations/preventive-maintenance-investigations/",
+      "verified_facts": [
+        "CSB describes a pressure deviation during maintenance isolation preparations while the unit was idled.",
+        "The CSB summary cites weaknesses in safe operating limits, safeguard verification, and reuse of a procedure deviation without sufficient hazard analysis."
+      ],
+      "candidate_use": "Manufacturing consequence analogy for changed operating conditions and maintenance/readiness state that must be rechecked before a work decision.",
+      "agent_link_limit": "Not evidence of an AI scheduling failure. Use only if the target Agent receives and can act on equipment readiness or isolation state.",
+      "candidate_risk_keys": ["RESOURCE_CONSTRAINT", "UNVERIFIED_EVIDENCE"],
+      "mapping_confidence": "MEDIUM",
+      "rights_note": "CSB investigation summary page; link and self-written summary only."
+    },
+    {
+      "source_id": "CAND-CSB-CARBIDE-INDUSTRIES",
+      "source_type": "OFFICIAL_INCIDENT_REPORT",
+      "title": "Carbide Industries Fire and Explosion",
+      "publisher": "U.S. Chemical Safety and Hazard Investigation Board (CSB)",
+      "url": "https://www.csb.gov/recommendations/preventive-maintenance-investigations/",
+      "verified_facts": [
+        "CSB describes continued furnace operation despite recurring cooling-water leaks and prior warning events.",
+        "The CSB summary explains how water leaks could disrupt material flow and create a hazardous reaction pathway in that specific process."
+      ],
+      "candidate_use": "Manufacturing consequence analogy for continuing work with known equipment condition and repeated warnings.",
+      "agent_link_limit": "Process-specific chemistry cannot be transferred to the project's generic production scheduler. Only use if a compatible equipment-state and stop-work decision are explicitly modeled.",
+      "candidate_risk_keys": ["RESOURCE_CONSTRAINT"],
+      "mapping_confidence": "LOW",
+      "rights_note": "CSB investigation summary page; link and self-written summary only."
+    },
+    {
+      "source_id": "CAND-AISI-ART-COMPETITION",
+      "source_type": "GOVERNMENT_RESEARCH_BENCHMARK",
+      "title": "Security challenges in AI agent deployment: Insights from a large scale public competition",
+      "publisher": "UK AI Security Institute",
+      "url": "https://www.aisi.gov.uk/research/security-challenges-in-ai-agent-deployment-insights-from-a-large-scale-public-competition",
+      "verified_facts": [
+        "The study reports a public red-team competition against 22 frontier agents across 44 scenarios.",
+        "It reports 1.8 million submitted prompt-injection attacks and over 60,000 policy violations, and introduces the ART benchmark."
+      ],
+      "candidate_use": "Agentic research evidence for testing whether untrusted input can lead to policy-violating tool behavior.",
+      "agent_link_limit": "Primarily adversarial prompt-injection and security behavior. It is not evidence of manufacturing harm or production scheduling errors; only applicable if the target has an untrusted-content input path.",
+      "candidate_risk_keys": ["UNTRUSTED_INSTRUCTIONS", "APPROVAL_BYPASS"],
+      "mapping_confidence": "MEDIUM",
+      "rights_note": "Research summary page links the full paper; cite the paper version and verify exact methods before RAG adoption."
+    },
+    {
+      "source_id": "CAND-MS-PRIVILEGED-AGENTS",
+      "source_type": "RESEARCH_PAPER",
+      "title": "Security Risks in Tool-Enabled AI Agents: A Systematic Analysis of Privileged Execution Environments",
+      "publisher": "Microsoft Research / arXiv",
+      "published": "2026-05",
+      "url": "https://www.microsoft.com/en-us/research/publication/security-risks-in-tool-enabled-ai-agents-a-systematic-analysis-of-privileged-execution-environments/",
+      "verified_facts": [
+        "The paper presents a risk taxonomy and three representative agent scenarios.",
+        "It reports a small controlled experiment and discusses over-privileged tools, capability-intent mismatch, and ambient authority leakage."
+      ],
+      "candidate_use": "Agentic failure mechanism evidence for least privilege, tool-scope, and declared-capability checks.",
+      "agent_link_limit": "Cloud execution environment focus. Use only where the target's declared tools or runtime privileges match the paper's mechanism; not a manufacturing incident source.",
+      "candidate_risk_keys": ["APPROVAL_BYPASS", "AMBIGUOUS_WRITE"],
+      "mapping_confidence": "MEDIUM",
+      "rights_note": "Microsoft Research page links arXiv; verify version and paper sections before RAG adoption."
+    },
+    {
+      "source_id": "CAND-AISI-AGENTHARM",
+      "source_type": "GOVERNMENT_RESEARCH_BENCHMARK",
+      "title": "AgentHarm: A Benchmark for Measuring Harmfulness of LLM Agents",
+      "publisher": "UK AI Security Institute",
+      "url": "https://www.aisi.gov.uk/research/agentharm-a-benchmark-for-measuring-harmfulness-of-llm-agents",
+      "verified_facts": [
+        "The benchmark defines agent tasks across harmful behavior categories and evaluates agent actions, not just text responses."
+      ],
+      "candidate_use": "Background for action-level harmfulness evaluation and separating refusal from tool execution.",
+      "agent_link_limit": "Broad harmful-intent benchmark; weak direct mapping to routine manufacturing business constraints. Not a substitute for target-specific tool and policy tests.",
+      "candidate_risk_keys": ["APPROVAL_BYPASS"],
+      "mapping_confidence": "LOW",
+      "rights_note": "Research summary; inspect primary benchmark and license before any data ingestion."
+    }
+  ]
+}

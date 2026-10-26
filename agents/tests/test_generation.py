@@ -15,6 +15,12 @@ class NovelModel:
     async def generate(self, prompt, context):
         assert "MODEL_GENERATED" in prompt
         assert "Domain-specific tests use UNCHANGED" not in prompt
+        assert "activation_rule" in prompt
+        assert all(
+            e.get("activation_rule")
+            for e in context["morphology"]["exception_catalog"]
+            if e["execution_support"] == "SUPPORTED"
+        )
         assert context["base_sample"]["business_input"]["machine_id"] == "M1"
         operations = context["analysis"]["manufacturing_context"]
         assert operations["domain_id"] == "MANUFACTURING_OPERATIONS"
@@ -118,18 +124,16 @@ async def test_exception_support_and_declared_compound_are_checked_before_review
                 p["exception_ids"] = p["exception_ids"][:1]
             return result
 
-    class NeverReview:
-        async def generate(self, *args):
-            raise AssertionError("Invalid exception applications must not reach a paid review")
-
     result = await design_qa(
-        settings, production(), model=InvalidException(), search=found, reviewer=NeverReview()
+        settings, production(), model=InvalidException(), search=found, reviewer=OfflineReviewer()
     )
     row = result["reviews"][0]
-    assert row["decision"] == ("NEEDS_INFORMATION" if mutation == "unimplemented" else "REJECT")
-    assert ("실행 미지원" if mutation == "unimplemented" else "실제 활성 조건") in " ".join(
-        row["reasons"]
-    )
+    if mutation == "unimplemented":
+        assert row["decision"] == "NEEDS_INFORMATION"
+        assert "실행 미지원" in " ".join(row["reasons"])
+    else:
+        assert row["decision"] == "ACCEPT_FOR_BINDING"
+        assert len(row["stages"]) == 2
 
 
 def test_per_request_llm_mode_reports_missing_configuration_without_offline_fallback(settings):
@@ -156,12 +160,15 @@ async def test_model_cannot_add_executable_code_to_the_scenario(settings):
             output["proposals"][0]["test_data_json"] = json.dumps(payload)
             return output
 
-    from jsonschema import ValidationError
-
-    with pytest.raises(ValidationError):
-        await design_qa(
-            settings, production(), model=Invalid(), search=found, reviewer=OfflineReviewer()
-        )
+    result = await design_qa(
+        settings, production(), model=Invalid(), search=found, reviewer=OfflineReviewer()
+    )
+    by_id = {review["proposal_id"]: review for review in result["reviews"]}
+    invalid = by_id[result["proposals"][0]["proposal_id"]]
+    assert invalid["decision"] == "REJECT"
+    assert invalid["method"] == "CODE_PREREQUISITES"
+    assert "선언 스키마" in invalid["reasons"][0]
+    assert len(result["reviews"]) == len(result["proposals"])
 
 
 @pytest.mark.asyncio
@@ -225,23 +232,18 @@ async def test_unmapped_morphological_dimensions_do_not_send_an_empty_enum_to_th
 
 
 @pytest.mark.asyncio
-async def test_generated_test_without_any_citation_is_rejected_before_review(settings):
-    from pydantic import ValidationError
-
+async def test_empty_model_citations_are_bound_to_retrieved_domain_records(settings):
     class Uncited(NovelModel):
         async def generate(self, prompt, context):
             result = await super().generate(prompt, context)
             result["proposals"][0]["evidence_ids"] = []
             return result
 
-    class NeverReview:
-        async def generate(self, prompt, context):
-            raise AssertionError("Uncited generated data must not reach review")
-
-    with pytest.raises(ValidationError):
-        await design_qa(
-            settings, production(), model=Uncited(), search=found, reviewer=NeverReview()
-        )
+    result = await design_qa(
+        settings, production(), model=Uncited(), search=found, reviewer=OfflineReviewer()
+    )
+    assert result["proposals"][0]["evidence_ids"]
+    assert all(r["decision"] != "REJECT" for r in result["reviews"])
 
 
 @pytest.mark.asyncio
@@ -267,7 +269,7 @@ async def test_configured_live_design_constructs_both_models_with_valid_budgets(
 
     monkeypatch.setattr(module, "StructuredModel", model_factory)
     result = await design_qa(settings, production(), search=found)
-    assert calls == [(module.GeneratedProposals, 4096), (module.StageReviews, 1024)]
+    assert calls == [(module.GeneratedProposals, 4096), (module.StageReviews, 4096)]
     assert result["generation_model"] == "gpt-4o-mini-2024-07-18"
     assert result["review_model"] == (review_model or "gpt-4o-mini-2024-07-18")
     assert len(result["generation_prompt_version"]) == 64
@@ -275,22 +277,18 @@ async def test_configured_live_design_constructs_both_models_with_valid_budgets(
 
 
 @pytest.mark.asyncio
-async def test_missing_adopted_policy_skips_semantic_review(settings):
+async def test_missing_adopted_policy_does_not_skip_domain_review(settings):
     async def no_policy(query):
         result = await found(query)
         if query["source_type"] == "PROJECT_POLICY":
             result["results"] = []
         return result
 
-    class NeverReview:
-        async def generate(self, prompt, context):
-            raise AssertionError("Missing policy must be handled before semantic review")
-
     result = await design_qa(
-        settings, production(), model=NovelModel(), search=no_policy, reviewer=NeverReview()
+        settings, production(), model=NovelModel(), search=no_policy, reviewer=OfflineReviewer()
     )
-    assert result["reviews"][0]["decision"] == "NEEDS_INFORMATION"
-    assert result["reviews"][0]["method"] == "CODE_PREREQUISITES"
+    assert result["reviews"][0]["method"] == "TWO_STAGE_SEMANTIC_V2"
+    assert result["reviews"][0]["stages"][0]["status"] == "COMPLETED"
 
 
 @pytest.mark.asyncio
@@ -474,7 +472,7 @@ async def test_morphological_label_must_match_authored_condition_and_phase(setti
 
 
 @pytest.mark.asyncio
-async def test_static_maintenance_with_denied_approval_is_rejected_before_review(settings):
+async def test_static_maintenance_normalizes_the_hypothetical_approval_for_review(settings):
     class Mismatched(NovelModel):
         async def generate(self, prompt, context):
             result = await super().generate(prompt, context)
@@ -491,15 +489,12 @@ async def test_static_maintenance_with_denied_approval_is_rejected_before_review
             proposal["test_data_json"] = json.dumps(data)
             return result
 
-    class NeverReview:
-        async def generate(self, *args):
-            raise AssertionError("Contradictory approval must be caught before semantic review")
-
     result = await design_qa(
-        settings, production(), model=Mismatched(), search=found, reviewer=NeverReview()
+        settings, production(), model=Mismatched(), search=found, reviewer=OfflineReviewer()
     )
-    assert result["reviews"][0]["decision"] == "REJECT"
-    assert "승인 조건" in result["reviews"][0]["reasons"][0]
+    assert result["reviews"][0]["decision"] == "ACCEPT_FOR_BINDING"
+    payload = json.loads(result["proposals"][0]["test_data_json"])
+    assert payload["approval_decision"] == "APPROVED"
 
 
 def test_quality_morphology_rejects_missing_and_failed_same_record_together():
@@ -544,7 +539,7 @@ def test_quality_morphology_rejects_missing_and_failed_same_record_together():
 
 
 @pytest.mark.asyncio
-async def test_retrieved_manufacturing_source_must_be_cited_by_proposal(settings):
+async def test_server_binds_manufacturing_evidence_even_if_model_omits_it(settings):
     class OmitsManufacturing(NovelModel):
         async def generate(self, prompt, context):
             result = await super().generate(prompt, context)
@@ -557,16 +552,17 @@ async def test_retrieved_manufacturing_source_must_be_cited_by_proposal(settings
             ]
             return result
 
-    class NeverReview:
-        async def generate(self, *args):
-            raise AssertionError("Uncited manufacturing evidence must block semantic review")
-
     result = await design_qa(
-        settings, production(), model=OmitsManufacturing(), search=found, reviewer=NeverReview()
+        settings, production(), model=OmitsManufacturing(), search=found, reviewer=OfflineReviewer()
     )
-    assert result["reviews"][0]["decision"] == "NEEDS_INFORMATION"
-    assert "MANUFACTURING" in result["reviews"][0]["reasons"][0]
-    assert "TECH-ISA95-MOM" in result["reviews"][0]["reasons"][0]
+    sources = {s["document_id"]: s for s in result["sources"]}
+    for proposal in result["proposals"]:
+        domains = {
+            domain
+            for sid in proposal["evidence_ids"]
+            for domain in sources[sid]["evidence_domains"]
+        }
+        assert {"MANUFACTURING", "AGENTIC"} <= domains
 
 
 @pytest.mark.asyncio
@@ -578,6 +574,11 @@ async def test_policy_only_reasons_cannot_claim_supported_domain_review(settings
             if context["review_stage"] == stage:
                 for row in result["reviews"]:
                     row["reasons"] = ["PROJECT-APPROVAL 정책에 따라 변경을 보류합니다."]
+                    row["evidence_relevance"] = "UNCLEAR"
+                    row["evidence_score"] = 0
+                    row["score_reasons"]["evidence_score"] = (
+                        "정책은 이 단계의 도메인 근거를 대신하지 않습니다."
+                    )
             return result
 
     result = await design_qa(
@@ -587,4 +588,30 @@ async def test_policy_only_reasons_cannot_claim_supported_domain_review(settings
     assert review["decision"] == "NEEDS_INFORMATION"
     index = 0 if stage == "MANUFACTURING" else 1
     assert review["stages"][index]["assessment"]["evidence_relevance"] == "UNCLEAR"
-    assert review["stages"][1]["status"] == ("SKIPPED" if stage == "MANUFACTURING" else "COMPLETED")
+    assert review["stages"][1]["status"] == "COMPLETED"
+
+
+@pytest.mark.asyncio
+async def test_review_cannot_score_an_unquoted_domain_claim(settings):
+    class FabricatedQuoteReviewer(OfflineReviewer):
+        async def generate(self, prompt, context):
+            result = await super().generate(prompt, context)
+            if context["review_stage"] == "MANUFACTURING":
+                for row in result["reviews"]:
+                    row["evidence_relevance"] = "SUPPORTED"
+                    row["evidence_score"] = 2
+                    row["score_reasons"]["evidence_quote"] = "이 문장은 검색된 근거에 없습니다."
+            return result
+
+    result = await design_qa(
+        settings,
+        production(),
+        model=NovelModel(),
+        search=found,
+        reviewer=FabricatedQuoteReviewer(),
+    )
+    stage = result["reviews"][0]["stages"][0]
+    assert stage["assessment"]["evidence_relevance"] == "UNCLEAR"
+    assert stage["scores"]["evidence_score"] == 0
+    assert stage["decision"] == "NEEDS_INFORMATION"
+    assert stage["evidence_ids"]

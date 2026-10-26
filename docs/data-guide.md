@@ -189,7 +189,7 @@ MCP `tools/list`의 배열·`tools`·`result.tools` JSON을 화면에서 가져�
 
 ### 시험안 검토와 최종 판정
 
-- 검토 방법: `CODE_PREREQUISITES` / `TWO_STAGE_SEMANTIC_V1` / `OFFLINE_METADATA_CHECK` (기존 기록의 `SEMANTIC_RUBRIC_V1`도 읽기 지원).
+- 검토 방법: `CODE_PREREQUISITES` / `TWO_STAGE_SEMANTIC_V1` / `TWO_STAGE_SEMANTIC_V2` / `OFFLINE_METADATA_CHECK` (기존 기록의 `SEMANTIC_RUBRIC_V1`도 읽기 지원). V2는 단계별 직접 인용을 원문 검색 문장과 대조합니다.
 - 검토 결과: `ACCEPT_FOR_BINDING` / `NEEDS_INFORMATION` / `REJECT`. 코드 사전 검사는 `assessment` 없이 이유를 저장할 수 있습니다.
 - 의미 검토 세 항목: 정책 `ALIGNED/CONFLICT/UNCLEAR`, 근거 `SUPPORTED/IRRELEVANT/UNCLEAR`, 상황 `COHERENT/CONTRADICTORY/UNCLEAR`.
 - 실행 연결: `READY/UNSUPPORTED`. 검토 수용과 별도입니다.
