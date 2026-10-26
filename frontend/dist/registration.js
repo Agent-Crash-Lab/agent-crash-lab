@@ -1,6 +1,7 @@
-import { registerProfile } from './registry.js?v=0.15.7';
-import { validateRegistration } from './topology.js?v=0.15.7';
-import { registrationExample } from './topologies.js?v=0.15.7';
+import {describeError,showError} from './errors.js?v=0.15.8';
+import { registerProfile } from './registry.js?v=0.15.8';
+import { validateRegistration } from './topology.js?v=0.15.8';
+import { registrationExample } from './topologies.js?v=0.15.8';
 let dialog;
 export function initRegistration(onRegistered){
  dialog=document.createElement('dialog');dialog.className='registration-dialog';dialog.id='registration-dialog';dialog.setAttribute('aria-labelledby','registration-title');
@@ -8,12 +9,12 @@ export function initRegistration(onRegistered){
  document.body.append(dialog);
  const textarea=dialog.querySelector('textarea'),feedback=dialog.querySelector('#registration-feedback');
  textarea.addEventListener('input',()=>feedback.replaceChildren());
- const show=(messages,ok)=>{feedback.className=ok?'registration-valid':'registration-errors';feedback.replaceChildren();for(const message of messages){const p=document.createElement('p');p.textContent=message;feedback.append(p);}};
+ const show=(messages,ok)=>{if(!ok){textarea.setAttribute('aria-invalid','true');textarea.setAttribute('aria-describedby','registration-help registration-feedback');showError(feedback,{...describeError({}),title:'등록 정보를 확인하세요',description:messages.join(' '),action:'JSON 수정'},{focus:true,action:'data-edit-json'});feedback.querySelector('[data-edit-json]')?.addEventListener('click',()=>textarea.focus());textarea.focus();return;}textarea.removeAttribute('aria-invalid');feedback.className=ok?'registration-valid':'registration-errors';feedback.replaceChildren();for(const message of messages){const p=document.createElement('p');p.textContent=message;feedback.append(p);}};
  function parse(){try{if(textarea.value.length>100000)throw new Error('등록 정보는 100 KB 이하로 입력하세요.');return JSON.parse(textarea.value);}catch(e){show([e instanceof SyntaxError?'JSON 형식을 확인하세요.':e.message],false);return null;}}
  dialog.querySelector('#registration-example').addEventListener('click',()=>{textarea.value=JSON.stringify(registrationExample,null,2);feedback.replaceChildren();});
  dialog.querySelector('#registration-close').addEventListener('click',()=>dialog.close());
  dialog.querySelector('#registration-validate').addEventListener('click',()=>{const input=parse();if(!input)return;const r=validateRegistration(input);show(r.ok?['구조와 이벤트 매핑이 유효합니다. 실제 실행 API는 검사하지 않았습니다.']:r.errors,r.ok);});
- dialog.querySelector('form').addEventListener('submit',event=>{event.preventDefault();const input=parse();if(!input)return;const r=registerProfile(input);if(!r.ok){show(r.errors,false);return;}dialog.close();onRegistered(r);});
+ dialog.querySelector('form').addEventListener('submit',event=>{event.preventDefault();const input=parse();if(!input)return;const r=registerProfile(input);if(!r.ok){show(r.errors,false);return;}if(!r.persisted){showError(feedback,{...describeError({}),title:'브라우저 저장 실패',description:'구조는 현재 탭에만 남아 있습니다. 새로고침하면 사라집니다. JSON을 복사해 보관하세요.',action:'현재 탭에서 구조 보기'},{focus:true,action:'data-view-unsaved'});feedback.querySelector('[data-view-unsaved]').onclick=()=>{dialog.close();onRegistered(r);};return;}dialog.close();onRegistered(r);});
  textarea.value=JSON.stringify(registrationExample,null,2);
 }
 export function openRegistration(){dialog.showModal();}

@@ -3803,3 +3803,29 @@ body.is-approver-mode .prepare-main-col {
 @media (max-width: 600px) {
   .approval-payload-box > .run-input-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+.error-panel { display:flex; gap:12px; margin:16px 0; padding:16px; border:1px solid var(--neg); border-left-width:4px; border-radius:8px; background:var(--surface); color:var(--text); overflow-wrap:anywhere; }
+.error-panel[data-severity="pending"] { border-color:var(--warn); }
+.error-panel[data-severity="finding"] { border-color:var(--signal); }
+.error-panel strong { display:block; font-size:1rem; }
+.error-panel p { margin:8px 0 12px; max-width:72ch; }
+.error-panel details { margin-top:12px; }
+.error-icon { flex:none; display:grid; place-items:center; width:24px; height:24px; border:1px solid currentColor; border-radius:50%; color:var(--neg); font-weight:700; }
+[data-severity="pending"] .error-icon { color:var(--warn); }
+[data-severity="finding"] .error-icon { color:var(--signal); }
+.field-error { color:var(--neg); margin:6px 0; }
+[aria-invalid="true"] { border-color:var(--neg)!important; }
+[data-stale="true"]::before { content:'갱신되지 않은 기록 · 최근 조회 실패'; display:block; color:var(--warn); padding:8px 0; }
+.badge[data-result="ERROR"] { color:var(--neg); border-color:var(--neg); }
+.badge[data-result="FAIL"] { color:var(--signal); border-color:var(--signal); }
+.badge[data-result="INCONCLUSIVE"] { color:var(--warn); border-color:var(--warn); }
+.error-panel:focus { outline:2px solid var(--text); outline-offset:3px; }
+@media(max-width:600px){.error-panel{padding:12px;gap:8px}.error-panel button{max-width:100%;white-space:normal}}
+@media(max-width:1000px){.live-stage-grid{grid-template-columns:minmax(0,1fr)}.live-stage-col>.live-row{flex-wrap:wrap}.live-inspector-col{width:100%}}
+.chk.f { border-color:var(--signal); }
+.chk.f .ic { color:var(--signal); }
+.badge[data-result="FAIL"] { background:var(--sig-bg); }
+.badge[data-result="REJECTED"],.badge[data-result="STOPPED"] { color:var(--text-2); border-color:var(--border); background:var(--raised); }
+.finding-t,.strip .lead.is-fail .v { color:var(--signal); }
+.strip .lead.is-pending .v { color:var(--warn); }
+.verdict-banner.is-fail { background:var(--sig-bg); border-color:var(--signal); }

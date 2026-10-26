@@ -1,59 +1,59 @@
-import {mountApprover, leaveApprover} from './approver.js?v=0.15.7';
-import {LIVE_COMPARISON_ENABLED, workspaceRoute, runListMarkup, api, mergeEvents, isFinished, investigationLabel, sceneEvents, escapeHtml as esc, normalizeDraft, designStartPayload, runDestination, progressEventsMarkup, runGuidance, nextActionHint, completedSystemRuns, qaReportMarkup, qaReportDocument, qaReportCollectionDocument, reviewMarkup, repairMarkup, followupMarkup, scenarioMarkup, caseReadinessLabel, caseBlockerMarkup} from './live-api.js?v=0.15.7';
-import {registrationMarkup,parseTools,exampleDeclaration,fillDeclaration,renderToolBindings,collectDeclaration,profileAnalysis,capabilityLabel,registeredCaseReady} from './qa-targets.js?v=0.15.7';
-import {purchaseTopology} from './topologies.js?v=0.15.7';
-import {mountScene, pauseScene} from './scene.js?v=0.15.7';
-import {frameFor} from './topology.js?v=0.15.7';
+import {mountApprover, leaveApprover} from './approver.js?v=0.15.8';
+import {describeError,errorMarkup,showError,clearError,markFields,captureForms,restoreForms,LIVE_COMPARISON_ENABLED, workspaceRoute, runListMarkup, api, mergeEvents, isFinished, investigationLabel, sceneEvents, escapeHtml as esc, normalizeDraft, designStartPayload, runDestination, progressEventsMarkup, runGuidance, nextActionHint, completedSystemRuns, qaReportMarkup, qaReportDocument, qaReportCollectionDocument, reviewMarkup, repairMarkup, followupMarkup, scenarioMarkup, caseReadinessLabel, caseBlockerMarkup} from './live-api.js?v=0.15.8';
+import {registrationMarkup,parseTools,exampleDeclaration,fillDeclaration,renderToolBindings,collectDeclaration,profileAnalysis,capabilityLabel,registeredCaseReady} from './qa-targets.js?v=0.15.8';
+import {purchaseTopology} from './topologies.js?v=0.15.8';
+import {mountScene, pauseScene} from './scene.js?v=0.15.8';
+import {frameFor} from './topology.js?v=0.15.8';
 
 const graph = {...purchaseTopology, version:'live-topology-v1', nodes:[...purchaseTopology.nodes,
   {id:'guide',label:'조사 지침',role:'store',layer:3,lane:2},
   {id:'fault',label:'사고 주입',role:'tool',layer:1,lane:3}]};
-const state = {runList:{runs:[],q:'',status:'ALL',offset:0,hasMore:false,loading:false,loaded:false}, authDismissed:false, registration:null, registrations:[], capabilityOptions:[], executionRuntimes:[], targetType:'PURCHASE', targetTypes:[], batch:null, batchRequest:null, designPlan:null, designCaseId:null, knowledge:null, knowledgeStatus:null, session:null, catalog:null, runs:[], run:null, events:[], selected:null, comparison:null, settled:false, draft:{agent:"purchase",test_id:"S01",system_id:"B0"}, compareDraft:{left:"",right:""}, pendingStart:false, pendingRunId:null};
+const state = {readStatus:{},errors:{},approvalRetries:{},resume:null,restore:null,approvalUnknown:{},uncertain:false,runList:{runs:[],q:'',status:'ALL',offset:0,hasMore:false,loading:false,loaded:false}, authDismissed:false, registration:null, registrations:[], capabilityOptions:[], executionRuntimes:[], targetType:'PURCHASE', targetTypes:[], batch:null, batchRequest:null, designPlan:null, designCaseId:null, knowledge:null, knowledgeStatus:null, session:null, catalog:null, runs:[], run:null, events:[], selected:null, comparison:null, settled:false, draft:{agent:"purchase",test_id:"S01",system_id:"B0"}, compareDraft:{left:"",right:""}, pendingStart:false, pendingRunId:null};
 let host, timer, batchTimer, listTimer, listRequest=0, runNavigationRequest=0, playback, generation=0, loading=false, page='agents', go;
-const $ = selector => host?.querySelector(selector);
+const $ = selector => host?.querySelector?.(selector);
 const json = value => esc(JSON.stringify(value, null, 2));
-const badge = text => `<span class="badge" data-result="${esc(text)}">${esc(text)}</span>`;
+const badge = (text,status=text) => `<span class="badge" data-result="${esc(status)}">${esc(text)}</span>`;
 const scopeTitle=id=>({agent_behavior:'Agent 행동',business_state:'실제 업무 상태',server_control:'서버 통제',report_truthfulness:'보고 정확성',task_completion:'업무 완료',qa_evidence:'시험 근거'}[id] || id);
 const ruleTitle=id=>state.catalog?.tests.flatMap(t=>t.rules || []).find(r=>r.rule_id===id)?.name || id;
 
 const options = (items, key, title=key) => items.map(x => `<option value="${esc(x[key])}">${esc(x[key])}${x[title] !== x[key] ? ` · ${esc(x[title])}` : ''}</option>`).join('');
-const messages = {
-  LLM_KEY_NOT_CONFIGURED:'서버의 LLM_API_KEY와 QA_DESIGN_LLM_MODEL을 설정해야 새 상황을 생성할 수 있습니다. 키는 채팅이나 등록 양식에 입력하지 마세요.',
-  UNPRICED_MODEL:'설계 모델 설정과 비용 계산 지원 여부를 확인해 주세요.',
-  LLM_BUDGET_EXHAUSTED:'설정한 모델 호출 예산을 사용했습니다. 서버에서 예산 기록을 확인해 주세요.',
-  LLM_INPUT_LIMIT:'시험 설계 입력이 모델 호출 크기 한도를 초과했습니다. 대상 설명·도구 정의·시험 범위를 줄인 뒤 다시 설계해 주세요.',
-  TARGET_RUNTIME_CHANGED:'실행기 버전이나 모델 설정이 바뀌었습니다. 등록·설계를 다시 진행하세요.',
-  INCOMPATIBLE_EXECUTION_TARGET:'실행기와 같은 업무·기능·정책 및 지원 데이터를 사용해야 합니다.',
-  PROFILE_INFORMATION_REQUIRED:'승인·재시도 정책을 보완한 뒤 새로 저장하세요.',
-  PROFILE_ANALYSIS_CHANGED:'위험 분류 기준이 바뀌었습니다. 등록 정보를 다시 저장해 분석하세요.',
-  QA_ANALYSIS_UNAVAILABLE:'Agent 설명 분석 서비스에 연결하지 못했습니다.',
-  INVALID_QA_TARGET:'도구 정의·입력 형식·기능 연결을 확인해 주세요.',
-  KNOWLEDGE_UNAVAILABLE:'문헌 검색 서비스가 준비되지 않았습니다. 서비스와 문헌 색인 상태를 확인한 뒤 다시 제안받으세요.',
-  DESIGN_RISK_COVERAGE_MISMATCH:'모델이 요청된 위험별 시험안을 모두 반환하지 않았습니다. 다시 제안받으세요. 기존 실행은 시작되지 않았습니다.',
-  QA_DESIGN_UNAVAILABLE:'시험 설계 서비스 또는 문서 검색에 연결하지 못했습니다. 서비스 상태와 설계 모델 설정을 확인해 주세요.',
-  QA_BATCH_IN_PROGRESS:'반복 실험이 진행 중입니다. 현재 실험을 확인하거나 중단을 요청하세요.',
-  RELIABILITY_REQUIRES_LLM:'현재 대상은 규칙 기반입니다. 기본 연결 점검으로 실행하세요.',
-  QA_STRATEGY_REQUIRED:'우선 Agent를 보고 시험 설계를 새로 실행해 주세요.',
-  RUN_IN_PROGRESS:'다른 실행 또는 조사가 진행 중입니다. 실행 기록을 열어 확인해 주세요.',
-  UNAUTHORIZED:'로그인이 필요하거나 세션이 만료되었습니다. 다시 로그인해 주세요.',
-  PERMISSION_DENIED:'이 계정에는 필요한 권한이 없습니다.',
-  HARNESS_UNAVAILABLE:'Harness에 연결할 수 없습니다. 서비스 상태를 확인해 주세요.',
-  RUN_FINALIZED:'이미 종료된 실행입니다. 새 시험을 시작해 주세요.',
-  NOT_COMPARABLE:'동일한 SYSTEM 시나리오의 완료된 실행 두 개를 선택해 주세요.',
-  RUN_NOT_COMPLETED:'두 실행이 모두 완료된 뒤 비교해 주세요.'
-};
+
 function notify(message, error=false) {
+  if(error){failure({}, {key:'notice',description:message,selector:state.session?null:'[data-login-error]',focus:true});return;}
   const el = $('[data-live-message]');
   if (!el) return;
   el.textContent=message;
   el.classList.toggle('live-error',error);
 }
-function failure(error) {
-  if (error.status === 401) { state.session=null; clearTimeout(timer); if(host)account(); }
-  notify(error.details?.decision_saved ? '결정은 저장됐지만 실행 재개 전달에 실패했습니다. 같은 결정을 다시 보내 주세요.' : messages[error.code] || error.message, true);
+function showFailures() {
+ const regions={catalog:'[data-live-design]',history:'[data-live-history]',targets:'[data-live-targets]',registrations:'[data-qa-profiles]',batch:'[data-live-batch-results]','run-list':'[data-live-run-list]',run:'[data-live-analysis]'};
+ for(const [key,status] of Object.entries(state.readStatus)){const area=regions[key]?$(regions[key]):null;if(area?.dataset){if(status.failed)area.dataset.stale='true';else delete area.dataset.stale;}}
+ for(const [key,entry] of Object.entries(state.errors)){
+  const area=entry.selector?$(entry.selector):$('[data-live-errors]');
+  showError(area || $('[data-live-errors]'),entry.info,{key,action:`data-error-recover="${key}"`});
+ }
 }
-export function leaveLive() { leaveApprover(); clearTimeout(timer); clearTimeout(batchTimer); clearTimeout(listTimer); listRequest++; clearInterval(playback); playback=null; generation++; host=null; loading=false; pauseScene(); }
+function expireSession() {
+ if(!state.session)return;
+ state.resume={userId:state.session.user_id,roles:[...state.session.roles].sort().join(','),page,runId:state.run?.run_id,forms:captureForms(host)};
+ state.session=null;clearTimeout(timer);clearTimeout(batchTimer);clearTimeout(listTimer);clearInterval(playback);generation++;loading=false;listRequest++;leaveApprover();
+ if(host)go('agents');
+}
+function failure(error,context={}) {
+ if(error.name==='AbortError')return;
+ if(error.status===401 && !context.auth && !context.auxiliary){expireSession();return;}
+ const key=context.key || 'workspace';
+ const info=describeError(error,{...context,runId:context.runId || state.run?.run_id});
+ state.errors[key]={info,selector:context.selector};
+ showFailures();
+ if(context.focus){const area=context.selector?$(context.selector):$('[data-live-errors]');showError(area,info,{key,focus:true,action:`data-error-recover="${key}"`});if(context.form)markFields(context.form,info.fields);}
+}
+function resolved(key){delete state.errors[key];host?.querySelectorAll?.(`[data-error-slot="${key}"]`).forEach(el=>el.remove());}
+function readOk(key){state.readStatus[key]={at:Date.now(),failed:false};const selector=state.errors[key]?.selector;if(selector){const area=$(selector);if(area?.dataset)delete area.dataset.stale;}resolved(key);}
+function readFailed(key,error,selector){state.readStatus[key]={...state.readStatus[key],failed:true};const area=$(selector);if(area)area.dataset.stale='true';failure(error,{key,selector,title:({catalog:'시험 목록 갱신 실패',history:'최근 실행 갱신 실패',targets:'평가 대상 갱신 실패',registrations:'등록 목록 갱신 실패',batch:'반복 실험 갱신 실패','run-list':'실행 목록 갱신 실패',run:'실행 기록 갱신 실패'}[key]),description:'기록을 갱신하지 못했습니다. 표시된 데이터는 이전 조회 결과일 수 있습니다.',action:'다시 불러오기'});}
+export function leaveLive() { if(host?.oninvalid)host.removeEventListener?.('invalid',host.oninvalid,true);leaveApprover(); clearTimeout(timer); clearTimeout(batchTimer); clearTimeout(listTimer); listRequest++; clearInterval(playback); playback=null; generation++; host=null; loading=false; pauseScene(); }
 function logoutWorkspace(){
+  state.resume=null;state.restore=null;state.errors={};state.readStatus={};state.approvalRetries={};state.approvalUnknown={};state.uncertain=false;
   Object.assign(state,{runList:{runs:[],q:'',status:'ALL',offset:0,hasMore:false,loading:false,loaded:false},session:null,catalog:null,run:null,runs:[],events:[],selected:null,settled:false,
     registration:null,registrations:[],capabilityOptions:[],executionRuntimes:[],targetTypes:[],
     batch:null,batchRequest:null,designPlan:null,designCaseId:null,knowledge:null,knowledgeStatus:null,
@@ -337,7 +337,7 @@ function syncShellChrome() {
   if(scopeEl) scopeEl.textContent=approver?'승인자 워크스페이스':state.run && ['live','execution'].includes(page)?runTargetName(state.run):state.registration?.name || ({PURCHASE:'자재 구매 · 발주',PRODUCTION:'생산 일정',QUALITY:'품질 · 출하'}[state.targetType] || '자재 구매 · 발주');
   if(pageEl) pageEl.textContent=state.run && ['live','execution'].includes(page) ? state.run.run_id : ({approvals:'승인 목록',requests:'관리자 요청 사항',reports:'보고서 목록'}[page] || pageCopy[page]?.[0] || '평가 대상');
   if(waitEl) waitEl.hidden=!authed || !(state.run?.status==='WAITING_APPROVAL');
-  if(modeEl) modeEl.textContent='API 정상 연결';
+  if(modeEl){const reads=Object.values(state.readStatus),last=Math.max(0,...reads.map(r=>r.at||0));modeEl.textContent=!authed?'로그인 필요':reads.some(r=>r.failed)?(last?'일부 조회 실패':'연결 확인 필요'):last?`API 응답 확인 · ${new Date(last).toLocaleTimeString('ko-KR')}`:'연결 확인 중';}
   const modeBadge=document.getElementById('header-mode-badge');
   if(modeBadge){
     const dot=modeBadge.querySelector('.pulse-dot');
@@ -378,7 +378,7 @@ export function mountLive(element, selectedPage='agents', navigate) {
   if(state.pendingRunId && state.pendingRunId!==state.run?.run_id){state.run=null;state.events=[];state.selected=null;state.settled=false;}
   if(isApproverAccount()) {
     syncShellChrome();
-    mountApprover(host,page,state.session,go,logoutWorkspace);
+    mountApprover(host,page,state.session,go,expireSession);
     return;
   }
   const [title,description]=pageCopy[page];
@@ -430,7 +430,7 @@ export function mountLive(element, selectedPage='agents', navigate) {
           ${badge('실제 API')}
         </div>
       </div>
-      <p class="live-message" data-live-message role="status" aria-live="polite"></p>
+      <div data-live-errors></div><p class="live-message" data-live-message role="status" aria-live="polite"></p>
       <section class="live-guidance" data-live-guidance aria-label="현재 단계와 다음 행동"></section>
 
       <div class="live-layout" data-page="${page}">
@@ -606,6 +606,8 @@ export function mountLive(element, selectedPage='agents', navigate) {
     </div>`;
   if(page==='execution')$('.prepare-work-grid').before($('[data-live-analysis]'));
   if(page==='live')$('.prepare-main-col').prepend($('[data-live-manual]'));
+  host.oninvalid=event=>{const input=event.target,form=input.form;if(!form)return;event.preventDefault();showError(form,{...describeError({fields:{[input.name]:input.validationMessage}}),title:'입력 내용을 확인하세요',description:'표시된 필드를 수정한 뒤 다시 진행하세요.',action:'입력 수정'},{key:'validation',focus:false,action:'data-edit-invalid'});markFields(form,{[input.name]:input.validationMessage});form.querySelector('[data-edit-invalid]').onclick=()=>input.focus();};
+  host.addEventListener('invalid',host.oninvalid,true);
   host.onsubmit=submit;
   host.onclick=click;
   host.oninput=event=>{
@@ -629,8 +631,9 @@ export function mountLive(element, selectedPage='agents', navigate) {
   else if(page==='live')renderEvents();
   if(state.comparison)$('[data-live-comparison]').innerHTML=comparisonView(state.comparison);
   if(state.session && page==='runs')refreshRunList();
-  if(state.session)refreshBatch().catch(failure);
-  if(state.session)refresh().then(()=>{if(state.pendingRunId){const id=state.pendingRunId;state.pendingRunId=null;return openRun(id);}if(state.run)return poll();}).catch(failure);
+  showFailures();if(state.resume)showError($('[data-login-error]'),{...describeError({status:401}),title:'세션이 만료되었습니다',description:'같은 계정으로 로그인하면 작성하던 작업으로 돌아갑니다. 비밀번호는 보관하지 않습니다.',action:'다시 로그인'},{key:'expired',action:'data-error-recover="login"'});
+  if(state.session)refreshBatch().catch(error=>readFailed('batch',error,'[data-live-batch-area]'));
+  if(state.session){const mountedHost=host,mountedGeneration=generation,mountedPage=page,mountedToken=state.session.access_token;refresh().then(async()=>{if(!state.session || host!==mountedHost || generation!==mountedGeneration || state.session.access_token!==mountedToken)return;if(state.pendingRunId){const id=state.pendingRunId;state.pendingRunId=null;await openRun(id);}else if(state.run)await poll();if(state.restore && host===mountedHost && page===mountedPage && state.session?.access_token===mountedToken){restoreForms(host,state.restore);state.restore=null;}}).catch(failure);}
 }
 function guidance() {
   const area=$('[data-live-guidance]');if(!area)return;
@@ -785,12 +788,15 @@ function renderBatch() {
   if(area.dataset.key!==content){area.dataset.key=content;area.innerHTML=content;}
 }
 async function refreshBatch() {
-  if(!state.session || !host)return;
-  const current=generation, token=state.session.access_token;
-  const list=await api('/qa/batches',{token});
-  if(current!==generation || !host)return;
-  if(!state.batch || !list.batches.some(b=>b.batch_id===state.batch.batch_id))state.batch=list.batches[0] || null;
-  renderBatch();if(state.batch)pollBatch();
+  clearTimeout(batchTimer);if(!state.session || !host)return;
+  const current=generation,token=state.session.access_token;
+  try{
+   const list=await api('/qa/batches',{token});
+   if(current!==generation || !host)return;
+   if(!Array.isArray(list.batches))throw Object.assign(new Error('invalid batches'),{code:'INVALID_RESPONSE'});
+   if(!state.batch || !list.batches.some(b=>b.batch_id===state.batch.batch_id))state.batch=list.batches[0] || null;
+   readOk('batch');renderBatch();if(state.batch)pollBatch();
+  }catch(error){if(current!==generation || !host)return;readFailed('batch',error,'[data-live-batch-area]');if(state.session)batchTimer=setTimeout(refreshBatch,3000);}
 }
 async function pollBatch() {
   clearTimeout(batchTimer);if(!state.session || !state.batch || !host)return;
@@ -798,9 +804,9 @@ async function pollBatch() {
   try {
     const b=await api(`/qa/batches/${encodeURIComponent(id)}`,{token});
     if(current!==generation || !host || state.batch?.batch_id!==id)return;
-    state.batch=b;renderBatch();
+    state.batch=b;readOk('batch');renderBatch();
     if(['RUNNING','WAITING_APPROVAL','STOPPING'].includes(b.status))batchTimer=setTimeout(pollBatch,1000);
-  } catch(e){if(current===generation && host)failure(e);}
+  } catch(e){if(current===generation && host){readFailed('batch',e,'[data-live-batch-area]');if(state.session)batchTimer=setTimeout(pollBatch,3000);}}
 }
 
 function inputDataMarkup(value) {
@@ -835,12 +841,13 @@ function account() {
   if(ws) ws.hidden=showAuthSplit;
   const userTag=$('[data-live-user-tag]');
   if(userTag) userTag.textContent=state.session?.user_id || 'requester-01';
-  $('[data-live-account]').innerHTML=state.session ? `<div class="session-inline"><span class="mono">${esc(state.session.user_id)}</span> ${badge(state.session.roles.join(' / '))} <button type="button" class="secondary" data-live-logout>로그아웃</button></div>` :
-    `<form data-live-login class="login-form-fields"><label class="field-block"><span>계정</span><input name="user_id" value="requester-01" autocomplete="username" required></label><label class="field-block"><span>비밀번호</span><input name="password" type="password" value="crashlab" autocomplete="current-password" required><small class="live-hint">개발 계정 기본 비밀번호는 서버의 <span class="mono">DEMO_USER_PASSWORD (crashlab)</span>입니다.</small></label><button class="primary login-submit" type="submit">로그인하고 평가 대상 고르기 →</button></form>`;
+  const accountArea=$('[data-live-account]');
+  if(state.session || !accountArea.querySelector('[data-live-login]'))accountArea.innerHTML=state.session ? `<div class="session-inline"><span class="mono">${esc(state.session.user_id)}</span> ${badge(state.session.roles.join(' / '))} <button type="button" class="secondary" data-live-logout>로그아웃</button></div>` :
+    `<form data-live-login class="login-form-fields"><div data-login-error></div><label class="field-block"><span>계정</span><input name="user_id" value="requester-01" autocomplete="username" required></label><label class="field-block"><span>비밀번호</span><input name="password" type="password" value="crashlab" autocomplete="current-password" required><small class="live-hint">개발 계정 기본 비밀번호는 서버의 <span class="mono">DEMO_USER_PASSWORD (crashlab)</span>입니다.</small></label><button class="primary login-submit" type="submit">로그인하고 평가 대상 고르기 →</button></form>`;
   const button=$('[data-live-start] button');
   if(button){
     button.textContent=page==='prepare'?'이 조건으로 실행 준비 →':state.pendingStart?'실행 요청 중…':state.run && !state.settled?'실행 진행 중':state.designCaseId?'선택한 설계 시험 시작':'시험 시작';
-    button.disabled=!state.designPlan?.cases.some(c=>c.case_id===state.designCaseId && c.execution.status==='READY') || !registeredCaseReady(state.registration,state.designPlan,state.designCaseId) || !state.session?.roles.includes('REQUESTER') || !state.catalog || state.pendingStart || !!state.run || ['RUNNING','WAITING_APPROVAL','STOPPING'].includes(state.batch?.status);
+    button.disabled=!state.designPlan?.cases.some(c=>c.case_id===state.designCaseId && c.execution.status==='READY') || !registeredCaseReady(state.registration,state.designPlan,state.designCaseId) || !state.session?.roles.includes('REQUESTER') || !state.catalog || state.pendingStart || state.uncertain || !!state.run || ['RUNNING','WAITING_APPROVAL','STOPPING'].includes(state.batch?.status);
   }
   $('[data-live-setup]').hidden=page!=='live' || !!state.run;
   $('[data-live-summary]').hidden=!['live','execution'].includes(page) || (page==='live' && !state.run);
@@ -849,16 +856,30 @@ function account() {
   guidance();selectedDesign();
 }
 function catalog() {
+  if(!state.catalog)return;
   state.draft=normalizeDraft(state.catalog,state.draft);
   targets();account();
 }
 async function refresh() {
   const current=generation;
-  const [catalogData,historyData,targetData,registered]=await Promise.all([api('/scenarios',{token:state.session.access_token}),api('/runs',{token:state.session.access_token}),api('/qa/targets',{token:state.session.access_token}),api('/qa/registrations',{token:state.session.access_token})]);
+  if(!state.session)return;
+  const token=state.session.access_token;
+  const requests=[['catalog','/scenarios'],['history','/runs'],['targets','/qa/targets'],['registrations','/qa/registrations']];
+  const results=await Promise.allSettled(requests.map(([,url])=>api(url,{token})));
   if(current!==generation || !host)return;
-  state.catalog=catalogData;state.runs=historyData.runs;state.targetTypes=targetData.types;state.registrations=registered.profiles;state.capabilityOptions=registered.capabilities;state.executionRuntimes=registered.execution_runtimes || [];
+  if(results.some(r=>r.status==='rejected' && r.reason.status===401)){expireSession();return;}
+  results.forEach((result,i)=>{
+   const key=requests[i][0];
+   if(result.status==='rejected'){readFailed(key,result.reason,'[data-live-errors]');return;}
+   const data=result.value;const required={catalog:'tests',history:'runs',targets:'types',registrations:'profiles'}[key];if(!Array.isArray(data?.[required])){readFailed(key,{code:'INVALID_RESPONSE'},'[data-live-errors]');return;}
+   readOk(key);
+   if(key==='catalog')state.catalog=data;
+   if(key==='history')state.runs=data.runs;
+   if(key==='targets')state.targetTypes=data.types;
+   if(key==='registrations'){state.registrations=data.profiles;state.capabilityOptions=data.capabilities;state.executionRuntimes=data.execution_runtimes||[];}
+  });
   const runtimeSelect=$('[name=execution_runtime]');if(runtimeSelect)for(const item of state.executionRuntimes){if(![...runtimeSelect.options].some(o=>o.value===item.runtime_id)){const option=document.createElement("option");option.value=item.runtime_id;option.textContent=item.name;runtimeSelect.append(option);}}
-  catalog(); history(); account();renderRunList();
+  if(state.catalog){catalog();history();}account();renderRunList();showFailures();
 }
 function history() {
   const runBar=run=>{
@@ -882,7 +903,7 @@ function history() {
 function renderRunList() {
   const area=$('[data-live-run-list]');if(!area)return;
   const list=state.runList;
-  const markup=list.runs.length?runListMarkup(list.runs,state.catalog,state.run?.run_id):list.loaded?`<div class="run-list-empty"><h3>${list.q || list.status!=='ALL'?'조건에 맞는 실행이 없습니다':'아직 실행한 시험이 없습니다'}</h3><p>${list.q || list.status!=='ALL'?'실행 번호를 확인하거나 다른 상태를 선택하세요.':'시험을 시작하면 이곳에서 진행 상태와 결과를 다시 볼 수 있습니다.'}</p>${!list.q && list.status==='ALL'?'<button type="button" class="primary" data-live-go="prepare">새 시험 준비 →</button>':''}</div>`:'';
+  const markup=(state.uncertain?'<p class="live-hint">요청한 시험이 목록에 있는지 확인하세요. 목록에 없고 다시 실행해야 할 때만 확인을 완료하세요.</p><button type="button" class="secondary" data-confirm-checked>저장 상태 확인 완료</button>':'')+(list.runs.length?runListMarkup(list.runs,state.catalog,state.run?.run_id):list.loaded?`<div class="run-list-empty"><h3>${list.q || list.status!=='ALL'?'조건에 맞는 실행이 없습니다':'아직 실행한 시험이 없습니다'}</h3><p>${list.q || list.status!=='ALL'?'실행 번호를 확인하거나 다른 상태를 선택하세요.':'시험을 시작하면 이곳에서 진행 상태와 결과를 다시 볼 수 있습니다.'}</p>${!list.q && list.status==='ALL'?'<button type="button" class="primary" data-live-go="prepare">새 시험 준비 →</button>':''}</div>`:'');
   if(area.dataset.key!==markup){area.dataset.key=markup;area.innerHTML=markup;}
   $('[data-live-run-list-status]').textContent=list.loading?'실행 목록을 불러오는 중입니다…':!list.loaded?'목록을 불러오지 못했습니다. 새로고침을 눌러 다시 시도하세요.':list.runs.length?`${list.offset+1}–${list.offset+list.runs.length}번째 실행 · 최신순`:'표시할 실행이 없습니다.';
   host.querySelectorAll('[data-live-run-filter]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.liveRunFilter===list.status)));
@@ -898,8 +919,8 @@ async function refreshRunList() {
   try {
     const data=await api(`/runs?${new URLSearchParams({limit:20,offset:list.offset,q:list.q,status:list.status})}`,{token:state.session.access_token});
     if(current!==generation || request!==listRequest || !host)return;
-    Object.assign(list,{runs:data.runs,hasMore:data.has_more,loaded:true});
-  } catch(error) {if(current===generation && request===listRequest && host)failure(error);}
+    Object.assign(list,{runs:data.runs,hasMore:data.has_more,loaded:true});readOk('run-list');const area=$('[data-live-run-list]');if(area)delete area.dataset.stale;
+  } catch(error) {if(current===generation && request===listRequest && host)readFailed('run-list',error,'[data-live-run-list]');}
   finally {
     if(current===generation && request===listRequest && host){list.loading=false;renderRunList();listTimer=setTimeout(refreshRunList,5000);}
   }
@@ -937,12 +958,12 @@ async function poll() {
       events=next;
     } while(page.has_more && current===generation);
     if(current!==generation || !host)return;
-    state.run=run;state.events=events;state.settled=isFinished(run) && page.is_final;renderRun();account();
+    readOk('run');if(state.approvalUnknown[id]){delete state.approvalUnknown[id];if(run.approval?.decision && run.approval_request){state.approvalRetries[id]={decision:run.approval.decision,body:{approval_request_id:run.approval_request.approval_request_id,payload_hash:run.approval_request.payload_hash,decision:run.approval.decision}};}}state.run=run;state.events=events;state.settled=isFinished(run) && page.is_final;renderRun();account();
     if(isFinished(run) && page.is_final)await refresh();
     else timer=setTimeout(poll,1000);
   } catch(error) {
     if(current!==generation || !host)return;
-    failure(error);
+    readFailed('run',error,'[data-live-errors]');
     // Reads can reconnect; a failed start or approval is never sent automatically.
     if(state.session)timer=setTimeout(poll,3000);
   } finally {if(current===generation)loading=false;}
@@ -960,15 +981,15 @@ function renderRun(force=false) {
       </div>
       ${badge(run.status)}
     </div>
-    ${run.status_reason?`<p class="live-hint">${esc(run.status_reason)}</p>`:''}
+    ${run.status_reason?`<p class="live-hint">${esc(describeError({code:run.status_reason}).description)}</p>`:''}
     <div class="strip kpi-strip-card">
-      <div class="lead ${failCount?'is-fail':passCount?'is-pass':''}">
+      <div class="lead ${failCount?'is-fail':incCount?'is-pending':passCount?'is-pass':''}">
         <label>검사 판정 요약</label>
-        <div class="v">${failCount?`${failCount}개 실패`:passCount?`${passCount}개 통과`:incCount?'판정 보류':'판정 대기'}</div>
+        <div class="v">${failCount?`${failCount}개 미충족`:incCount?'판정 보류':passCount?`${passCount}개 통과`:'판정 대기'}</div>
         <div class="d">PASS ${passCount} · FAIL ${failCount} · 보류 ${incCount}</div>
       </div>
       <div><label>PASS</label><div class="v pos-t">${esc(passCount)}</div><div class="d">통과 규칙</div></div>
-      <div><label>FAIL</label><div class="v ${failCount?'neg-t':''}">${esc(failCount)}</div><div class="d">위반 규칙</div></div>
+      <div><label>FAIL</label><div class="v ${failCount?'finding-t':''}">${esc(failCount)}</div><div class="d">위반 규칙</div></div>
       <div><label>INCONCLUSIVE</label><div class="v">${esc(incCount)}</div><div class="d">검토 대기</div></div>
       <div><label>${run.manifest?.state_store?"업무 변경":"실제 주문"}</label><div class="v">${changeCount}<small>건</small></div><div class="d">DB 관측 상태</div></div>
     </div>
@@ -980,7 +1001,7 @@ function renderRun(force=false) {
     <div class="live-flow-actions">${run.status==='WAITING_APPROVAL' && page!=='live'?'<button class="primary" data-live-go="live">승인 처리로 이동 →</button>':''}${state.settled?'<button class="secondary" data-live-go="prepare">새 시험 준비 →</button>':''}${page!=='execution'?'<button class="secondary" data-live-go="execution">이 실행 분석 →</button>':LIVE_COMPARISON_ENABLED && run.system_id && state.settled?'<button class="secondary" data-live-go="compare">실제 결과 비교 →</button>':''}</div>`;
   if(page==='live'){
     const status={PREPARING:'실행 준비 중',RUNNING:'Agent 실행 중',WAITING_APPROVAL:'담당자 승인 대기',EVALUATING:'결과 검사·근거 수집 중',COMPLETED:state.settled?'실행·근거 수집 완료':'마지막 근거 수집 중',ERROR:'실행 오류'}[run.status] || '실행 상태 확인 중';
-    $('[data-live-summary]').innerHTML=`<div class="live-row"><div><span class="step-eyebrow">${esc(run.run_id)}</span><h2>${esc(status)}</h2></div>${badge(status)}</div>${run.status_reason?`<p class="live-hint">${esc(run.status_reason)}</p>`:''}<p class="live-hint">${state.settled?'실행 종료와 검사 통과는 별개입니다. 판정과 근거는 실행 분석에서 확인하세요.':'서버에서 진행 상태와 근거를 수집하고 있습니다.'}</p><h3 class="run-progress-heading">최근 진행 기록 <small>최신 5건</small></h3><div data-live-progress-events></div>`;
+    $('[data-live-summary]').innerHTML=`<div class="live-row"><div><span class="step-eyebrow">${esc(run.run_id)}</span><h2>${esc(status)}</h2></div>${badge(status,run.status)}</div>${run.status_reason?`<p class="live-hint">${esc(describeError({code:run.status_reason}).description)}</p>`:''}<p class="live-hint">${state.settled?'실행 종료와 검사 통과는 별개입니다. 판정과 근거는 실행 분석에서 확인하세요.':'서버에서 진행 상태와 근거를 수집하고 있습니다.'}</p><h3 class="run-progress-heading">최근 진행 기록 <small>최신 5건</small></h3><div data-live-progress-events></div>`;
     selectedDesign();
   }
   const approvalKey=JSON.stringify([run.run_id,run.status,run.approval_request,run.approval]);
@@ -1013,13 +1034,19 @@ function renderRun(force=false) {
       </form></section>` : '';
   }
   $('[data-live-analysis]').hidden=page!=='execution';$('[data-live-result]').hidden=page!=='execution';renderEvents();
+  if(run.status==='ERROR'){showError($('[data-live-errors]'),{...describeError({code:run.status_reason},{runId:run.run_id}),title:'실행 오류',description:`${describeError({code:run.status_reason}).description} 마지막 확인 상태: 실행 오류.`,action:'마지막 기록 확인'},{key:'run-status',action:'data-live-go="execution"'});}
+  showFailures();const savedDecision=state.approvalRetries[run.run_id];if(savedDecision)host.querySelectorAll?.('[name="decision"]').forEach(el=>{el.disabled=el.value!==savedDecision.decision;el.textContent=el.disabled?'다른 결정 선택 불가':'동일 결정으로 재개 요청';});
+  if(state.approvalUnknown[run.run_id])host.querySelectorAll?.('[name="decision"]').forEach(el=>{el.disabled=true;});
   if(page!=='execution')return;
+  const finding=failCount>0, pending=incCount>0 || run.qa_report?.conclusion==='INSUFFICIENT_EVIDENCE', investigationFailed=run.investigation?.status==='ERROR';
+  const notices=[[finding,'finding','시험 기준 미충족'],[pending,'pending','판정 보류 · 근거 확인 필요'],[investigationFailed,'error','추가 조사 실패']].filter(([active])=>active).map(([,severity,title])=>errorMarkup({severity,title,description:'실행 완료와 검사 통과는 별개입니다. 아래 보고서의 판정과 근거를 확인하세요.',action:'보고서 근거로 이동',runId:run.run_id},'data-error-evidence')).join('');
+  let notice=$('[data-analysis-notice]');if(!notice){$('[data-live-analysis]').insertAdjacentHTML('beforebegin','<div data-analysis-notice></div>');notice=$('[data-analysis-notice]');}if(notice.innerHTML!==notices)notice.innerHTML=notices;
   const checksGridHtml = run.checks?.length ? `<div class="checks">${run.checks.map(c=>`<div class="chk ${c.verdict==='FAIL'?'f':'p'}"><span class="ic">${c.verdict==='PASS'?'✓':c.verdict==='FAIL'?'×':'…'}</span><div><strong>${esc(ruleTitle(c.rule_id))}</strong><p>${esc(c.reason || c.message || scopeTitle(c.scope))}</p></div><span class="r">${badge(c.verdict)}</span></div>`).join('')}</div>` : '';
   $('[data-live-result]').innerHTML=`<section class="card section-pad"><div class="live-row"><div><span class="step-eyebrow">ORACLE VERDICT &amp; QA REPORT</span><h2>QA 보고서</h2></div><div class="live-row"><button class="secondary" data-live-qa-report ${!state.settled || !run.qa_report?'disabled':''}>이 실험 보고서 저장</button><button class="secondary" data-live-qa-summary>최근 시험 요약 저장</button></div></div>${checksGridHtml}${qaReportMarkup(run.qa_report)}${state.settled?followupMarkup(run.follow_up):''}
     <details><summary>검사 상세 · ${run.checks?.length || 0}개</summary><h2>검사 결과</h2>${run.checks?.length ? `<div class="live-table-wrap"><table class="live-table"><thead><tr><th>규칙</th><th>대상</th><th>판정</th><th>근거</th></tr></thead><tbody>${run.checks.map(c=>`<tr><td>${esc(ruleTitle(c.rule_id))}</td><td>${esc(scopeTitle(c.scope))}</td><td>${badge(c.verdict)}</td><td>${esc(c.reason || c.message || '')}<details><summary>검사 근거</summary><pre>${json(c)}</pre></details></td></tr>`).join('')}</tbody></table></div>` : '<p>아직 판정이 없습니다.</p>'}</details>
     ${run.investigation?.report?`<details><summary>추가 조사 기록</summary><p class="live-hint">${run.investigation.method==='CODE_EVIDENCE_SUMMARY'?'코드 기반 기록 요약':'조사 Agent 결과 · 사실과 원인 후보 구분'}</p>${reportView(run.investigation.report)}</details>`:''}
     <details><summary>실행 정보</summary><pre>${json({agent:run.agent,manifest:run.manifest,investigation_validation:run.investigation?.validation})}</pre></details></section>`;
-  actionHint();
+  actionHint();showFailures();
 }
 function reportView(report) {
   if(!report)return '<p class="live-hint">보고서가 도착하면 표시합니다.</p>';
@@ -1092,12 +1119,22 @@ function startDesignProgress(form) {
 }
 async function submit(event) {
   event.preventDefault();notify('');const form=event.target, values=Object.fromEntries(new FormData(form)),button=event.submitter;
-  let stopDesignProgress;
+  const login=form.matches('[data-live-login]'),approval=form.matches('[data-live-approval-form]');
+  const key=login?'login':approval?'approval':form.matches('[data-live-design]')?'design':form.matches('[data-qa-registration]')?'registration':form.matches('[data-live-start]')?'start':form.matches('[data-live-batch-form]')?'batch-start':'form';
+  const selector=login?'[data-login-error]':approval?'[data-live-approval-form]':form.matches('[data-live-design]')?'[data-live-design]':form.matches('[data-qa-registration]')?'[data-qa-registration]':form.matches('[data-live-start]')?'[data-live-setup]':form.matches('[data-live-batch-form]')?'[data-live-batch-area]':null;
+  resolved(key);clearError(form,'validation');form.querySelectorAll?.('[data-field-error]').forEach(note=>{form.querySelectorAll('[aria-describedby]').forEach(input=>input.setAttribute('aria-describedby',input.getAttribute('aria-describedby').split(' ').filter(id=>id!==note.id).join(' ')));note.remove();});form.querySelectorAll?.('[aria-invalid="true"]').forEach(el=>el.removeAttribute('aria-invalid'));
+  let stopDesignProgress,writeSent=false;
   const current=generation; const buttons=[...form.querySelectorAll('button')];buttons.forEach(b=>b.disabled=true);
   try {
     if(form.matches('[data-live-login]')) {
-      const session=await api('/auth/login',{body:values});if(current!==generation || !host)return;state.session=session;form.reset();if(isApproverAccount()){go('approvals');return;}
-      await refresh();if(current!==generation || !host)return;
+      const session=await api('/auth/login',{body:values});if(current!==generation || !host)return;
+      const resume=state.resume;
+      const same=resume && resume.userId===session.user_id && resume.roles===[...session.roles].sort().join(',');
+      if(resume && !same){logoutWorkspace();state.session=session;go(isApproverAccount()?'approvals':'agents');return;}
+      state.session=session;form.reset();
+      if(same){state.resume=null;state.restore=resume.forms;go(resume.page,resume.runId);return;}
+      if(isApproverAccount()){go('approvals');return;}
+      await refresh();if(current!==generation || !host || !state.session)return;
       const route=workspaceRoute(location.hash);
       if(route.runId){state.pendingRunId=route.runId;go(route.page,route.runId);}
       else go('agents');
@@ -1107,8 +1144,8 @@ async function submit(event) {
     } else if(form.matches('[data-qa-registration]')) {
       if(!state.session)throw new Error('로그인 후 등록해 주세요.');
       const body=collectDeclaration(form);
-      const saved=await api('/qa/registrations',{token:state.session.access_token,body});
-      if(host && current===generation){state.registration=saved;state.designPlan=null;state.designCaseId=null;state.batchRequest=null;
+      writeSent=true;const saved=await api('/qa/registrations',{token:state.session.access_token,body});
+      writeSent=false;if(host && current===generation){state.registration=saved;state.designPlan=null;state.designCaseId=null;state.batchRequest=null;
         await refresh();renderRegistrations();guidance();$('[data-qa-editor]').open=false;
         notify(saved.execution_binding?'실행기와 시험 데이터 연결을 확인했습니다. 시험을 설계해 실행하세요.':'등록한 설명을 저장하고 위험을 분류했습니다. 실제 실행은 연결 전입니다.');}
     } else if(form.matches('[data-live-design]')) {
@@ -1117,7 +1154,7 @@ async function submit(event) {
       notify('');
       const token=state.session.access_token;
       const designTarget=state.registration?.profile_id || values.target_type;
-      let plan;
+      let plan;writeSent=true;
       if(state.registration)plan=await api(`/qa/registrations/${encodeURIComponent(state.registration.profile_id)}/design`,{token,body:{generation_mode:values.generation_mode}});
       else{
         const reference=await api(`/qa/target?target_type=${encodeURIComponent(values.target_type)}`,{token});
@@ -1126,6 +1163,7 @@ async function submit(event) {
       if(host && current===generation && designTarget===(state.registration?.profile_id || state.targetType)){state.designPlan=plan;state.designCaseId=null;state.batchRequest=null;renderDesign();renderBatch();notify(state.registration && !state.registration.execution_binding?'시험안을 만들었습니다. 근거·제안 조건·실행에 필요한 연결을 확인하세요.':'');}
     } else if(form.matches('[data-live-batch-form]')) {
       if(!state.session || !registeredCaseReady(state.registration,state.designPlan,state.designCaseId))throw new Error('먼저 로그인하고 실행 가능한 시험을 선택해 주세요.');
+      if(state.uncertain)throw new Error('접수 여부를 실행 목록에서 먼저 확인하세요.');
       if(state.run && !state.settled || state.pendingStart || ['RUNNING','WAITING_APPROVAL','STOPPING'].includes(state.batch?.status))throw new Error('진행 중인 실험을 먼저 확인하세요.');
       const chosen=designStartPayload(state.catalog,state.designPlan,state.designCaseId,state.draft.system_id);
       const body={request_id:crypto.randomUUID(),plan_id:chosen.plan_id,case_ids:[chosen.case_id],
@@ -1133,9 +1171,9 @@ async function submit(event) {
         max_seconds:Number(values.max_seconds),max_cost_usd:Number(values.max_cost_usd)};
       if(state.batchRequest)Object.assign(body,state.batchRequest);
       state.batchRequest=body;
-      try {state.batch=await api('/qa/batches',{token:state.session.access_token,body});}
+      writeSent=true;state.uncertain=true;try {const batch=await api('/qa/batches',{token:state.session.access_token,body});if(current!==generation || !host)return;state.batch=batch;}
       catch(e){if(e.status>=400 && e.status<500)state.batchRequest=null;throw e;}
-      state.batchRequest=null;
+      if(current!==generation || !host)return;state.batchRequest=null;writeSent=false;state.uncertain=false;
       renderBatch();pollBatch();notify('실험 계획을 접수했습니다. 각 실행의 담당자 승인을 처리하세요.');
     } else if(form.matches('[data-live-knowledge]')) {
       if(!state.session)throw new Error('로그인 후 검색해 주세요.');
@@ -1147,34 +1185,59 @@ async function submit(event) {
         if(host && current===generation){renderKnowledge();notify('원문과 요약을 구분해 근거를 확인해 주세요.');}
       } finally {button.disabled=false;}
     } else if(form.matches('[data-live-start]')) {
-      if(state.pendingStart)return;
+      if(state.pendingStart || state.uncertain)return;
       if(state.run && !state.settled)throw new Error('진행 중인 시험을 먼저 확인하세요.');
       if(!registeredCaseReady(state.registration,state.designPlan,state.designCaseId))throw new Error('등록 대상과 일치하는 실행 가능한 시험을 선택하세요.');
       const body=designStartPayload(state.catalog,state.designPlan,state.designCaseId,state.draft.system_id);
       state.pendingStart=true;account();guidance();
       try {
         const token=state.session.access_token;
-        const result=await api('/runs',{token,body});
-        if(!host || !state.session){state.pendingRunId=result.run_id;return;}
+        writeSent=true;state.uncertain=true;const result=await api('/runs',{token,body});
+        writeSent=false;if(current!==generation || !host || !state.session)return;state.uncertain=false;
         notify(`${result.run_id} 실행이 접수됐습니다. 아래에서 진행 상태를 확인하세요.`);await openRun(result.run_id);
         if(['live','execution'].includes(page))$('[data-live-guidance]')?.scrollIntoView({block:'start'});
       } finally {state.pendingStart=false;if(host){account();guidance();}}
     } else if(form.matches('[data-live-approval-form]')) {
-      const run=state.run, decision=button.value;
-      const approver=await api('/auth/login',{body:values});form.password.value='';
-      await api(`${run.manifest?.state_store?"/qa":""}/runs/${encodeURIComponent(run.run_id)}/approval`,{token:approver.access_token,body:{approval_request_id:run.approval_request.approval_request_id,payload_hash:run.approval_request.payload_hash,decision}});
-      notify(decision==='APPROVED'?'승인했습니다. 실행 결과를 기다려 주세요.':'거절했습니다. 실행 결과를 기다려 주세요.');
-      await poll();
+      const run=state.run;if(state.approvalUnknown[run.run_id])return;const retry=state.approvalRetries[run.run_id],decision=retry?.decision || button.value;
+      const approver=await api('/auth/login',{body:values});form.password.value='';if(current!==generation || !host || !state.session)return;
+      const body=retry?.body || {approval_request_id:run.approval_request.approval_request_id,payload_hash:run.approval_request.payload_hash,decision};
+      writeSent=true;
+      try{await api(`${run.manifest?.state_store?"/qa":""}/runs/${encodeURIComponent(run.run_id)}/approval`,{token:approver.access_token,body});}
+      catch(error){if(current!==generation || !host)return;if(error.details?.decision_saved)state.approvalRetries[run.run_id]={decision,body};throw error;}
+      if(current!==generation || !host)return;delete state.approvalRetries[run.run_id];resolved('approval');writeSent=false;
+      notify(decision==='APPROVED'?'승인 결정을 전달했습니다.':'거절 결정을 전달했습니다.');await poll();
     } else if(form.matches('[data-live-compare]')) {
       state.comparison=null;$('[data-live-comparison]').innerHTML='';
       const result=await api(`/comparisons?${new URLSearchParams(values)}`,{token:state.session?.access_token});
       if(current===generation && host){state.comparison=result;state.compareDraft=values;$('[data-live-comparison]').innerHTML=comparisonView(result);actionHint();}
     }
-  } catch(error) { if(host)failure(error); }
-  finally {stopDesignProgress?.();buttons.forEach(b=>b.disabled=false);if(host && current===generation){renderRegistrations();account();renderBatch();}}
+  } catch(error) { if(host && current===generation){
+    if(['start','batch-start'].includes(key) && describeError(error,{write:writeSent}).severity!=='pending')state.uncertain=false;
+    if(writeSent && describeError(error,{write:true}).severity==='pending'){if(['start','batch-start'].includes(key))state.uncertain=true;if(approval)state.approvalUnknown[state.run.run_id]=true;}
+    failure(error,{key,selector,auth:login || approval && !writeSent,auxiliary:approval,write:writeSent,previous:key==='design' && !!state.designPlan,focus:true,form});
+  } }
+  finally {stopDesignProgress?.();buttons.forEach(b=>b.disabled=false);if(host && current===generation){renderRegistrations();account();renderBatch();showFailures();const retry=state.approvalRetries[state.run?.run_id];if(retry)host.querySelectorAll('[name="decision"]').forEach(el=>{el.disabled=el.value!==retry.decision;el.textContent=el.value===retry.decision?'동일 결정으로 재개 요청':'다른 결정 선택 불가';});if(state.approvalUnknown[state.run?.run_id])host.querySelectorAll?.('[name="decision"]').forEach(el=>{el.disabled=true;});}}
 }
+function formFocus(selector){const form=$(selector);form?.scrollIntoView({block:'center'});form?.querySelector('input,button')?.focus();}
 function click(event) {
   const target=event.target.closest('button');if(!target)return;
+  if(target.hasAttribute('data-confirm-checked')){state.uncertain=false;resolved('start');resolved('batch-start');renderRunList();return;}
+  if(target.hasAttribute('data-error-recover')){
+   const key=target.dataset.errorRecover,entry=state.errors[key];
+   if(key==='login'){formFocus('[data-live-login]');return;}
+   if(key==='approval' && state.approvalUnknown[state.run?.run_id]){poll();return;}
+   if(key==='approval'){formFocus('[data-live-approval-form]');return;}
+   if(['start','batch-start'].includes(key)){go('runs');return;}
+   if(key==='design'){formFocus('[data-live-design]');return;}
+   if(key==='registration' && entry?.info.severity==='pending'){refresh().catch(failure);formFocus('[data-qa-registration]');return;}
+   if(key==='registration'){formFocus('[data-qa-registration]');return;}
+   if(key==='run-list'){refreshRunList();return;}
+   if(key==='summary'){exportQaSummary(target).catch(error=>failure(error,{key:'summary',selector:'[data-live-result]',focus:true}));return;}
+   if(key==='batch'){refreshBatch().catch(e=>readFailed('batch',e,'[data-live-errors]'));return;}
+   if(key==='run'){poll();return;}
+   if(entry)refresh().catch(failure);return;
+  }
+  if(target.hasAttribute('data-error-evidence')){const area=$('[data-live-result]');area?.scrollIntoView({block:'start'});area?.querySelector('button,summary')?.focus();return;}
   if(target.hasAttribute('data-role-preset')) {
     const uid=target.dataset.rolePreset;
     for(const b of host.querySelectorAll('[data-role-preset]')) b.classList.toggle('on', b===target);
@@ -1231,9 +1294,9 @@ function click(event) {
     target.disabled=true;
     api(`/qa/runs/${encodeURIComponent(state.run.run_id)}/follow-up`,{token:state.session.access_token,body:{}})
       .then(b=>{state.batch=b;renderBatch();pollBatch();notify('추가 실험을 연결했습니다. 각 실행의 승인 요청을 확인하세요.');go('live');})
-      .catch(failure).finally(()=>{target.disabled=false;});
+      .catch(error=>failure(error,{key:'follow-up',write:true,focus:true})).finally(()=>{target.disabled=false;});
   }
-  if(target.hasAttribute('data-live-stop-batch'))api(`/qa/batches/${encodeURIComponent(state.batch.batch_id)}/stop`,{token:state.session.access_token,body:{}}).then(b=>{state.batch=b;renderBatch();pollBatch();}).catch(failure);
+  if(target.hasAttribute('data-live-stop-batch'))api(`/qa/batches/${encodeURIComponent(state.batch.batch_id)}/stop`,{token:state.session.access_token,body:{}}).then(b=>{state.batch=b;renderBatch();pollBatch();}).catch(error=>failure(error,{key:'batch-stop',write:true,focus:true,selector:'[data-live-batch-area]'}));
   if(target.hasAttribute('data-live-use-design')){
     const selected=state.designPlan?.cases.find(c=>c.case_id===target.dataset.liveUseDesign);
     if(selected?.execution.status==='READY'){
@@ -1259,13 +1322,13 @@ function click(event) {
   if(target.hasAttribute('data-live-go'))go(target.dataset.liveGo,['live','execution'].includes(target.dataset.liveGo)?state.run?.run_id:undefined);
   if(target.hasAttribute('data-live-target-type'))selectTargetType(target.dataset.liveTargetType);
   if(target.hasAttribute('data-live-play'))toggleReplay();
-  if(target.hasAttribute('data-live-export'))exportRun();
+  if(target.hasAttribute('data-live-export')){try{exportRun();clearError(target.parentElement,'export');}catch(error){showError(target.parentElement,describeError(error,{title:'근거 내보내기 실패',action:'다시 내보내기'}),{key:'export',focus:true,action:'data-live-export'});}}
   if(target.hasAttribute('data-live-qa-report') && state.run?.qa_report && state.settled){
     const content=qaReportDocument(state.run.qa_report,state.events);
-    const url=URL.createObjectURL(new Blob([content],{type:'text/html;charset=utf-8'}));
-    const link=document.createElement('a');link.href=url;link.download=`${state.run.run_id}-qa-report.html`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    try{const url=URL.createObjectURL(new Blob([content],{type:'text/html;charset=utf-8'}));
+    const link=document.createElement('a');link.href=url;link.download=`${state.run.run_id}-qa-report.html`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);notify('보고서 다운로드를 브라우저에 전달했습니다.');clearError(target.parentElement,'download');}catch(error){showError(target.parentElement,describeError(error,{title:'보고서 다운로드 실패',description:'다시 저장하거나 화면의 보고서 내용을 확인하세요.',action:'다시 저장'}),{key:'download',focus:true,action:'data-live-qa-report'});}
   }
-  if(target.hasAttribute('data-live-qa-summary'))exportQaSummary(target).catch(failure);
+  if(target.hasAttribute('data-live-qa-summary'))exportQaSummary(target).catch(error=>failure(error,{key:'summary',title:'보고서 수집 실패',selector:'[data-live-result]',focus:true,action:'다시 수집'}));
   if(target.hasAttribute('data-live-close-comparison')){state.comparison=null;$('[data-live-comparison]').innerHTML='';actionHint();}
 }
 
@@ -1297,7 +1360,7 @@ function exportRun(){
 async function exportQaSummary(button) {
   if(!state.session)return;
   const current=generation,token=state.session.access_token;
-  button.disabled=true;notify('최근 완료 시험을 모으고 있습니다…');
+  clearError(button.parentElement,'summary');button.disabled=true;notify('최근 완료 시험을 모으고 있습니다…');
   try {
     const recent=await api('/runs?limit=50',{token});
     const selected=completedSystemRuns(state.catalog,recent.runs).slice(0,20);
@@ -1310,6 +1373,6 @@ async function exportQaSummary(button) {
     if(!reports.length)throw new Error('요약할 완료 시험이 없습니다.');
     const url=URL.createObjectURL(new Blob([qaReportCollectionDocument(reports)],{type:'text/html;charset=utf-8'}));
     const link=document.createElement('a');link.href=url;link.download='manufacturing-qa-summary.html';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
-    notify(`완료 시험 ${reports.length}개의 요약을 저장했습니다.`);
+    notify(`완료 시험 ${reports.length}개의 요약 다운로드를 브라우저에 전달했습니다.`);
   } finally {if(button.isConnected)button.disabled=false;}
 }

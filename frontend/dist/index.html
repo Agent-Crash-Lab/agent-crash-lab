@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./styles.css?v=0.15.7">
+<link rel="stylesheet" href="./styles.css?v=0.15.8">
 <script>
 (function(){
   try {
@@ -141,6 +141,13 @@
   <button class="primary" id="understood">확인</button>
 </dialog>
 <div id="toast" role="status"></div>
-<script type="module" src="./app.js?v=0.15.7"></script>
+<script type="module">
+function loadingFailure(){
+ const main=document.getElementById('main');if(!main)return;
+ main.innerHTML='<section class="error-panel" tabindex="-1" role="alert"><div><strong>화면을 불러오지 못했습니다</strong><p>연결을 확인한 뒤 새로고침하세요. 처리 중이던 요청은 자동으로 다시 보내지 않습니다.</p><button type="button" class="secondary" id="reload-app">새로고침</button></div></section>';
+ document.getElementById('reload-app').onclick=()=>location.reload();main.querySelector('section').focus();
+}
+import('./app.js?v=0.15.8').catch(loadingFailure);
+</script>
 </body>
 </html>

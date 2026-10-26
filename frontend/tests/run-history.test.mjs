@@ -46,7 +46,7 @@ test('requester login always offers the tutorial, defaults to targets, and prese
  for(const [hash,runs,expected] of [['#execution?run=RUN-001',[{}],['execution','RUN-001']],['#agents',[{}],['agents']],['#runs',[{}],['agents']],['#agents',[],['agents']]]){
   const routes=[];let tutorials=0;
   const context={...api,location:{hash},FormData:class { *[Symbol.iterator](){yield ['user_id','requester-01'];} },
-   generation:1,host:{},state:{session:null,runs},isApproverAccount:()=>false,notify(){},failure(error){throw error;},renderRegistrations(){},account(){},renderBatch(){},
+   resolved(){},showFailures(){},generation:1,host:{},state:{approvalRetries:{},approvalUnknown:{},session:null,runs},isApproverAccount:()=>false,notify(){},failure(error){throw error;},renderRegistrations(){},account(){},renderBatch(){},
    api:async()=>({access_token:'session'}),refresh:async()=>{},refreshBatch:async()=>{},go:(...args)=>routes.push(args),
    document:{getElementById:()=>({showModal(){tutorials++;}})}};
   const {submit}=vm.runInNewContext(logic+';({submit})',context);

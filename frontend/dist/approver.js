@@ -1,4 +1,4 @@
-import {api, escapeHtml as esc, qaReportDocument} from './live-api.js?v=0.15.7';
+import {describeError,showError,clearError,api, escapeHtml as esc, qaReportDocument} from './live-api.js?v=0.15.8';
 
 const titles={approvals:'승인 목록',requests:'관리자 요청 사항',reports:'보고서 목록'};
 const statusNames={WAITING_APPROVAL:'승인 대기',COMPLETED:'실행 완료',ERROR:'실행 오류',RUNNING:'실행 중',CREATED:'접수',APPROVED:'승인',REJECTED:'거절'};
@@ -44,16 +44,18 @@ export function approverListMarkup(runs,page,userId,query='') {
   return `<h2 class="approver-list-title">결정 대기 · ${pending.length}건</h2>${pending.map(run=>requestCard(run,userId,page)).join('') || empty('현재 결정할 승인 요청이 없습니다.')}<details class="approver-history"><summary>이전 승인 요청 · ${history.length}건</summary>${history.map(run=>requestCard(run,userId,page)).join('') || empty('이전 승인 요청이 없습니다.')}</details>`;
 }
 let cleanup;
+let decisionOwner,decisions=new Map();
 export function leaveApprover(){cleanup?.();cleanup=null;}
 export function mountApprover(host,page,session,go,logout) {
   leaveApprover();
+  if(decisionOwner!==session.user_id){decisions.clear();decisionOwner=session.user_id;}
   let active=true,runs=[],signature='',timer,busy=false,query='';
   const controller=new AbortController();
   cleanup=()=>{active=false;clearTimeout(timer);controller.abort();host.removeEventListener('click',click);};
   const descriptions={approvals:'관리자의 업무 변경 요청을 확인하고 승인 또는 거절하세요.',requests:'관리자가 QA 실행 중 보낸 승인 요청의 내용과 처리 상태입니다.',reports:'관리자가 수행한 QA 시험을 상황·기대 행동·실제 결과로 정리했습니다.'};
   host.innerHTML=`<section class="approver-workspace"><div class="page-header"><div><h1>${titles[page]}</h1><p>${descriptions[page]}</p></div><button type="button" class="secondary" data-approver-refresh>새로고침</button></div><p class="live-hint">최근 실행 200건과 모든 승인 대기 요청을 표시합니다. QA 결과는 각 시험 조건에 한정됩니다.</p><label class="approver-search">${page==='reports'?'보고서':'요청'} 검색<input type="search" placeholder="시험명, 요청자, 실행 번호로 검색" data-approver-search></label><p data-approver-message role="status" aria-live="polite">목록을 불러오는 중입니다…</p><div data-approver-list></div></section>`;
   const message=host.querySelector('[data-approver-message]'),list=host.querySelector('[data-approver-list]');
-  const render=()=>{list.innerHTML=approverListMarkup(runs,page,session.user_id,query);};
+  const render=()=>{list.innerHTML=approverListMarkup(runs,page,session.user_id,query);for(const [id,retry] of decisions){const card=Array.from(list.querySelectorAll('.approver-entry')).find(el=>el.querySelector('[data-run]')?.dataset.run===id);if(!card)continue;card.querySelectorAll('[data-decision]').forEach(el=>{el.disabled=el.dataset.decision!==retry.decision;el.textContent=el.disabled?'다른 결정 선택 불가':'동일 결정으로 재개 요청';});if(retry.error)showError(card,describeError(retry.error,{runId:id}),{key:'decision',action:`data-resume-run="${esc(id)}"`});}};
   host.querySelector('[data-approver-search]').oninput=event=>{query=event.target.value;render();};
   async function refresh(manual=false){
     clearTimeout(timer);
@@ -66,8 +68,8 @@ export function mountApprover(host,page,session,go,logout) {
       const pill=document.getElementById('header-approval-pill'),pending=runs.filter(r=>r.status==='WAITING_APPROVAL').length;
       if(pill){pill.hidden=!pending;const text=pill.querySelector('span');if(text)text.textContent=`승인 대기 ${pending}`;}
       if(manual || message.textContent==='목록을 불러오는 중입니다…')message.textContent=`${time(new Date().toISOString())} 기준으로 불러왔습니다.`;
-      message.classList.remove('live-error');
-    }catch(error){if(!active)return;if(error.status===401){logout();return;}message.textContent='목록을 불러오지 못했습니다. 새로고침해 주세요.';message.classList.add('live-error');}
+      clearError(host,'read');list.removeAttribute('data-stale');const header=document.getElementById('header-mode-label');if(header)header.textContent=`API 응답 확인 · ${time(new Date().toISOString())}`;
+    }catch(error){if(!active)return;if(error.status===401){logout();return;}list.dataset.stale='true';showError(host,describeError(error,{title:'승인 목록 갱신 실패',action:'다시 불러오기'}),{key:'read',action:'data-approver-refresh'});const header=document.getElementById('header-mode-label');if(header)header.textContent='일부 조회 실패';}
     finally{if(active)timer=setTimeout(refresh,5000);}
   }
   async function click(event){
@@ -76,16 +78,23 @@ export function mountApprover(host,page,session,go,logout) {
     if(button.hasAttribute('data-approver-refresh')){button.disabled=true;await refresh(true);if(active)button.disabled=false;return;}
     if(button.hasAttribute('data-report-download')){
       const run=runs.find(r=>r.run_id===button.dataset.reportDownload);if(!run?.qa_report)return;
-      const url=URL.createObjectURL(new Blob([qaReportDocument(run.qa_report)],{type:'text/html;charset=utf-8'}));
-      const link=document.createElement('a');link.href=url;link.download=`${run.run_id}-QA.html`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);return;
+      try{const url=URL.createObjectURL(new Blob([qaReportDocument(run.qa_report)],{type:'text/html;charset=utf-8'}));
+      const link=document.createElement('a');link.href=url;link.download=`${run.run_id}-QA.html`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);clearError(button.parentElement,'download');}catch(error){showError(button.parentElement,describeError(error,{title:'보고서 다운로드 실패',action:'다시 저장'}),{key:'download',focus:true,action:`data-report-download="${esc(run.run_id)}"`});}return;
     }
+    if(button.hasAttribute('data-resume-run')){const next=Array.from(list.querySelectorAll('[data-run]')).find(el=>el.dataset.run===button.dataset.resumeRun && !el.disabled);next?.click();return;}
     if(!button.hasAttribute('data-decision'))return;
-    const run=runs.find(r=>r.run_id===button.dataset.run);if(!run || !decisionAvailable(run,session.user_id))return;
+    const run=runs.find(r=>r.run_id===button.dataset.run);if(!run || !decisions.has(run.run_id) && !decisionAvailable(run,session.user_id))return;
+    const retry=decisions.get(run.run_id);if(retry && retry.decision!==button.dataset.decision)return;
+    const body=retry?.body || {approval_request_id:run.approval_request.approval_request_id,payload_hash:run.approval_request.payload_hash,decision:button.dataset.decision};
     busy=true;list.querySelectorAll('[data-decision]').forEach(el=>{el.disabled=true;});
     try {
-      await api(`${run.simulation?'/qa':''}/runs/${encodeURIComponent(run.run_id)}/approval`,{token:session.access_token,body:{approval_request_id:run.approval_request.approval_request_id,payload_hash:run.approval_request.payload_hash,decision:button.dataset.decision}});
-      if(active)message.textContent=`요청을 ${button.dataset.decision==='APPROVED'?'승인':'거절'}했습니다.`;
-    }catch(error){if(active){message.textContent=error.details?.decision_saved?'결정은 저장됐지만 실행 재개 전달에 실패했습니다. 같은 결정을 다시 보내 주세요.':error.status===401?'세션이 만료되었습니다. 다시 로그인해 주세요.':`처리하지 못했습니다: ${error.message}`;message.classList.add('live-error');}}
+      await api(`${run.simulation?'/qa':''}/runs/${encodeURIComponent(run.run_id)}/approval`,{token:session.access_token,body});
+      decisions.delete(run.run_id);clearError(host,`decision-${run.run_id}`);if(active)message.textContent=`요청을 ${button.dataset.decision==='APPROVED'?'승인':'거절'}했습니다.`;
+    }catch(error){if(active){
+      if(error.status===401){logout();return;}
+      if(error.details?.decision_saved)decisions.set(run.run_id,{decision:body.decision,body,error});
+      showError(host,describeError(error,{write:true,runId:run.run_id}),{key:`decision-${run.run_id}`,focus:true,action:error.details?.decision_saved?`data-resume-run="${esc(run.run_id)}"`:'data-approver-refresh'});
+    }}
     finally {busy=false;if(active){signature='';render();await refresh();}}
   }
   host.addEventListener('click',click);refresh();

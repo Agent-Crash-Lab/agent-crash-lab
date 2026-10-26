@@ -1,9 +1,10 @@
-import {workspaceRoute,LIVE_COMPARISON_ENABLED,progressEventsMarkup} from './live-api.js?v=0.15.7';
-import {mountLive,leaveLive,isLiveAuthenticated,isApproverAccount,accountPage,referenceTargetTypes,targetTypeMeta,renderTargetDiagram} from './live.js?v=0.15.7';
-import { mountScene, pauseScene } from './scene.js?v=0.15.7';
-import { agents, investigationScenarios, investigationEvents, investigationChecks, validateDemoProfile, restoreProfiles } from './registry.js?v=0.15.7';
-import { frameFor, mapEvents } from './topology.js?v=0.15.7';
-import { initRegistration, openRegistration } from './registration.js?v=0.15.7';
+import {describeError,showError,clearError} from './errors.js?v=0.15.8';
+import {workspaceRoute,LIVE_COMPARISON_ENABLED,progressEventsMarkup} from './live-api.js?v=0.15.8';
+import {mountLive,leaveLive,isLiveAuthenticated,isApproverAccount,accountPage,referenceTargetTypes,targetTypeMeta,renderTargetDiagram} from './live.js?v=0.15.8';
+import { mountScene, pauseScene } from './scene.js?v=0.15.8';
+import { agents, investigationScenarios, investigationEvents, investigationChecks, validateDemoProfile, restoreProfiles } from './registry.js?v=0.15.8';
+import { frameFor, mapEvents } from './topology.js?v=0.15.8';
+import { initRegistration, openRegistration } from './registration.js?v=0.15.8';
 restoreProfiles();
 const $ = (s) => document.querySelector(s);
 const purchaseScenarios = {
@@ -106,8 +107,20 @@ function tutorialGuideSteps(stage) {
    {title:'실험 실행으로 이동',desc:'실행 설정 상단의 버튼으로 선택한 시험을 준비합니다. 직접 해보기를 누르면 LLM 제안 받기 전 화면으로 돌아갑니다.',selector:'[data-action="load"]'}],
   live:[
    {title:'선택한 조건 확인',desc:'설계에서 고른 시험과 정책을 확인하세요. 변경하려면 시험 설계로 돌아갑니다.',selector:'.demo-run-controls'},
-   {title:'시험 시작',desc:'시험 시작을 누르면 준비된 사건이 순서대로 나타납니다. 실제 Agent와 API는 호출하지 않습니다.',selector:'[data-action="demo-start"]'},
-   {title:'승인과 결과 확인',desc:'승인 대기에서 승인 또는 거절을 연습한 뒤 실행 분석으로 이동하세요.',selector:'.demo-run-controls'}],
+   state.demoStarted
+    ? {title:'진행 기록 확인',desc:'최근 진행 기록에서 수집된 사건을 확인하세요. 실제 Agent와 API는 호출하지 않습니다.',selector:'.demo-run-progress'}
+    : {title:'시험 시작',desc:'시험 시작을 누르면 준비된 사건이 나타나고 담당자 승인 대기로 이동합니다. 실제 Agent와 API는 호출하지 않습니다.',selector:'[data-action="demo-start"]'},
+   !state.demoStarted
+    ? {title:'승인과 결과 확인',desc:'시험을 시작하면 담당자 승인 영역이 나타납니다. 승인 또는 거절 후 결과 분석을 열 수 있습니다.',selector:'[data-action="demo-start"]'}
+    : state.demoApproval===null
+     ? {title:'담당자 승인',desc:'요청 승인 또는 요청 거절을 선택하세요. 결정 후 결과 분석 보기 버튼이 나타납니다.',selector:'.approval-form'}
+     : {title:'결과 분석으로 이동',desc:'결과 분석 보기에서 검사 판정과 사건 근거를 확인하세요.',selector:'[data-demo-tab="execution"].primary'}],
+  runs:[
+   {title:'예시 실행 목록',desc:'저장된 구매 업무 예시입니다. 시나리오와 서버 정책, 검사 결과를 비교해 보세요.',selector:'.demo-run-list'},
+   {title:'실행 분석 열기',desc:'실행 분석 열기를 누르면 해당 예시의 사건과 QA 보고서를 확인할 수 있습니다.',selector:'.demo-run-list [data-demo-sample]'}],
+  structure:[
+   {title:'등록 구조 확인',desc:'3D 구조 또는 등록 노드 목록에서 등록된 노드와 연결을 확인하세요.',selector:'.structure-inspection .stage-panel'},
+   {title:'노드와 샘플 사건 확인',desc:'오른쪽 패널에서 노드 정보를 확인하세요. 샘플 사건이 있으면 선택해 연결된 노드를 살펴볼 수 있습니다.',selector:'.structure-inspection > aside'}],
   execution:[
    {title:'실행 흐름 확인',desc:'3D와 사건 목록에서 각 단계가 어떻게 이어지는지 확인하세요.',selector:'.live-analysis-shell'},
    {title:'사건 근거 확인',desc:'사건을 선택하면 오른쪽 패널에서 설명과 원본 근거를 볼 수 있습니다.',selector:'.live-inspector-col'},
@@ -137,12 +150,13 @@ function tutorialMilestone(stage) {
   {key:'live',num:3,label:'실험 실행'},
   {key:'execution',num:4,label:'실행 분석'},
  ];
- const activeIdx=stage==='structure'?0:Math.max(0,steps.findIndex(s=>s.key===stage));
+ const activeIdx=stage==='structure'?0:steps.findIndex(s=>s.key===stage);
  return `<section class="tutorial-milestone" aria-label="튜토리얼 진행 단계">
   <div class="tutorial-milestone-top">
    <div class="tutorial-steps-track">${steps.map((s,i)=>`<button type="button" class="tutorial-step-pill ${i===activeIdx?'current':i<activeIdx?'done':''}" data-demo-tab="${s.key}"><span class="t-num">${i<activeIdx?'✓':s.num}</span><span class="t-label">${s.label}</span></button>${i<steps.length-1?'<span class="t-connector" aria-hidden="true">───</span>':''}`).join('')}</div>
 
   </div>
+  <button type="button" class="secondary" data-demo-tab="runs">실행 목록</button>
   ${tutorialGuide(stage)}
  </section>`;
 }
@@ -156,7 +170,7 @@ function demoRunView(stage) {
   return `${header('실험 실행','선택한 시험을 시작하고 진행 상태와 담당자 승인을 관리합니다.')}${tutorialMilestone(stage)}
    <section class="card section-pad demo-run-controls"><div class="live-row"><h2>선택한 시험</h2><button type="button" class="secondary" data-action="prepare">시험 설계에서 변경</button></div><h3>${esc(scenario?.title || state.scenario)}</h3><dl class="run-condition-fields"><div><dt>평가 대상</dt><dd>${esc(referenceTargetTypes.find(t=>t.type_id===state.demoTargetType)?.name || agents[state.agentId].name)}</dd></div><div><dt>시험 상황</dt><dd>${esc(scenario?.subtitle || state.scenario)}</dd></div><div><dt>기대 행동</dt><dd>${esc(scenario?.description || '준비된 사건과 판정을 확인합니다.')}</dd></div><div><dt>서버 정책</dt><dd>${esc(state.config)} · 데모 예시</dd></div></dl><details><summary>적용 입력·상세 데이터</summary><p>시험 설계에서 선택한 고정 예시 데이터를 사용합니다. 실제 Agent와 API는 호출하지 않습니다.</p></details>${!state.demoStarted?`<button class="primary full" data-action="demo-start" ${state.run?'':'disabled'}>시험 시작</button>`:''}</section>
    ${state.demoStarted && state.demoApproval===null?'<section class="card section-pad approval-form"><h2>담당자 승인 대기</h2><p>선택한 업무 변경 요청의 내용을 확인하고 결정하세요. 데모 승인입니다.</p><button class="primary" data-action="demo-approve">요청 승인</button><button class="secondary" data-action="demo-reject">요청 거절</button></section>':''}
-   <section class="card section-pad"><h2>${state.demoStarted?(state.demoApproval===null?'담당자 승인 대기':'실행·근거 수집 완료'):'실행 준비'}</h2><h3 class="run-progress-heading">최근 진행 기록 <small>최신 5건 · 데모 예시</small></h3>${progressEventsMarkup(visible)}${state.demoApproval!==null?'<p class="live-hint">실행 종료와 검사 통과는 별개입니다. 판정과 근거는 실행 분석에서 확인하세요.</p><button class="primary" data-demo-tab="execution">결과 분석 보기 →</button>':''}</section>`;
+   <section class="card section-pad demo-run-progress"><h2>${state.demoStarted?(state.demoApproval===null?'담당자 승인 대기':'실행·근거 수집 완료'):'실행 준비'}</h2><h3 class="run-progress-heading">최근 진행 기록 <small>최신 5건 · 데모 예시</small></h3>${progressEventsMarkup(visible)}${state.demoApproval!==null?'<p class="live-hint">실행 종료와 검사 통과는 별개입니다. 판정과 근거는 실행 분석에서 확인하세요.</p><button class="primary" data-demo-tab="execution">결과 분석 보기 →</button>':''}</section>`;
  }
  return `${header('실행 분석','판정과 QA 보고서를 확인하고, 3D와 이벤트에서 근거를 살펴봅니다.')}${tutorialMilestone(stage)}
 
@@ -203,6 +217,10 @@ function demoTargetsView() {
   <aside class="card targets-side"><div class="card-h"><h2>최근 실행</h2><span class="meta">저장된 데모 예시</span></div><div class="live-history runs-list">${[['S03','B0','중복 발주 2건'],['S03','B1','중복 방지 · 1건'],['S01','B0','정상 발주 · 1건']].map(([scenario,config,label])=>`<button type="button" class="run-row-btn" data-demo-sample="${scenario}" data-sample-config="${config}"><span class="run-id">DEMO-${scenario}-${config}</span><span class="run-sub">${label}</span><span class="run-state-tag">예시</span></button>`).join('')}</div><div class="targets-next"><p><strong>${esc(selected.name)}</strong> 유형을 살펴보고 있습니다.</p><p>선택한 업무의 시험 시나리오를 제안받아 보세요.</p><button type="button" class="primary full-cta" data-action="demo-prepare">시험 설계로 →</button></div></aside>
  </div>`;
 }
+function demoRunsView() {
+ return `${header('실행 목록','저장된 데모 예시를 다시 열어 검사 결과와 근거를 확인하세요.')}${tutorialMilestone('runs')}
+ <section class="card section-pad demo-run-list" aria-label="데모 실행 목록"><p class="live-hint">구매 업무의 고정 예시 3건입니다. 실제 실행 기록은 실제 실행 모드에서 확인할 수 있습니다.</p>${[['S03','B0','중복 발주 발생','미충족 2'],['S03','B1','중복 방지 적용','전체 통과'],['S01','B0','정상 발주','전체 통과']].map(([scenario,config,title,result])=>`<article class="run-record"><div class="run-record-id"><span class="mono">DEMO-${scenario}-${config}</span></div><div class="run-record-info"><h3>${title}</h3><p>구매 · ${scenario} · ${config}</p></div><div class="run-record-state"><strong>실행 완료 · 예시</strong><small>${result}</small></div><button type="button" class="secondary" data-demo-sample="${scenario}" data-sample-config="${config}" aria-label="DEMO-${scenario}-${config} 실행 분석 열기">실행 분석 열기</button></article>`).join('')}</section>`;
+}
 function demoRegistrationView() {
  return `<section class="panel section-pad demo-registration"><div class="live-row"><h2>새 제조업 Agent 등록</h2><span class="badge">등록 안내 · 데모</span></div><p class="live-hint">실제 환경에서는 업무·도구·시험용 데이터를 등록하고 적용 위험을 분석합니다. 여기서는 등록 항목을 살펴보고 Agent 구조 등록을 연습할 수 있습니다.</p><details><summary>등록 정보 입력·수정 살펴보기</summary><dl class="key-values"><div><dt>Agent 이름 · 버전</dt><dd>시험할 대상을 식별하는 정보</dd></div><div><dt>업무 유형 · 실행 대상</dt><dd>구매·생산·품질 유형과 연결할 실행기</dd></div><div><dt>업무 · 승인 · 재시도</dt><dd>Agent의 역할과 지켜야 하는 정책</dd></div><div><dt>도구 · 시험용 데이터</dt><dd>MCP 도구 정의와 업무 입력·초기 상태</dd></div></dl><button type="button" class="secondary" data-action="register">Agent 구조 등록 연습</button></details><h3>내가 등록한 Agent</h3><p class="live-hint">${Object.values(agents).filter(a=>a.custom).length?'아래 개별 Agent 목록에서 등록한 구조를 선택해 확인하세요.':'아직 이 브라우저에 등록한 구조가 없습니다.'}</p></section>`;
 }
@@ -230,8 +248,8 @@ function renderCoachmark(){
  const steps=tutorialGuideSteps(state.tab),index=Math.min(state.tutorialGuideIndex[state.tab]||0,steps.length-1);
  const item=steps[index];
  const cfg={...item,step:`설명 ${index+1} / ${steps.length}`};
- const targetEl=document.querySelector(cfg.selector)||document.querySelector('.tutorial-page-guide');
- if(!targetEl)return;
+ const targetEl=document.querySelector(cfg.selector);
+ if(!targetEl||!targetEl.getClientRects().length)return;
  targetEl.classList.add('coachmark-highlight-target');
  const overlay=document.createElement('div');
  overlay.id='tutorial-coachmark-overlay';
@@ -246,8 +264,8 @@ function renderCoachmark(){
      <span class="coachmark-step-badge">${cfg.step}</span>
      <button type="button" class="coachmark-close-btn" data-action="close-tour" title="말풍선 가이드 닫기" aria-label="말풍선 가이드 닫기">✕</button>
     </div>
-    <strong class="coachmark-bubble-title">${cfg.title}</strong>
-    <p class="coachmark-bubble-desc">${cfg.desc}</p>
+    <strong class="coachmark-bubble-title">${esc(cfg.title)}</strong>
+    <p class="coachmark-bubble-desc">${esc(cfg.desc)}</p>
     <p class="coachmark-bubble-desc">안내를 닫으면 화면을 자유롭게 살펴보며 직접 진행할 수 있습니다.</p>
     <div class="tutorial-guide-controls"><button type="button" class="secondary" data-guide-step="${index+1}" ${index===steps.length-1?'disabled':''}>다음 설명</button><button type="button" class="primary coachmark-practice" data-action="practice-guide">안내 확인 · 직접 해보기</button></div>
    </div>
@@ -285,13 +303,16 @@ function renderCoachmark(){
  updatePositions();
 }
 function render() {
+ try {renderWorkspace();}catch(error){const main=$('#main');showError(main,{...describeError(error),title:'화면 표시 실패',description:'현재 화면을 표시하지 못했습니다. 새로고침해 다시 확인하세요.',action:'새로고침'},{focus:true,action:'data-reload-app'});main?.querySelector('[data-reload-app]')?.addEventListener('click',()=>location.reload());}
+}
+function renderWorkspace() {
  leaveLive();
  document.body.classList.toggle('is-unauthenticated',workspacePage!=='demo'&&!isLiveAuthenticated());
  removeCoachmark();
  document.querySelectorAll('[data-tab=compare]').forEach(button=>{button.hidden=!LIVE_COMPARISON_ENABLED;const arrow=button.previousElementSibling;if(arrow?.classList.contains('step-arrow'))arrow.hidden=!LIVE_COMPARISON_ENABLED;});
  $('#main').classList.toggle('demo-workspace',workspacePage==='demo');
  $('#demo-navigation').hidden=true;
- document.querySelectorAll('[data-run-nav]').forEach(button=>{if(workspacePage==='demo')button.hidden=true;});
+ document.querySelectorAll('[data-run-nav]').forEach(button=>{if(workspacePage==='demo')button.hidden=false;});
  const stepNav=$('.step-nav');
  if(stepNav && workspacePage==='demo') stepNav.hidden=false;
  document.querySelectorAll('.workspace-bar [data-tab], .site-rail [data-tab]').forEach(button=>{button.classList.toggle('active',button.dataset.tab===(workspacePage==='demo'?state.tab:workspacePage));button.setAttribute('aria-current',button.dataset.tab===(workspacePage==='demo'?state.tab:workspacePage)?'page':'false');});
@@ -312,8 +333,8 @@ function render() {
    demoBtn.textContent='실제 실행 모드로 돌아가기';
  }
  if($('#header-scope'))$('#header-scope').textContent=referenceTargetTypes.find(t=>t.type_id===state.demoTargetType)?.name||'데모 참조';
- if($('#header-page-label'))$('#header-page-label').textContent={agents:'평가 대상',prepare:'시험 설계',live:'3. 실험 실행',execution:'4. 실행 분석',structure:'등록 구조 미리보기'}[state.tab]||'튜토리얼';
- $('#main').innerHTML=state.tab==='structure'?structureView():state.tab==='agents'?agentView():state.tab==='prepare'?withDraft(prepareView):state.tab==='live'?demoRunView('live'):!state.run?emptyRunView():executionView();
+ if($('#header-page-label'))$('#header-page-label').textContent={agents:'평가 대상',prepare:'시험 설계',live:'3. 실험 실행',execution:'4. 실행 분석',runs:'실행 목록',structure:'등록 구조 미리보기'}[state.tab]||'튜토리얼';
+ $('#main').innerHTML=state.tab==='runs'?demoRunsView():state.tab==='structure'?structureView():state.tab==='agents'?agentView():state.tab==='prepare'?withDraft(prepareView):state.tab==='live'?demoRunView('live'):!state.run?emptyRunView():executionView();
 
  document.querySelectorAll('[data-demo-tab]').forEach(b=>{b.classList.toggle('active',b.dataset.demoTab===(state.tab==='structure'?'agents':state.tab));b.setAttribute('aria-current',b.dataset.demoTab===(state.tab==='structure'?'agents':state.tab)?'page':'false');});
  $('#scenario-select')?.addEventListener('change',e=>chooseScenario(e.target.value));
@@ -355,7 +376,7 @@ document.addEventListener('click',async e=>{
  if(button.dataset.demoTargetType){state.demoTargetType=button.dataset.demoTargetType;state.draft={agentId:'purchase',scenario:Object.keys(scenarioMap('purchase'))[0],config:'B0'};state.demoSelected=false;state.demoDesignStatus='idle';state.tutorialTour=false;render();return;}
  if(button.dataset.demoSample){openDemoSample(button.dataset.demoSample,button.dataset.sampleConfig);return;}
  if(button.dataset.demoTab){navigate(button.dataset.demoTab);return;}
- if(button.dataset.tab){if(workspacePage==='demo'&&['agents','prepare','live','execution'].includes(button.dataset.tab))navigate(button.dataset.tab);else navigateWorkspace(button.dataset.tab);return;}
+ if(button.dataset.tab){if(workspacePage==='demo'&&['agents','prepare','live','execution','runs'].includes(button.dataset.tab))navigate(button.dataset.tab);else navigateWorkspace(button.dataset.tab);return;}
  if(button.dataset.scenario){chooseScenario(button.dataset.scenario);return;}
  if(button.dataset.config&&state.tab==='prepare'){state.draft.config=button.dataset.config;render();return;}
  if(button.dataset.previewMode){state.previewMode=button.dataset.previewMode;render();return;}
@@ -391,8 +412,8 @@ document.addEventListener('click',async e=>{
  case 'exit-tutorial':state.tutorialTour=false;removeCoachmark();navigateWorkspace('agents');break;
  case 'play':if(state.tab!=='execution')break;state.demoPlaybackInteracted=true;if(state.playing){stopPlayback();render();}else{if(state.cursor===eventsFor().length-1)state.cursor=0;state.playing=true;state.selected=null;render();scheduleNext();}break;
  case 'speed':state.speed=state.speed===1?2:state.speed===2?.5:1;render();scheduleNext();break;
- case 'export':exportEvidence();break;
- case 'copy':try{await navigator.clipboard.writeText($('#evidence-json').textContent);toast('선택한 근거 JSON을 복사했습니다.');}catch{toast('복사할 수 없습니다. 근거 JSON을 직접 선택해 복사해 주세요.');}break;
+ case 'export':try{exportEvidence();}catch(error){showError(button.parentElement,{...describeError(error),title:'근거 다운로드 실패',action:'다시 내보내기'},{key:'export',focus:true,action:'data-action="export"'});}break;
+ case 'copy':try{await navigator.clipboard.writeText($('#evidence-json').textContent);clearError(button.closest('.evidence-content'),'copy');toast('선택한 근거 JSON을 복사했습니다.');}catch(error){showError(button.closest('.evidence-content'),{...describeError(error),title:'복사 실패',description:'근거 JSON을 직접 선택해 복사하거나 다시 시도하세요.',action:'다시 복사'},{key:'copy',focus:true,action:'data-action="copy"'});}break;
  case 'inspect-b0':case 'inspect-b1':state.config=button.dataset.action==='inspect-b0'?'B0':'B1';state.run={...state.run,config:state.config};state.cursor=eventsFor().length-1;navigate('execution');break;
  }
 });
@@ -459,7 +480,7 @@ initRegistration(result=>{state.draft={agentId:result.profile.id,scenario:'CUSTO
 function readRoute(){
  if(isApproverAccount()){workspacePage=accountPage(location.hash.slice(1));return {page:workspacePage,show3d:false};}
  if(location.hash==='#demo-3d'){workspacePage='demo';return {page:'demo',show3d:true};}
- if(location.hash.startsWith('#demo')){const requested=location.hash.slice(6);workspacePage='demo';state.tab=['agents','prepare','live','execution'].includes(requested)?requested:'agents';if(['live','execution'].includes(state.tab)&&!state.run){state.run={...state.draft,topology:demoTopology('purchase')};state.cursor=state.tab==='execution'?eventsFor().length-1:0;}return {page:'demo',demoTab:state.tab,show3d:false};}
+ if(location.hash.startsWith('#demo')){const requested=location.hash.slice(6);workspacePage='demo';state.tab=['agents','prepare','live','execution','runs'].includes(requested)?requested:'agents';if(['live','execution'].includes(state.tab)&&!state.run){state.run={...state.draft,topology:demoTopology('purchase')};state.cursor=state.tab==='execution'?eventsFor().length-1:0;}return {page:'demo',demoTab:state.tab,show3d:false};}
  if(!isLiveAuthenticated()){workspacePage='agents';return {page:'agents',show3d:false};}
  const route=workspaceRoute(location.hash);if(route.page==='demo'&&(workspacePage!=='demo'||route.demoTab!==state.tab))startTutorialPage(route.demoTab||'agents');workspacePage=route.page;
  if(route.demoTab)state.tab=route.demoTab;
