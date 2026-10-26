@@ -574,7 +574,8 @@
             "CODE_PREREQUISITES",
             "SEMANTIC_RUBRIC_V1",
             "OFFLINE_METADATA_CHECK",
-            "TWO_STAGE_SEMANTIC_V1"
+            "TWO_STAGE_SEMANTIC_V1",
+            "TWO_STAGE_SEMANTIC_V2"
           ]
         },
         "assessment": {
@@ -713,7 +714,8 @@
             "CODE_PREREQUISITES",
             "SEMANTIC_RUBRIC_V1",
             "OFFLINE_METADATA_CHECK",
-            "TWO_STAGE_SEMANTIC_V1"
+            "TWO_STAGE_SEMANTIC_V1",
+            "TWO_STAGE_SEMANTIC_V2"
           ]
         },
         "assessment": {
@@ -772,7 +774,8 @@
             "domain_fit_score": {"type": "string", "minLength": 1},
             "causal_path_score": {"type": "string", "minLength": 1},
             "constraint_score": {"type": "string", "minLength": 1},
-            "evidence_score": {"type": "string", "minLength": 1}
+            "evidence_score": {"type": "string", "minLength": 1},
+            "evidence_quote": {"type": "string", "maxLength": 500}
           }
         },
         "score_total": {"type": ["integer", "null"], "minimum": 0, "maximum": 8},

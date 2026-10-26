@@ -74,7 +74,15 @@ def analyze_description(settings, body, *, library=None):
         (settings.agent_project_root / "qa/knowledge/manufacturing-operations.json").read_text()
     )
     analysis["manufacturing_context"] = {
-        k: operations[k] for k in ("version", "domain_id", "scope", "positioning", "features")
+        k: operations[k]
+        for k in (
+            "version",
+            "domain_id",
+            "scope",
+            "positioning",
+            "features",
+            "potential_business_impacts",
+        )
     }
     analysis["manufacturing_context"]["generation_rules_en"] = operations["generation_rules_en"]
     analysis["manufacturing_context"]["scenario_examples"] = [

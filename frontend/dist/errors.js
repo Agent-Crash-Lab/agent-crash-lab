@@ -5,6 +5,8 @@ const known={
  PROFILE_INFORMATION_REQUIRED:'승인·재시도 정책을 보완한 뒤 새로 저장하세요.',
  PROFILE_ANALYSIS_CHANGED:'위험 분류 기준이 바뀌었습니다. 등록 정보를 다시 저장해 분석하세요.',
  QA_ANALYSIS_UNAVAILABLE:'Agent 설명 분석 서비스에 연결하지 못했습니다.',
+ KNOWLEDGE_UNAVAILABLE:'문헌 검색 서비스가 준비되지 않았습니다. 서비스와 문헌 색인 상태를 확인한 뒤 다시 제안받으세요.',
+ DESIGN_RISK_COVERAGE_MISMATCH:'모델이 요청된 위험별 시험안을 모두 반환하지 않았습니다. 다시 제안받으세요. 기존 실행은 시작되지 않았습니다.',
  QA_DESIGN_UNAVAILABLE:'시험 설계 서비스 또는 문서 검색에 연결하지 못했습니다. 서비스 상태와 설계 모델 설정을 확인해 주세요.',
  QA_BATCH_IN_PROGRESS:'반복 실험이 진행 중입니다. 현재 실험을 확인하거나 중단을 요청하세요.',
  RELIABILITY_REQUIRES_LLM:'현재 대상은 규칙 기반입니다. 기본 연결 점검으로 실행하세요.',

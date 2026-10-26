@@ -399,14 +399,15 @@ async def test_design_decoding_is_bound_to_declared_tools_risks_and_retrieved_so
     model, response, create, _ = transport
     model.schema = GeneratedProposals
     response.output_text = '{"proposals":[]}'
-    await model.generate(
-        "instructions",
-        {
-            "analysis": {"write_tools": ["release_lot"]},
-            "selected_risks": [{"risk_key": "UNVERIFIED_EVIDENCE"}],
-            "sources": [{"document_id": "PROJECT-QUALITY:p0"}],
-        },
-    )
+    with pytest.raises(ModelError, match="^LLM_INVALID_OUTPUT$"):
+        await model.generate(
+            "instructions",
+            {
+                "analysis": {"write_tools": ["release_lot"]},
+                "selected_risks": [{"risk_key": "UNVERIFIED_EVIDENCE"}],
+                "sources": [{"document_id": "PROJECT-QUALITY:p0"}],
+            },
+        )
     schema = create.call_args.kwargs["text"]["format"]["schema"]
     fields = schema["$defs"]["GeneratedProposal"]["properties"]
     assert "risk_type" not in fields  # The registered risk library supplies the recipe.

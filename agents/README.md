@@ -60,7 +60,7 @@ CLI demo는 가상 도구·임시 SQLite를 사용합니다. HTTP 서버는 `INT
 
 [전체 흐름](../docs/architecture.md) · [화면 실행·승인](../frontend/README.md#실행직접-확인) · [LLM 설정·모델 비교](MODEL_EVALUATION.md#llm-실행과-모델-비교)
 
-QA 생성 모델은 `QA_DESIGN_LLM_MODEL`, 검토 모델은 `QA_REVIEW_LLM_MODEL`로 따로 선택합니다. 검토 설정이 비면 생성 모델을 사용합니다. 검토 출력 한도는 1,024토큰이며 기존 공유 비용 제한을 적용합니다. 고정 사례의 검토와 실제 Agent 실행 결과는 별도입니다.
+QA 생성 모델은 `QA_DESIGN_LLM_MODEL`, 검토 모델은 `QA_REVIEW_LLM_MODEL`로 따로 선택합니다. 검토 설정이 비면 생성 모델을 사용합니다. 생성·검토 출력 한도는 각각 4,096토큰이며 기존 공유 비용 제한을 적용합니다. 고정 사례의 검토와 실제 Agent 실행 결과는 별도입니다.
 
 
 ## 후속 개발 연결 (2026-10-22)

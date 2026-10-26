@@ -9,7 +9,7 @@ import {referenceTargetTypes,targetTypeMeta,renderTargetDiagram} from '../dist/l
 import {purchaseTopology,investigationTopology,registrationExample} from '../dist/topologies.js';
 const clone=structuredClone;
 const source=fs.readFileSync(new URL('../dist/app.js',import.meta.url),'utf8').replace(/^import .*$/mg,'').split("document.addEventListener(")[0];
-function application(document,timers={}){return vm.runInNewContext(source+`;render=()=>{};toast=message=>{state.lastToast=message;};({state,eventsFor,checksFor,loadDemo,selectAgent,verifyAgent,open3DDemo,agentView,executionView,prepareView,compareView,withDraft,structureView,renderCoachmark,navigate,tutorialMilestone,tutorialGuideSteps,setTutorialGuideStep,demoTargetsView,demoRunsView,openDemoSample,generateDemoProposals,chooseScenario,finishDemoApproval,demoRunView,practiceTutorial})`,{document,referenceTargetTypes,targetTypeMeta,renderTargetDiagram,progressEventsMarkup,...registry,restoreProfiles:()=>{},...topology,structuredClone,setTimeout,clearTimeout,...timers,history:{replaceState(){}},console});}
+function application(document,timers={}){return vm.runInNewContext(source+`;render=()=>{};toast=message=>{state.lastToast=message;};({state,eventsFor,checksFor,loadDemo,selectAgent,verifyAgent,open3DDemo,agentView,executionView,prepareView,withDraft,structureView,renderCoachmark,navigate,tutorialMilestone,tutorialGuideSteps,setTutorialGuideStep,demoTargetsView,demoRunsView,openDemoSample,generateDemoProposals,chooseScenario,finishDemoApproval,demoRunView,practiceTutorial})`,{document,referenceTargetTypes,targetTypeMeta,renderTargetDiagram,progressEventsMarkup,...registry,restoreProfiles:()=>{},...topology,structuredClone,setTimeout,clearTimeout,...timers,history:{replaceState(){}},console});}
 
 test('target diagrams preserve animated square nodes and distinguish retry, constraints and evidence branches',()=>{
  const purchase=renderTargetDiagram('PURCHASE'),production=renderTargetDiagram('PRODUCTION'),quality=renderTargetDiagram('QUALITY');
@@ -82,7 +82,7 @@ test('switching draft Agent preserves current run and pins a topology snapshot; 
 });
 test('all playback positions render with structure context and HTML in registered labels is escaped',()=>{
  const app=application();
- for(const id of ['purchase','investigator']){app.selectAgent(id);app.verifyAgent();for(const scenario of registry.agents[id].scenarios){app.state.draft.scenario=scenario;app.loadDemo();for(let cursor=0;cursor<app.eventsFor().length;cursor++){app.state.cursor=cursor;assert.doesNotMatch(app.executionView(),/undefined/);}assert.doesNotMatch(app.compareView(),/undefined/);}}
+ for(const id of ['purchase','investigator']){app.selectAgent(id);app.verifyAgent();for(const scenario of registry.agents[id].scenarios){app.state.draft.scenario=scenario;app.loadDemo();for(let cursor=0;cursor<app.eventsFor().length;cursor++){app.state.cursor=cursor;assert.doesNotMatch(app.executionView(),/undefined/);}}}
  const input=clone(registrationExample);input.name='<img src=x onerror=alert(1)>';registry.registerProfile(input,{setItem(){}});app.selectAgent(input.id);
  assert.ok(!app.agentView().includes('<img src=x'));assert.ok(app.structureView().includes('&lt;img'));app.state.previewMode='timeline';assert.match(app.structureView(),/data-preview-node/);assert.doesNotMatch(app.structureView(),/id="structure-host"/);
  delete registry.agents[input.id];

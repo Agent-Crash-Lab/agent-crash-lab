@@ -1,5 +1,5 @@
 import {mountApprover, leaveApprover} from './approver.js?v=0.15.8';
-import {describeError,errorMarkup,showError,clearError,markFields,captureForms,restoreForms,LIVE_COMPARISON_ENABLED, workspaceRoute, runListMarkup, api, mergeEvents, isFinished, sceneEvents, escapeHtml as esc, normalizeDraft, designStartPayload, runDestination, progressEventsMarkup, runGuidance, nextActionHint, completedSystemRuns, qaReportMarkup, qaReportDocument, qaReportCollectionDocument, reviewMarkup, repairMarkup, followupMarkup, scenarioMarkup, caseReadinessLabel, caseBlockerMarkup} from './live-api.js?v=0.15.8';
+import {describeError,errorMarkup,showError,clearError,markFields,captureForms,restoreForms,LIVE_COMPARISON_ENABLED, workspaceRoute, runListMarkup, api, mergeEvents, isFinished, investigationLabel, sceneEvents, escapeHtml as esc, normalizeDraft, designStartPayload, runDestination, progressEventsMarkup, runGuidance, nextActionHint, completedSystemRuns, qaReportMarkup, qaReportDocument, qaReportCollectionDocument, reviewMarkup, repairMarkup, followupMarkup, scenarioMarkup, caseReadinessLabel, caseBlockerMarkup} from './live-api.js?v=0.15.8';
 import {registrationMarkup,parseTools,exampleDeclaration,fillDeclaration,renderToolBindings,collectDeclaration,profileAnalysis,capabilityLabel,registeredCaseReady} from './qa-targets.js?v=0.15.8';
 import {purchaseTopology} from './topologies.js?v=0.15.8';
 import {mountScene, pauseScene} from './scene.js?v=0.15.8';
@@ -210,7 +210,7 @@ function renderLoginTopoSvg() {
   // Terraced 3D Platforms with Bevels & Coordinate Markers
   [0,1,2,3].forEach(l=>{
     const y0=l*1.15-1.7, a=P(-1.85,y0-0.45), b=P(1.85,y0-0.45), c=P(1.85,y0+0.45), d=P(-1.85,y0+0.45), t=0.14;
-    const ad=[a[0],a[1]+t*S], bd=[b[0],b[1]+t*S], cd=[c[0],c[1]+t*S], dd=[d[0],d[1]+t*S];
+    const bd=[b[0],b[1]+t*S], cd=[c[0],c[1]+t*S], dd=[d[0],d[1]+t*S];
     const fillTop=l%2?'url(#lg-plat-a)':'url(#lg-plat-b)';
     g+=poly([d,c,cd,dd],'var(--iso-plat-front, #0a0a0d)','var(--iso-plat-edge, #141419)',1)+poly([b,c,cd,bd],'var(--iso-plat-side, #060608)','var(--iso-plat-edge, #141419)',1)+poly([a,b,c,d],fillTop,'var(--iso-plat-top-edge, #272732)',1);
     g+=`<line x1="${d[0]}" y1="${d[1]}" x2="${c[0]}" y2="${c[1]}" stroke="var(--iso-plat-rim, #343444)" stroke-width="1.6"/>`;
@@ -996,7 +996,7 @@ function renderRun(force=false) {
     ${run.manifest?.registered_target?`<p><strong>등록 대상: ${esc(run.manifest.registered_target.name)}</strong> · 실제 실행: ${esc(run.manifest.registered_target.execution_binding?.name || run.manifest.target_id)} · ${esc(run.manifest.agent_version || '버전 확인 중')}</p>`:''}
     <div class="run-meta-bar">
       <span>${state.settled?'수집 완료 · QA 보고서를 확인하세요.':'실행·근거 수집 중'}</span>
-      <span class="mono">모델: ${esc(model && typeof model==='object' ? JSON.stringify(model) : model || run.investigation?.model_metadata?.model_kind || run.manifest?.model_kind || '미지정')} · 조사: ${esc(run.investigation?.status || '—')}</span>
+      <span class="mono">모델: ${esc(model && typeof model==='object' ? JSON.stringify(model) : model || run.investigation?.model_metadata?.model_kind || run.manifest?.model_kind || '미지정')} · ${esc(investigationLabel(run))}</span>
     </div>
     <div class="live-flow-actions">${run.status==='WAITING_APPROVAL' && page!=='live'?'<button class="primary" data-live-go="live">승인 처리로 이동 →</button>':''}${state.settled?'<button class="secondary" data-live-go="prepare">새 시험 준비 →</button>':''}${page!=='execution'?'<button class="secondary" data-live-go="execution">이 실행 분석 →</button>':LIVE_COMPARISON_ENABLED && run.system_id && state.settled?'<button class="secondary" data-live-go="compare">실제 결과 비교 →</button>':''}</div>`;
   if(page==='live'){

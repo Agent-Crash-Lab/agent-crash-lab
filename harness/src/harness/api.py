@@ -1,6 +1,7 @@
 """Harness HTTP API: public /api/** (via Spring) and internal /internal/runs/** (from MCP)."""
 
 import json
+import logging
 import secrets
 from contextlib import asynccontextmanager
 from typing import Annotated, Literal
@@ -37,6 +38,7 @@ from harness.store import Store
 
 DEV_USER = ("requester-01", ["REQUESTER"])
 TERMINAL = {"COMPLETED", "ERROR"}
+logger = logging.getLogger(__name__)
 
 
 class ApiError(Exception):
@@ -401,7 +403,11 @@ def create_app(settings: Settings | None = None, mcp=None, agents=None) -> FastA
             raise ApiError(
                 503,
                 exc.code
-                if exc.code in {"LLM_KEY_NOT_CONFIGURED", "UNPRICED_MODEL", "LLM_BUDGET_EXHAUSTED", "LLM_INPUT_LIMIT"}
+                if exc.code in {
+                    "LLM_KEY_NOT_CONFIGURED", "UNPRICED_MODEL",
+                    "LLM_BUDGET_EXHAUSTED", "LLM_INPUT_LIMIT",
+                    "KNOWLEDGE_UNAVAILABLE", "DESIGN_RISK_COVERAGE_MISMATCH",
+                }
                 else "QA_DESIGN_UNAVAILABLE",
             ) from None
         except (ValidationError, SchemaError, ValueError, KeyError, RecursionError):
@@ -428,10 +434,27 @@ def create_app(settings: Settings | None = None, mcp=None, agents=None) -> FastA
             raise ApiError(
                 503,
                 exc.code
-                if exc.code in {"LLM_KEY_NOT_CONFIGURED", "UNPRICED_MODEL", "LLM_BUDGET_EXHAUSTED", "LLM_INPUT_LIMIT"}
+                if exc.code in {
+                    "LLM_KEY_NOT_CONFIGURED", "UNPRICED_MODEL",
+                    "LLM_BUDGET_EXHAUSTED", "LLM_INPUT_LIMIT",
+                    "KNOWLEDGE_UNAVAILABLE", "DESIGN_RISK_COVERAGE_MISMATCH",
+                }
                 else "QA_DESIGN_UNAVAILABLE",
             ) from None
-        except (ValidationError, SchemaError, ValueError, KeyError, Unresolvable, RecursionError):
+        except (
+            ValidationError,
+            SchemaError,
+            ValueError,
+            KeyError,
+            Unresolvable,
+            RecursionError,
+        ) as exc:
+            reason = (
+                str(exc)
+                if isinstance(exc, (ValueError, KeyError, Unresolvable))
+                else type(exc).__name__
+            )
+            logger.warning("QA design rejected after generation: %s", reason)
             raise ApiError(400, "INVALID_QA_DESIGN") from None
 
     @app.get("/api/qa/plans/{plan_id}")

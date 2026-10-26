@@ -128,6 +128,9 @@ class StructuredModel:
             if context.get("repair_proposal_ids"):
                 count = len(context["repair_proposal_ids"])
                 response_schema["properties"]["proposals"].update(minItems=count, maxItems=count)
+            elif context.get("selected_risks"):
+                count = len(context["selected_risks"])
+                response_schema["properties"]["proposals"].update(minItems=count, maxItems=count)
             tools = context.get("analysis", {}).get("write_tools", [])
             risks = [risk["risk_key"] for risk in context.get("selected_risks", [])]
             citations = [source["document_id"] for source in context.get("sources", [])]
