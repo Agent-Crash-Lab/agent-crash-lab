@@ -210,7 +210,7 @@ function renderLoginTopoSvg() {
   // Terraced 3D Platforms with Bevels & Coordinate Markers
   [0,1,2,3].forEach(l=>{
     const y0=l*1.15-1.7, a=P(-1.85,y0-0.45), b=P(1.85,y0-0.45), c=P(1.85,y0+0.45), d=P(-1.85,y0+0.45), t=0.14;
-    const ad=[a[0],a[1]+t*S], bd=[b[0],b[1]+t*S], cd=[c[0],c[1]+t*S], dd=[d[0],d[1]+t*S];
+    const bd=[b[0],b[1]+t*S], cd=[c[0],c[1]+t*S], dd=[d[0],d[1]+t*S];
     const fillTop=l%2?'url(#lg-plat-a)':'url(#lg-plat-b)';
     g+=poly([d,c,cd,dd],'var(--iso-plat-front, #0a0a0d)','var(--iso-plat-edge, #141419)',1)+poly([b,c,cd,bd],'var(--iso-plat-side, #060608)','var(--iso-plat-edge, #141419)',1)+poly([a,b,c,d],fillTop,'var(--iso-plat-top-edge, #272732)',1);
     g+=`<line x1="${d[0]}" y1="${d[1]}" x2="${c[0]}" y2="${c[1]}" stroke="var(--iso-plat-rim, #343444)" stroke-width="1.6"/>`;

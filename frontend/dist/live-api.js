@@ -68,7 +68,6 @@ export function caseBlockerMarkup(execution) {
   return `<div class="case-blocker"><p><strong>실행 보류 사유:</strong> ${escapeHtml(reason)}</p><p class="live-hint">아래 상세 조건에서 필요한 보완 항목을 확인하세요. 다른 실행 가능한 시험을 선택할 수 있습니다.</p></div>`;
 }
 
-
 export const agentForTest = test => test.test_kind === 'INVESTIGATION_AGENT' ? 'investigator' : 'purchase';
 export function testsForAgent(catalog, agent) {
   return catalog.tests.filter(test => agentForTest(test) === agent);
@@ -79,12 +78,6 @@ export function normalizeDraft(catalog, draft) {
   const test = tests.find(test => test.test_id === draft.test_id) || tests[0];
   const system = catalog.systems.find(system => system.system_id === draft.system_id) || catalog.systems[0];
   return {agent, test_id:test?.test_id || '', system_id:system?.system_id || ''};
-}
-export function startPayload(catalog, draft) {
-  const test = testsForAgent(catalog, draft.agent).find(test => test.test_id === draft.test_id);
-  if (!test) throw new Error('선택한 평가 대상의 시나리오를 다시 확인해 주세요.');
-  if (test.test_kind === 'SYSTEM' && !catalog.systems.some(system => system.system_id === draft.system_id)) throw new Error('서버 정책을 선택해 주세요.');
-  return {test_id:test.test_id, ...(test.test_kind === 'SYSTEM' ? {system_id:draft.system_id} : {})};
 }
 
 export function designStartPayload(catalog, plan, caseId, systemId) {
@@ -102,7 +95,6 @@ export function progressEventsMarkup(events) {
     return `<li><span class="mono">#${escapeHtml(e.sequence)}</span><strong>${escapeHtml(names[e.event_type || e.type] || '실행 기록')}</strong><time datetime="${escapeHtml(e.occurred_at || '')}">${escapeHtml(time)}</time></li>`;
   }).join('')}</ol>`:'<p class="live-hint">서버에서 진행 기록을 받으면 표시합니다.</p>';
 }
-
 
 // Temporarily hide real-run comparison; keep its implementation for reactivation.
 export const LIVE_COMPARISON_ENABLED = false;
@@ -176,20 +168,6 @@ export function nextActionHint({page, session, run, settled, pendingStart, compa
 }
 
 
-// Transform only the adapter-supported values; source inputs remain immutable.
-export function preparedPurchaseSample(reference, values) {
-  const quantity=Number(values.quantity), inventory=Number(values.inventory), price=Number(values.unit_price_minor);
-  if (![quantity,inventory,price].every(n=>Number.isSafeInteger(n) && n>=0 && n<=2147483647) || quantity<=inventory)
-    throw new Error('구매 수량은 재고보다 큰 정수, 재고·가격은 0 이상의 정수로 입력하세요.');
-  const sample=structuredClone(reference.sample_data);
-  sample.business_input.quantity=quantity;
-  sample.business_input.unit_price_minor=price;
-  sample.initial_state.request=structuredClone(sample.business_input);
-  sample.initial_state.parts.find(p=>p.part_id===sample.business_input.part_id && p.plant_id===sample.business_input.plant_id).inventory=inventory;
-  sample.initial_state.suppliers.find(s=>s.supplier_id===sample.business_input.supplier_id).unit_price_minor=price;
-  return {target:reference.target,sample_data:sample};
-}
-
 export function completedSystemRuns(catalog, runs) {
   const supported=new Set((catalog?.tests || []).filter(t=>t.test_kind==='SYSTEM').map(t=>t.test_id));
   return runs.filter(run=>supported.has(run.test_id) && run.status==='COMPLETED');
@@ -262,14 +240,12 @@ export function qaReportDocument(report, events=[]) {
     .replace(/<details>/g,'<details open>');
 }
 
-
 export function qaReportCollectionDocument(reports) {
   const esc=escapeHtml;
   const rows=reports.map(r=>`<tr><td>${esc(r.run_id)}</td><td>${esc(r.narrative?.agent_type_name || r.target.type_name || '유형 미확인')}<small>버전 ${esc(r.target.agent_version || '미기록')} · 서버 ${esc(r.test.system_id || '미기록')}</small></td><td>${esc(r.test.title)}</td><td>${esc(r.narrative?.agent_action || '상세 확인 필요')}</td><td>${esc(r.narrative?.business_result || '상세 확인 필요')}</td><td>${esc(r.summary)}</td></tr>`).join('');
   const body=`<h1>제조 운영 Agent QA 결과 요약</h1><p>조회가 허용된 최근 완료 시험 중 최대 20개 · ${reports.length}개 수록. 진행 중·실행 오류·개별 기능 시험은 제외합니다.</p><p>서로 다른 Agent·버전·시험 상황을 모은 목록입니다. 전체 성공률이나 도입 승인으로 해석하지 않습니다.</p><table><thead><tr><th>실험</th><th>Agent 유형</th><th>위험 상황</th><th>Agent 행동</th><th>실제 업무 처리</th><th>판정</th></tr></thead><tbody>${rows}</tbody></table>${reports.map(r=>`<section><h2>${esc(r.run_id)} · ${esc(r.narrative?.agent_type_name || '유형 미확인')}</h2>${qaReportMarkup(r)}</section>`).join('')}`;
   return `<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>제조 운영 Agent QA 결과 요약</title><style>body{max-width:1200px;margin:32px auto;padding:0 24px;font:15px/1.7 system-ui,sans-serif;color:#1f2937}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px;text-align:left;vertical-align:top;border-bottom:1px solid #d1d5db}section{margin-top:48px;border-top:2px solid #789087}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f3f4f6;padding:12px}small{display:block;color:#6b7280}summary{font-weight:600}details{margin:12px 0}@media print{section{break-before:page}}</style>${body}</html>`;
 }
-
 
 export function repairMarkup(repair) {
   if(!repair || !repair.attempts || !repair.feedback?.length)return '';

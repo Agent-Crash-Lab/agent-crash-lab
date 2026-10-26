@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {api, mergeEvents, isFinished, sceneEvents, escapeHtml, testsForAgent, normalizeDraft, startPayload, workspaceRoute, runGuidance, nextActionHint, preparedPurchaseSample} from '../dist/live-api.js';
+import {api, mergeEvents, isFinished, sceneEvents, escapeHtml, testsForAgent, normalizeDraft, workspaceRoute, runGuidance, nextActionHint} from '../dist/live-api.js';
 
 test('events resume by sequence, deduplicate and reject another run',()=>{
   const event=sequence=>({sequence,run_id:'RUN-1',event_type:'TOOL_CALLED',node_id:'mcp'});
@@ -52,7 +52,6 @@ test('non-JSON gateway failure is reported without rendering server HTML',async(
   } finally {globalThis.fetch=original;}
 });
 
-
 const catalog={systems:[{system_id:'B0'},{system_id:'B1'}],tests:[
   {test_id:'S01',test_kind:'SYSTEM'}, {test_id:'S03',test_kind:'SYSTEM'},
   {test_id:'PA03',test_kind:'PURCHASE_AGENT'}, {test_id:'IA01',test_kind:'INVESTIGATION_AGENT'}
@@ -64,14 +63,6 @@ test('actual Agent selection filters the server catalog and preserves conditions
   assert.deepEqual(normalizeDraft(catalog,draft),draft);
   assert.deepEqual(normalizeDraft(catalog,{...draft,agent:'investigator'}),{agent:'investigator',test_id:'IA01',system_id:'B1'});
 });
-test('real execution uses selected conditions and never sends a SYSTEM policy to unit tests',()=>{
-  assert.deepEqual(startPayload(catalog,{agent:'purchase',test_id:'S03',system_id:'B1'}),{test_id:'S03',system_id:'B1'});
-  assert.deepEqual(startPayload(catalog,{agent:'investigator',test_id:'IA01',system_id:'B0'}),{test_id:'IA01'});
-  assert.deepEqual(startPayload(catalog,{agent:'purchase',test_id:'PA03',system_id:'B1'}),{test_id:'PA03'});
-  assert.throws(()=>startPayload(catalog,{agent:'purchase',test_id:'IA01',system_id:'B1'}));
-  assert.throws(()=>startPayload(catalog,{agent:'purchase',test_id:'S03',system_id:'unknown'}));
-});
-
 
 test('all main routes point to real pages and demo routes are isolated',()=>{
   for(const page of ['agents','prepare','live','execution'])assert.deepEqual(workspaceRoute('#'+page),{page});
@@ -82,7 +73,6 @@ test('all main routes point to real pages and demo routes are isolated',()=>{
   assert.deepEqual(workspaceRoute('#demo-prepare'),{page:'demo',demoTab:'prepare',show3d:false});
   assert.deepEqual(workspaceRoute('#demo-3d'),{page:'demo',demoTab:'agents',show3d:true});
 });
-
 
 test('workflow distinguishes approval, report generation, final collection and failed checks',()=>{
   const waiting=runGuidance({status:'WAITING_APPROVAL'});
@@ -98,7 +88,6 @@ test('workflow distinguishes approval, report generation, final collection and f
   assert.match(runGuidance({status:'COMPLETED',investigation:{status:'ERROR'}},true).detail,/실패/);
 });
 
-
 test('one action hint points to the actionable control and never prompts a second running start',()=>{
   const base={session:{},page:'live',settled:false};
   assert.match(nextActionHint({...base,session:null}).selector,/login/);
@@ -112,20 +101,6 @@ test('one action hint points to the actionable control and never prompts a secon
   assert.equal(nextActionHint({...base,page:'compare',comparison:{}}),null);
 });
 
-
-test('prepared data keeps target/state consistent and rejects unsupported inventory branch',()=>{
-  const reference={target:{target_id:'reference-purchase'},sample_data:{business_input:{part_id:'P',plant_id:'F',supplier_id:'S',quantity:100,unit_price_minor:12000},initial_state:{parts:[{part_id:'P',plant_id:'F',inventory:20}],suppliers:[{supplier_id:'S',unit_price_minor:12000}],request:{}}}};
-  const before=JSON.stringify(reference);
-  const data=preparedPurchaseSample(reference,{quantity:'200',inventory:'35',unit_price_minor:'15000'});
-  assert.equal(data.sample_data.business_input.quantity,200);
-  assert.deepEqual(data.sample_data.business_input,data.sample_data.initial_state.request);
-  assert.equal(data.sample_data.initial_state.parts[0].inventory,35);
-  assert.equal(data.sample_data.initial_state.suppliers[0].unit_price_minor,15000);
-  assert.equal(JSON.stringify(reference),before);
-  assert.throws(()=>preparedPurchaseSample(reference,{quantity:'20',inventory:'35',unit_price_minor:'15000'}));
-  assert.throws(()=>preparedPurchaseSample(reference,{quantity:'200.5',inventory:'35',unit_price_minor:'15000'}));
-});
-
 test('comparison follows registered SYSTEM kinds for all manufacturing types',async()=>{
   const {completedSystemRuns}=await import('../dist/live-api.js');
   const catalog={tests:[{test_id:'S01',test_kind:'SYSTEM'},{test_id:'PN04',test_kind:'SYSTEM'},{test_id:'QL04',test_kind:'SYSTEM'},{test_id:'PA01',test_kind:'PURCHASE_AGENT'}]};
@@ -133,7 +108,6 @@ test('comparison follows registered SYSTEM kinds for all manufacturing types',as
   runs.push({test_id:'PN04',status:'RUNNING'});
   assert.deepEqual(completedSystemRuns(catalog,runs).map(r=>r.test_id),['S01','PN04','QL04']);
 });
-
 
 import {qaReportMarkup, qaReportDocument, qaReportCollectionDocument} from '../dist/live-api.js';
 const reportFixture=()=>({run_id:'RUN-1',created_at:'2026-10-21',summary:'위반 발견',target:{name:'시험 대상'},test:{title:'승인 후 변경',required_rules:['M_DOMAIN']},results:{failed_checks:1,changes:0},findings:[{scope:'agent_behavior',verdict:'FAIL',reason:'재확인 누락',evidence_ids:['E1']}],domain:{scope:'MOM',coverage:[{name:'시간·상태 변화',status:'PARTIAL',execution_scope:'승인 후 상태',not_tested:'밀리초 제어'}],background_sources:[]},test_sources:[],limitations:['이번 조건에 한정'],checks:[]});
@@ -154,7 +128,6 @@ test('QA report HTML export escapes untrusted findings and rejects executable so
   assert.match(html,/실행 타임라인/);
   assert.match(html,/<details open>/);
 });
-
 
 function readableReport(kind='QUALITY') {
   const r=reportFixture();r.target.type=kind;r.target.type_name='품질·출하 Agent';
@@ -188,7 +161,6 @@ test('test-plan review explains criteria and code prerequisites without claiming
   assert.match(blocked,/코드 사전 검사/);
   assert.match(blocked,/시험안 수정 필요/);
 });
-
 
 test('repair and investigation experiment summaries escape input and distinguish execution',async()=>{
   const {repairMarkup,followupMarkup}=await import('../dist/live-api.js');

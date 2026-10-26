@@ -6,7 +6,8 @@ from conftest import ROOT, TOKEN
 from fastapi.testclient import TestClient
 
 from agents.llm import ModelError
-from agents.scenario.design import DesignRequest, analyze, design_qa, screen_risks
+from agents.scenario.analysis import analyze, screen_risks
+from agents.scenario.design import DesignRequest, design_qa
 from agents.server import create_app
 
 

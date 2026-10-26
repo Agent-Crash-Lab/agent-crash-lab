@@ -49,18 +49,15 @@ def apply_review_execution_gate(case, review):
         }
         return
     code_review = review.get("method") == "CODE_PREREQUISITES"
-    reason = case["execution"]["reason"]
-    if case["execution"]["status"] == "READY":
-        reason = (
-            "코드 사전 검사에서 시험안 보완이 필요합니다."
-            if code_review
-            else "검토에서 명시적 충돌 또는 거절을 확인했습니다."
-        )
     case["execution"].update(
         status="UNSUPPORTED",
         registered_test_id=None,
         rule_ids=[],
-        reason=reason,
+        reason=(
+            "코드 사전 검사에서 시험안 보완이 필요합니다."
+            if code_review
+            else "검토에서 명시적 충돌 또는 거절을 확인했습니다."
+        ),
         missing_capabilities=sorted(
             set(
                 case["execution"]["missing_capabilities"]

@@ -99,7 +99,7 @@ function renderIsoScene(container, graph, data = {}, onSelect) {
   layers.forEach((_, lIdx) => {
     const y0 = (lIdx - layerSpan / 2) * 1.15;
     const a = P(-2.05, y0 - 0.48), b = P(2.05, y0 - 0.48), c = P(2.05, y0 + 0.48), d = P(-2.05, y0 + 0.48), t = 0.14;
-    const ad = [a[0], a[1] + t * S], bd = [b[0], b[1] + t * S], cd = [c[0], c[1] + t * S], dd = [d[0], d[1] + t * S];
+    const bd = [b[0], b[1] + t * S], cd = [c[0], c[1] + t * S], dd = [d[0], d[1] + t * S];
     const fillTop = lIdx % 2 ? 'url(#grad-platform-a)' : 'url(#grad-platform-b)';
 
     // Ground platform base & bevels

@@ -37,8 +37,6 @@ dist/
 artifacts/local-runs/
 AGENT_CRASH_LAB_Project_Proposal_v1.2.pdf
 
-.gitignore
-
 # Agent local checkpoints
 .agent-state/
 .harness-state/

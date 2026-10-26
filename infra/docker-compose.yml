@@ -118,8 +118,6 @@ services:
       ORACLE_DATABASE_URL: postgresql://oracle_ro:${ORACLE_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
       MCP_URL: http://mcp-server:8081
       AGENT_URL: http://agents:8090
-      LLM_API_KEY: ${LLM_API_KEY}
-      LLM_MODEL: ${LLM_MODEL:-}
       INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?Set INTERNAL_API_TOKEN in the root .env before starting services}
       HARNESS_PROJECT_ROOT: /project
       HARNESS_DEV_AUTH: ${HARNESS_DEV_AUTH:-false}

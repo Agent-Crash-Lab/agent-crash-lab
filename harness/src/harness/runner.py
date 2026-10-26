@@ -505,7 +505,7 @@ class Runner:
         )
         limit_check = None
         if test is not None and agent is not None and termination is not None:
-            limit_check = self._judge_limits(run, test, measured, termination)
+            limit_check = self._judge_limits(run, measured, termination)
         if not agent or agent["status"] != "COMPLETED":
             reason = (agent or {}).get("reason")
             if reason in {"LLM_KEY_NOT_CONFIGURED", "LLM_MODEL_NOT_CONFIGURED",
@@ -684,9 +684,9 @@ class Runner:
         self.store.put_run(run)
         if limits.RULE_ID not in test.rule_ids:
             return []
-        return [self._judge_limits(run, test, measured, termination)]
+        return [self._judge_limits(run, measured, termination)]
 
-    def _judge_limits(self, run, test, measured, termination) -> dict:
+    def _judge_limits(self, run, measured, termination) -> dict:
         return limits.judge(
             run["run_id"],
             measured,
