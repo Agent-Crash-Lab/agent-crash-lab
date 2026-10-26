@@ -9,7 +9,7 @@ import {referenceTargetTypes,targetTypeMeta,renderTargetDiagram} from '../dist/l
 import {purchaseTopology,investigationTopology,registrationExample} from '../dist/topologies.js';
 const clone=structuredClone;
 const source=fs.readFileSync(new URL('../dist/app.js',import.meta.url),'utf8').replace(/^import .*$/mg,'').split("document.addEventListener(")[0];
-function application(document,timers={}){return vm.runInNewContext(source+`;render=()=>{};toast=message=>{state.lastToast=message;};({state,eventsFor,checksFor,loadDemo,selectAgent,verifyAgent,open3DDemo,agentView,executionView,prepareView,compareView,withDraft,structureView,renderCoachmark,navigate,tutorialMilestone,tutorialGuideSteps,setTutorialGuideStep,demoTargetsView,openDemoSample,generateDemoProposals,chooseScenario,finishDemoApproval,demoRunView,practiceTutorial})`,{document,referenceTargetTypes,targetTypeMeta,renderTargetDiagram,progressEventsMarkup,...registry,restoreProfiles:()=>{},...topology,structuredClone,setTimeout,clearTimeout,...timers,history:{replaceState(){}},console});}
+function application(document,timers={}){return vm.runInNewContext(source+`;render=()=>{};toast=message=>{state.lastToast=message;};({state,eventsFor,checksFor,loadDemo,selectAgent,verifyAgent,open3DDemo,agentView,executionView,prepareView,compareView,withDraft,structureView,renderCoachmark,navigate,tutorialMilestone,tutorialGuideSteps,setTutorialGuideStep,demoTargetsView,demoRunsView,openDemoSample,generateDemoProposals,chooseScenario,finishDemoApproval,demoRunView,practiceTutorial})`,{document,referenceTargetTypes,targetTypeMeta,renderTargetDiagram,progressEventsMarkup,...registry,restoreProfiles:()=>{},...topology,structuredClone,setTimeout,clearTimeout,...timers,history:{replaceState(){}},console});}
 
 test('target diagrams preserve animated square nodes and distinguish retry, constraints and evidence branches',()=>{
  const purchase=renderTargetDiagram('PURCHASE'),production=renderTargetDiagram('PRODUCTION'),quality=renderTargetDiagram('QUALITY');
@@ -214,4 +214,20 @@ test('proposal tour previews results before generation and practice resets to th
  app.generateDemoProposals();finish();
  assert.equal(app.state.demoDesignStatus,'ready');
  assert.match(app.withDraft(app.prepareView),/<div  class="design-board/);
+});
+
+
+test('tutorial run list opens each fixed sample with matching conditions and verdict',()=>{
+ const app=application();
+ const html=app.demoRunsView();
+ assert.equal((html.match(/class="run-record"/g)||[]).length,3);
+ assert.doesNotMatch(html,/data-live-run=/);
+ assert.match(app.tutorialMilestone('agents'),/data-demo-tab="runs"/);
+ for(const [scenario,config] of [['S03','B0'],['S03','B1'],['S01','B0']]){
+  app.openDemoSample(scenario,config);
+  assert.equal(app.state.tab,'execution');
+  assert.equal(app.state.scenario,scenario);
+  assert.equal(app.state.config,config);
+  assert.equal(app.checksFor().filter(c=>c.result==='FAIL').length,scenario==='S03'&&config==='B0'?2:0);
+ }
 });

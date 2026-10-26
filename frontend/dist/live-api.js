@@ -102,7 +102,7 @@ export function workspaceRoute(hash) {
   if(['agents','prepare','live','execution','runs','compare','approvals','requests','reports'].includes(value))return {page:value};
   if(value==='demo' || value.startsWith('demo-')) {
     const tab=value.slice(5);
-    return {page:'demo',demoTab:['agents','prepare','execution','compare','structure'].includes(tab)?tab:'agents',show3d:value==='demo-3d'};
+    return {page:'demo',demoTab:['agents','prepare','live','execution','runs','compare','structure'].includes(tab)?tab:'agents',show3d:value==='demo-3d'};
   }
   return {page:'agents'};
 }
