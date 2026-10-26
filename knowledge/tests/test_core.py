@@ -5,14 +5,18 @@ import tempfile
 import threading
 import unittest
 from collections import OrderedDict
+from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 import numpy as np
+from psycopg.errors import UndefinedTable
 
 from knowledge.catalog import add_record
 from knowledge.embedding import Embedder, windows
 from knowledge.index import prepare
+from knowledge.retrieval import search
 
 
 class Words:
@@ -21,6 +25,21 @@ class Words:
 
 
 class ChunkTests(unittest.TestCase):
+    def test_search_before_index_creation_reports_not_indexed(self):
+        db = Mock()
+        db.execute.side_effect = [None, UndefinedTable("missing index table")]
+
+        @contextmanager
+        def missing_index():
+            yield db
+
+        embedder = SimpleNamespace(encode=lambda *args, **kwargs: [[0.0] * 384])
+        with (
+            patch("knowledge.retrieval.connection", missing_index),
+            self.assertRaisesRegex(ValueError, "^KNOWLEDGE_NOT_INDEXED$"),
+        ):
+            search(embedder, "purchase approval")
+
     def test_same_query_reuses_embedding_but_document_embedding_stays_separate(self):
         model = object.__new__(Embedder)
         model.lock, model.query_cache = threading.Lock(), OrderedDict()

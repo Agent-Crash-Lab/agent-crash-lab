@@ -124,8 +124,21 @@ def test_system_run_full_flow(client, fakes):
     assert "observation" not in run
 
 
-def test_failed_checks_trigger_investigation(client, fakes, monkeypatch):
+@pytest.mark.parametrize("lost_start_response", [False, True])
+def test_failed_checks_trigger_investigation(client, fakes, monkeypatch, lost_start_response):
+    from harness.clients import ClientError
     from harness.runner import Runner
+
+    if lost_start_response:
+        original_start = fakes[1].start
+
+        async def lose_investigation_response(body):
+            result = await original_start(body)
+            if body["agent_kind"] == "INVESTIGATION_AGENT":
+                raise ClientError("agents", None, "TRANSPORT_ERROR")
+            return result
+
+        monkeypatch.setattr(fakes[1], "start", lose_investigation_response)
 
     original = Runner._set_status
     reserved = []
@@ -166,6 +179,31 @@ def test_failed_checks_trigger_investigation(client, fakes, monkeypatch):
     assert [c["rule_id"] for c in failed] == ["R03"]
     types = [e["event_type"] for e in client.get(f"/api/runs/{run_id}/events").json()["events"]]
     assert "VERDICT_CREATED" in types and types[-2:] == ["RUN_FINISHED", "REPORT_VALIDATED"]
+
+
+def test_unexpected_investigation_error_does_not_leave_the_run_running(client, fakes, monkeypatch):
+    original_start = fakes[1].start
+
+    async def broken_investigation(body):
+        if body["agent_kind"] == "INVESTIGATION_AGENT":
+            raise ValueError("external response with a secret must not be persisted")
+        return await original_start(body)
+
+    monkeypatch.setattr(fakes[1], "start", broken_investigation)
+    monkeypatch.setattr(oracle, "evaluate", lambda ctx: [{
+        "run_id": ctx.run_id, "check_id": "CHK-DUPLICATE", "rule_id": "R03",
+        "rule_version": ctx.rule_version, "scope": "business_state", "verdict": "FAIL",
+        "reason": "중복", "evidence_ids": ["EV-SNAPSHOT-001"],
+    }])
+    run_id = start(client, "S03", "B0")
+    approve(client, run_id)
+    # Wait for the worker, including investigation cleanup, rather than its COMPLETED marker.
+    wait_for(client, run_id, lambda r: not client.app.state.runner.tasks)
+    run = client.get(f"/api/runs/{run_id}").json()
+    assert run["status"] == "COMPLETED"
+    assert run["investigation"]["status"] == "ERROR"
+    assert run["investigation"]["status_reason"] == "INVESTIGATION_FAILED"
+    assert "secret must not be persisted" not in str(run)
 
 
 def test_unexpected_decision_keeps_fail_and_downgrades_pass(client, monkeypatch):

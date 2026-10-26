@@ -19,9 +19,7 @@ from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, ConfigDict, Field
 
 from agents.llm import ModelError, StructuredModel, resolve_model
-from agents.scenario.analysis import analyze as analyze
-from agents.scenario.analysis import analyze_description as analyze_description
-from agents.scenario.analysis import screen_risks as screen_risks
+from agents.scenario.analysis import analyze_description
 from agents.scenario.exceptions import active_conditions
 from agents.scenario.morphology import build_field
 from agents.scenario.proposals import (
@@ -190,6 +188,8 @@ async def design_qa(settings, body, model=None, search=None, reviewer=None):
             json=query,
             headers={"X-Internal-Token": settings.internal_api_token.get_secret_value()},
         )
+        if response.status_code == 503:
+            raise ModelError("KNOWLEDGE_UNAVAILABLE")
         response.raise_for_status()
         return response.json()
 
@@ -377,7 +377,7 @@ async def design_qa(settings, body, model=None, search=None, reviewer=None):
         generated = response_type.model_validate(await model.generate(prompt, context))
         proposals = [p.model_dump() for p in generated.proposals]
         if generative:
-            recipes = {risk["risk_key"]: risk["recipe"] for risk in state["selected_risks"]}
+            recipes = {risk["risk_key"]: risk["recipe"] for risk in context["selected_risks"]}
             if (
                 hasattr(model, "schema")
                 and hasattr(model, "budget")

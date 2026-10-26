@@ -7,7 +7,7 @@ import json
 import re
 import secrets
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -132,7 +132,7 @@ def build_bundle(scenario_id, system_id, run_id, root=ROOT):
         "run_id": run_id,
         "scenario_id": scenario_id,
         "system_id": system_id,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
         "reference_hashes": inputs,
         "request_payload_hash": request_hash,
         "requires_live_model_environment": config["llm"]["model_environment"],
@@ -171,7 +171,7 @@ def main():
     parser.add_argument("--run-id")
     parser.add_argument("--output-dir", type=Path)
     args = parser.parse_args()
-    run_id = args.run_id or "RUN-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + secrets.token_hex(4)
+    run_id = args.run_id or "RUN-" + datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ") + "-" + secrets.token_hex(4)
     try:
         bundle = build_bundle(args.scenario, args.system, run_id)
         output = args.output_dir or ROOT / "artifacts/local-runs" / run_id

@@ -71,7 +71,10 @@ def search(
     embedding = vector_literal(embedder.encode([query], query=True)[0])
     with connection() as db:
         db.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
-        state = db.execute("SELECT * FROM knowledge.index_state WHERE id=1").fetchone()
+        try:
+            state = db.execute("SELECT * FROM knowledge.index_state WHERE id=1").fetchone()
+        except psycopg.errors.UndefinedTable:
+            raise ValueError("KNOWLEDGE_NOT_INDEXED") from None
         if not state or state["model"] != MODEL or state["revision"] != REVISION:
             raise ValueError("KNOWLEDGE_NOT_INDEXED")
         if state["model_sha256"] != embedder.model_sha256:

@@ -122,6 +122,7 @@ make dev-rag-up
 
 ## 더 읽기
 
+- [Scenario Agent 아키텍처 보고서: 대상 입력부터 시나리오 생성·검증까지](docs/scenario-agent-architecture-report.md)
 - [시스템 아키텍처와 단계별 계약](docs/architecture.md)
 - [데이터·문헌·DB 안내](docs/data-guide.md)
 - [대상 Agent와 근거 데이터 설계](docs/scenario-data-design.md)

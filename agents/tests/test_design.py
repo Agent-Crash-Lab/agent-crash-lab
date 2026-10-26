@@ -6,7 +6,8 @@ from conftest import ROOT, TOKEN
 from fastapi.testclient import TestClient
 
 from agents.llm import ModelError
-from agents.scenario.design import DesignRequest, analyze, design_qa, screen_risks
+from agents.scenario.analysis import analyze, screen_risks
+from agents.scenario.design import DesignRequest, design_qa
 from agents.server import create_app
 
 
@@ -294,17 +295,21 @@ def test_analyze_endpoint_never_calls_model_or_search_and_requires_auth(settings
         )
 
 
-def test_design_preserves_input_limit_error(settings):
+@pytest.mark.parametrize(
+    "code", ["LLM_INPUT_LIMIT", "KNOWLEDGE_UNAVAILABLE", "DESIGN_RISK_COVERAGE_MISMATCH"]
+)
+def test_design_preserves_actionable_error_codes(settings, code):
     class Oversized:
         async def generate(self, prompt, context):
-            raise ModelError("LLM_INPUT_LIMIT")
+            raise ModelError(code)
 
     with TestClient(create_app(settings, design_model=Oversized(), design_search=found)) as client:
         response = client.post(
-            "/internal/qa/design", json=reference().model_dump(), headers={"X-Internal-Token": TOKEN}
+            "/internal/qa/design",
+            json=reference().model_dump(), headers={"X-Internal-Token": TOKEN}
         )
         assert response.status_code == 503
-        assert response.json()["detail"] == "LLM_INPUT_LIMIT"
+        assert response.json()["detail"] == code
 
 
 @pytest.mark.parametrize(

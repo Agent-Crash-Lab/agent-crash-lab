@@ -29,8 +29,6 @@ from agents.targets.reference_purchase_model import PurchaseChoice
 from agents.tools.mcp import McpTools
 from agents.tools.mock import MockTools
 
-ACTIVE = {"PREPARING", "RUNNING", "WAITING_APPROVAL"}
-
 
 class RunError(Exception):
     def __init__(self, status, code):
@@ -64,7 +62,7 @@ class Runtime:
             AsyncSqliteSaver.from_conn_string(str(path / "checkpoints.sqlite"))
         )
         await self.saver.setup()
-        for run in self.store.all():
+        for run in self.store.active():
             if run["status"] in {"PREPARING", "RUNNING"}:
                 self.store.fail(run["run_id"], "PROCESS_INTERRUPTED")
         self.expire()
@@ -81,7 +79,7 @@ class Runtime:
 
     def expire(self):
         now = time.time()
-        for run in self.store.all():
+        for run in self.store.active():
             if run["status"] == "WAITING_APPROVAL":
                 reason = None
                 if now >= run["created_at"] + self.policy["max_total_run_seconds"]:
@@ -162,7 +160,7 @@ class Runtime:
             self.expire()
             if self.store.get(body.run_id):
                 raise RunError(409, "RUN_EXISTS")
-            if any(run["status"] in ACTIVE for run in self.store.all()):
+            if self.store.active():
                 raise RunError(409, "AGENT_BUSY")
             token = body.agent_token.get_secret_value() if body.agent_token else ""
             public = body.model_dump(mode="json")

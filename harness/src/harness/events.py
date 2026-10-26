@@ -6,6 +6,7 @@ sorted by `occurred_at`. The stored sequence never changes once assigned.
 """
 
 import asyncio
+import logging
 import re
 import time
 from collections import defaultdict
@@ -13,10 +14,12 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 from jsonschema import Draft202012Validator
+from sqlalchemy.exc import SQLAlchemyError
 
-from harness.store import Store
+from harness.store import DuplicateEvent, Store
 
 _FRACTION = re.compile(r"(\.\d{6})\d+")
+logger = logging.getLogger(__name__)
 
 
 class InvalidEvent(ValueError):
@@ -119,8 +122,8 @@ class EventLog:
                     break
                 ready.append(item)
             for item in ready:
-                del waiting[item[3]["event_id"]]
                 self.store.add_event(run_id, item[3])
+                del waiting[item[3]["event_id"]]
             if not waiting:
                 self.buffer.pop(run_id, None)
         if ready:
@@ -130,7 +133,12 @@ class EventLog:
         while True:
             await asyncio.sleep(min(0.2, max(self.hold / 4, 0.01)))
             for run_id in list(self.buffer):
-                await self.flush(run_id)
+                try:
+                    await self.flush(run_id)
+                except (SQLAlchemyError, DuplicateEvent):
+                    logger.warning(
+                        "Event storage failed for %s; buffered events will retry", run_id
+                    )
 
     async def notify(self, run_id: str):
         condition = self.changed[run_id]

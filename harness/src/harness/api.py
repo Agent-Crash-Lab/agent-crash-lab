@@ -403,7 +403,11 @@ def create_app(settings: Settings | None = None, mcp=None, agents=None) -> FastA
             raise ApiError(
                 503,
                 exc.code
-                if exc.code in {"LLM_KEY_NOT_CONFIGURED", "UNPRICED_MODEL", "LLM_BUDGET_EXHAUSTED", "LLM_INPUT_LIMIT"}
+                if exc.code in {
+                    "LLM_KEY_NOT_CONFIGURED", "UNPRICED_MODEL",
+                    "LLM_BUDGET_EXHAUSTED", "LLM_INPUT_LIMIT",
+                    "KNOWLEDGE_UNAVAILABLE", "DESIGN_RISK_COVERAGE_MISMATCH",
+                }
                 else "QA_DESIGN_UNAVAILABLE",
             ) from None
         except (ValidationError, SchemaError, ValueError, KeyError, RecursionError):
@@ -430,7 +434,11 @@ def create_app(settings: Settings | None = None, mcp=None, agents=None) -> FastA
             raise ApiError(
                 503,
                 exc.code
-                if exc.code in {"LLM_KEY_NOT_CONFIGURED", "UNPRICED_MODEL", "LLM_BUDGET_EXHAUSTED", "LLM_INPUT_LIMIT"}
+                if exc.code in {
+                    "LLM_KEY_NOT_CONFIGURED", "UNPRICED_MODEL",
+                    "LLM_BUDGET_EXHAUSTED", "LLM_INPUT_LIMIT",
+                    "KNOWLEDGE_UNAVAILABLE", "DESIGN_RISK_COVERAGE_MISMATCH",
+                }
                 else "QA_DESIGN_UNAVAILABLE",
             ) from None
         except (
