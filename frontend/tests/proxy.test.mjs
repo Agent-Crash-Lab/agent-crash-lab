@@ -29,7 +29,7 @@ test('Node development proxy strips forged identity and preserves API status/bod
 
 test('entry and first-party module imports use the same release to bypass old browser caches',()=>{
   const index=readFileSync(new URL('../dist/index.html',import.meta.url),'utf8');
-  const entry=index.match(/src="\.\/app\.js\?v=([^"\s]+)"/);
+  const entry=index.match(/(?:src=|import\()["\']\.\/app\.js\?v=([^"\'\s]+)["\']/);
   assert.ok(entry);
   for(const file of ['app.js','live.js','registry.js','registration.js','scene.js']) {
     const source=readFileSync(new URL('../dist/'+file,import.meta.url),'utf8');

@@ -1,5 +1,6 @@
+import {describeError,errorMarkup} from './errors.js?v=0.15.8';
 import * as THREE from './vendor/three.module.js';
-import { layoutTopology } from './topology.js?v=0.15.7';
+import { layoutTopology } from './topology.js?v=0.15.8';
 
 void THREE;
 const roleNames = {
@@ -347,7 +348,8 @@ export function mountScene(container, graph, data, onSelect) {
     renderIsoScene(container, graph, data, onSelect);
   } catch (error) {
     console.warn('3D unavailable', error);
-    container.innerHTML = `<div class="scene-unavailable"><strong>3D 화면을 표시할 수 없습니다.</strong><p>구조 정보와 그래픽 가속을 확인하거나 타임라인을 이용하세요.</p>${data.preview ? '<button data-preview-mode="timeline">구조 목록으로 보기 →</button>' : '<button data-mode="timeline">타임라인으로 보기 →</button>'}</div>`;
+    container.innerHTML=errorMarkup({...describeError(error),title:'3D 화면을 표시하지 못했습니다',description:'이벤트와 보고서는 계속 확인할 수 있습니다.',action:data.preview?'등록 노드 목록 보기':'이벤트 목록 보기'},data.preview?'data-preview-mode="timeline"':'data-scene-events');
+    container.querySelector('[data-scene-events]')?.addEventListener('click',()=>{const events=container.closest('.live-stage-grid')?.querySelector('.live-events') || document.querySelector('.live-events');if(events){events.scrollIntoView({block:'center'});const first=events.querySelector('button');first?.focus();}});
   }
 }
 export function pauseScene() {}

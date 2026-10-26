@@ -1,4 +1,4 @@
-import {escapeHtml as esc} from './live-api.js?v=0.15.7';
+import {escapeHtml as esc} from './live-api.js?v=0.15.8';
 
 export function parseTools(text) {
   if(new TextEncoder().encode(text).length>100000)throw new Error('도구 정의는 100 KB 이하로 입력해 주세요.');
@@ -74,10 +74,11 @@ export function renderToolBindings(form, options, data=null) {
   return tools;
 }
 
-function object(text,label) {let value;try{value=JSON.parse(text);}catch{throw new Error(`${label}: JSON 형식을 확인해 주세요.`);}if(!value || typeof value!=='object' || Array.isArray(value))throw new Error(`${label}: JSON 객체를 입력해 주세요.`);return value;}
+function object(text,label,field) {let value;try{value=JSON.parse(text);}catch{throw Object.assign(new Error(`${label}: JSON 형식을 확인해 주세요.`),{fields:{[field]:`${label}: JSON 형식을 확인해 주세요.`}});}if(!value || typeof value!=='object' || Array.isArray(value))throw Object.assign(new Error(`${label}: JSON 객체를 입력해 주세요.`),{fields:{[field]:`${label}: JSON 객체를 입력해 주세요.`}});return value;}
 export function collectDeclaration(form) {
   const v=Object.fromEntries(new FormData(form));
-  const tools=parseTools(v.tools_json).map((t,i)=>({...t,effect:form.querySelector(`[data-qa-effect="${i}"]`)?.value || t.effect}));
+  let parsed;try{parsed=parseTools(v.tools_json);}catch(error){error.fields={tools_json:error.message};throw error;}
+  const tools=parsed.map((t,i)=>({...t,effect:form.querySelector(`[data-qa-effect="${i}"]`)?.value || t.effect}));
   if(tools.some(t=>!t.effect))throw new Error('도구 읽기를 누른 뒤 조회·변경 구분을 확인해 주세요.');
   const capability_bindings=[],excluded_capabilities=[];
   for(const select of form.querySelectorAll('[data-qa-cap]')){
@@ -86,7 +87,7 @@ export function collectDeclaration(form) {
   }
   return {execution_runtime:v.execution_runtime || null,name:v.name.trim(),version:v.version.trim(),agent_type:v.agent_type,task:v.task.trim(),industry_context:v.industry_context.trim(),tools,
     policies:{approval_required:v.approval_required===''?null:v.approval_required==='true',max_write_retries:v.max_write_retries===''?null:Number(v.max_write_retries)},
-    business_input_schema:object(v.schema_json,'입력 형식'),sample_data:{business_input:object(v.input_json,'업무 입력'),initial_state:object(v.state_json,'초기 상태')},capability_bindings,excluded_capabilities};
+    business_input_schema:object(v.schema_json,'입력 형식','schema_json'),sample_data:{business_input:object(v.input_json,'업무 입력','input_json'),initial_state:object(v.state_json,'초기 상태','state_json')},capability_bindings,excluded_capabilities};
 }
 
 export function capabilityLabel(name, options=[]) {

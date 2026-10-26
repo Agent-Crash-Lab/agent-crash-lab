@@ -1,9 +1,10 @@
-import {workspaceRoute,LIVE_COMPARISON_ENABLED,progressEventsMarkup} from './live-api.js?v=0.15.7';
-import {mountLive,leaveLive,isLiveAuthenticated,isApproverAccount,accountPage,referenceTargetTypes,targetTypeMeta,renderTargetDiagram} from './live.js?v=0.15.7';
-import { mountScene, pauseScene } from './scene.js?v=0.15.7';
-import { agents, investigationScenarios, investigationEvents, investigationChecks, validateDemoProfile, restoreProfiles } from './registry.js?v=0.15.7';
-import { frameFor, mapEvents } from './topology.js?v=0.15.7';
-import { initRegistration, openRegistration } from './registration.js?v=0.15.7';
+import {describeError,showError,clearError} from './errors.js?v=0.15.8';
+import {workspaceRoute,LIVE_COMPARISON_ENABLED,progressEventsMarkup} from './live-api.js?v=0.15.8';
+import {mountLive,leaveLive,isLiveAuthenticated,isApproverAccount,accountPage,referenceTargetTypes,targetTypeMeta,renderTargetDiagram} from './live.js?v=0.15.8';
+import { mountScene, pauseScene } from './scene.js?v=0.15.8';
+import { agents, investigationScenarios, investigationEvents, investigationChecks, validateDemoProfile, restoreProfiles } from './registry.js?v=0.15.8';
+import { frameFor, mapEvents } from './topology.js?v=0.15.8';
+import { initRegistration, openRegistration } from './registration.js?v=0.15.8';
 restoreProfiles();
 const $ = (s) => document.querySelector(s);
 const purchaseScenarios = {
@@ -311,6 +312,9 @@ function renderCoachmark(){
  updatePositions();
 }
 function render() {
+ try {renderWorkspace();}catch(error){const main=$('#main');showError(main,{...describeError(error),title:'화면 표시 실패',description:'현재 화면을 표시하지 못했습니다. 새로고침해 다시 확인하세요.',action:'새로고침'},{focus:true,action:'data-reload-app'});main?.querySelector('[data-reload-app]')?.addEventListener('click',()=>location.reload());}
+}
+function renderWorkspace() {
  leaveLive();
  document.body.classList.toggle('is-unauthenticated',workspacePage!=='demo'&&!isLiveAuthenticated());
  removeCoachmark();
@@ -417,8 +421,8 @@ document.addEventListener('click',async e=>{
  case 'exit-tutorial':state.tutorialTour=false;removeCoachmark();navigateWorkspace('agents');break;
  case 'play':if(state.tab!=='execution')break;state.demoPlaybackInteracted=true;if(state.playing){stopPlayback();render();}else{if(state.cursor===eventsFor().length-1)state.cursor=0;state.playing=true;state.selected=null;render();scheduleNext();}break;
  case 'speed':state.speed=state.speed===1?2:state.speed===2?.5:1;render();scheduleNext();break;
- case 'export':exportEvidence();break;
- case 'copy':try{await navigator.clipboard.writeText($('#evidence-json').textContent);toast('선택한 근거 JSON을 복사했습니다.');}catch{toast('복사할 수 없습니다. 근거 JSON을 직접 선택해 복사해 주세요.');}break;
+ case 'export':try{exportEvidence();}catch(error){showError(button.parentElement,{...describeError(error),title:'근거 다운로드 실패',action:'다시 내보내기'},{key:'export',focus:true,action:'data-action="export"'});}break;
+ case 'copy':try{await navigator.clipboard.writeText($('#evidence-json').textContent);clearError(button.closest('.evidence-content'),'copy');toast('선택한 근거 JSON을 복사했습니다.');}catch(error){showError(button.closest('.evidence-content'),{...describeError(error),title:'복사 실패',description:'근거 JSON을 직접 선택해 복사하거나 다시 시도하세요.',action:'다시 복사'},{key:'copy',focus:true,action:'data-action="copy"'});}break;
  case 'inspect-b0':case 'inspect-b1':state.config=button.dataset.action==='inspect-b0'?'B0':'B1';state.run={...state.run,config:state.config};state.cursor=eventsFor().length-1;navigate('execution');break;
  }
 });

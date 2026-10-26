@@ -1,5 +1,5 @@
-import { purchaseTopology, investigationTopology } from './topologies.js?v=0.15.7';
-import { validateTopology, mapEvents, validateRegistration } from './topology.js?v=0.15.7';
+import { purchaseTopology, investigationTopology } from './topologies.js?v=0.15.8';
+import { validateTopology, mapEvents, validateRegistration } from './topology.js?v=0.15.8';
 // Reference profiles describe bundled demo fixtures, not discovered live services.
 export const agents = {
  purchase: { topology:purchaseTopology, id:'purchase', name:'발주 Agent', code:'purchase-agent', initials:'PA', version:'reference-v1', prompt:'purchase-prompt-v1', model:null, adapter:'purchase-fixture-v1', role:'업무 수행', description:'재고를 확인하고, 담당자의 승인 이후 부품을 발주합니다.', evaluation:'Agent + MCP + 업무 서버 통합 시험', scope:'승인 통제 · 내용 일치 · 중복 발주 · 완료 보고', tools:['get_inventory','create_purchase_order'], defaultScenario:'S03', scenarios:['S01','S02','S03'] },

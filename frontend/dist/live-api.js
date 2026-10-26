@@ -1,17 +1,22 @@
+import {describeError} from './errors.js?v=0.15.8';
+export {describeError,errorMarkup,showError,clearError,markFields,captureForms,restoreForms} from './errors.js?v=0.15.8';
 // Only public user-session tokens cross this boundary; internal headers are server-owned.
 export async function api(path, {token, body, signal} = {}) {
-  const response = await fetch(`/api${path}`, {
+  let response;
+  try { response = await fetch(`/api${path}`, {
     method: body === undefined ? 'GET' : 'POST', signal, cache: 'no-store',
     headers: {Accept:'application/json', ...(token ? {Authorization:`Bearer ${token}`} : {}),
       ...(body === undefined ? {} : {'Content-Type':'application/json'})},
     ...(body === undefined ? {} : {body:JSON.stringify(body)})
   });
+  } catch(cause) {if(cause.name==='AbortError')throw cause;const error=new Error('서버 연결 실패');error.code='NETWORK_ERROR';error.transport=true;throw error;}
   let data;
   try { data = await response.json(); }
   catch {
     const error = new Error(`API 응답을 읽을 수 없습니다 (${response.status}). MCP·Harness 연결을 확인해 주세요.`);
-    error.status=response.status; throw error;
+    error.status=response.status;error.code='INVALID_RESPONSE';throw error;
   }
+  if(!data || typeof data!=='object' || Array.isArray(data)){const error=new Error('서버 응답 형식 오류');error.code='INVALID_RESPONSE';error.status=response.status;throw error;}
   if (!response.ok) {
     const error = new Error(data.error?.message || data.error?.code || `요청 실패 (${response.status})`);
     error.code = data.error?.code; error.status = response.status; error.details = data.error?.details;
@@ -126,7 +131,7 @@ export function runListMarkup(runs, catalog, selectedId) {
 
 // Guidance follows observed server state; a finished process is not a passing verdict.
 export function runGuidance(run, settled=false, page='execution') {
-  if (run.status === 'ERROR') return {title:'실행이 오류로 종료됐습니다', detail:'자동으로 다시 실행하지 않습니다. 실행 분석에서 오류와 마지막 기록을 확인해 주세요.', action:'오류 기록 확인 →', page:'execution'};
+  if (run.status === 'ERROR') return {title:'실행이 오류로 종료됐습니다', detail:`${run.run_id || ''} · ${describeError({code:run.error?.code || run.error_code || run.status_reason || run.failure_reason}).description} 마지막 확인 상태: 실행 오류. 자동으로 다시 실행하지 않습니다.`, action:'오류 기록 확인 →', page:'execution'};
   if (run.status === 'WAITING_APPROVAL') return {title:'담당자 승인을 기다리고 있습니다', detail:'업무 변경 요청과 내용을 확인한 뒤 승인자 계정으로 승인하거나 거절해 주세요.', action:'승인 처리로 이동 →', page:'live'};
   if (run.investigation?.status === 'RUNNING') return {title:'사고 조사 보고서를 작성하고 있습니다', detail:'근거와 지침을 조회해 보고서를 작성 중입니다. 완료 후 실행 분석에서 확인할 수 있습니다.', page:'live'};
   if (run.status === 'COMPLETED' && settled) {

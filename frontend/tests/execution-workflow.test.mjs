@@ -14,7 +14,7 @@ const plan={plan_id:'saved-plan',cases:[selected]};
 function workspace(page){
  const elements=new Map();
  const host={querySelector(selector){
-  if(!elements.has(selector))elements.set(selector,{dataset:{},innerHTML:'',hidden:false,parentElement:{prepend(){}},after(){}});
+  if(!elements.has(selector))elements.set(selector,{dataset:{},innerHTML:'',hidden:false,remove(){},insertAdjacentHTML(){},parentElement:{prepend(){}},after(){}});
   return elements.get(selector);
  }};
  const ui=vm.runInNewContext(source+`;host=testHost;page=testPage;guidance=()=>{};actionHint=()=>{};renderEvents=()=>{};({state,selectedDesign,renderRun,renderBatch})`,{...api,esc:api.escapeHtml,purchaseTopology,registeredCaseReady,testHost:host,testPage:page});
@@ -126,6 +126,7 @@ test('approval and rejection submit the decision for the same stored run with th
    FormData:class { *[Symbol.iterator](){yield ['user_id','approver-01'];yield ['password','test-password'];} },
    api:async(path,options)=>{calls.push({path,...options});return {access_token:'approver-session'};},
   });
+  ui.state.session={access_token:'requester-session'};
   ui.state.run={run_id:'RUN-original',manifest:simulation?{state_store:'simulation'}:{},approval_request:{approval_request_id:'AP-original',payload_hash:'saved-hash'}};
   const form={matches:s=>s==='[data-live-approval-form]',querySelectorAll:()=>[],password:{set value(value){passwordCleared=value==='';}}};
   await ui.submit({preventDefault(){},target:form,submitter:{value:decision}});

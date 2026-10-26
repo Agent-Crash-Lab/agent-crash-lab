@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {describeError} from '../dist/errors.js';
 
 const source=readFileSync(new URL('../dist/live.js',import.meta.url),'utf8');
 const logic=source.slice(source.indexOf('function startDesignProgress('),source.indexOf('function click(event)'));
@@ -12,11 +13,11 @@ function request() {
   const percent={textContent:''};
   const progress={hidden:true,isConnected:true,querySelector:s=>s==='.design-progress-value'?ring:percent};
   const button={disabled:false};
-  const form={closest:()=>({querySelector:()=>progress}),querySelectorAll:()=>[button],
+  const form={closest:()=>({querySelector:()=>progress}),querySelectorAll:s=>s==='button'?[button]:[],
     matches:s=>s==='[data-live-design]',setAttribute(key,value){this[key]=value;},removeAttribute(key){delete this[key];}};
   const context={setInterval:fn=>{tick=fn;return 1;},clearInterval:()=>cleared++,
     FormData:class { *[Symbol.iterator](){yield ['target_type','PURCHASE'];yield ['generation_mode','llm'];} },
-    generation:1,host:{},state:{session:{access_token:'test'},registration:null,targetType:'PURCHASE',trialData:{enabled:false}},
+    describeError,clearError(){},resolved(){},showFailures(){},generation:1,host:{},state:{approvalRetries:{},approvalUnknown:{},session:{access_token:'test'},registration:null,targetType:'PURCHASE',trialData:{enabled:false}},
     api:()=>pending,notify(){},failure(){},renderDesign(){},renderBatch(){},renderRegistrations(){},account(){}};
   const {submit}=vm.runInNewContext(logic+';({submit})',context);
   return {run:()=>submit({preventDefault(){},target:form}),tick:()=>tick(),resolve,reject,progress,percent,ring,button,form,cleared:()=>cleared};
@@ -42,7 +43,7 @@ test('successful login preserves the session and reports a failed workspace refr
  let shown=0,failed=0;
  const form={matches:s=>s==='[data-live-login]',querySelectorAll:()=>[],reset(){}};
  const context={FormData:class { *[Symbol.iterator](){yield ['user_id','requester-01'];} },
-  generation:1,host:{},state:{session:null},isApproverAccount:()=>false,notify(){},failure(){failed++;},renderRegistrations(){},account(){},renderBatch(){},
+  describeError,clearError(){},resolved(){},showFailures(){},generation:1,host:{},state:{approvalRetries:{},approvalUnknown:{},session:null},isApproverAccount:()=>false,notify(){},failure(){failed++;},renderRegistrations(){},account(){},renderBatch(){},
   api:async()=>({access_token:'test'}),refresh:async()=>{throw new Error('Unavailable');},
   document:{getElementById:id=>{assert.equal(id,'tutorial-invitation');return {showModal(){shown++;}};}}};
  const {submit}=vm.runInNewContext(logic+';({submit})',context);
