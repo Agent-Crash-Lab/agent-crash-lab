@@ -1,0 +1,51 @@
+import {chromium} from 'playwright';
+import fs from 'node:fs/promises';
+const out=process.env.ACL_CAPTURE_OUT || 'artifacts/frontend-captures';
+await fs.mkdir(out,{recursive:true});
+const browser=await chromium.launch({headless:true});
+const page=await browser.newPage({viewport:{width:1440,height:1000},deviceScaleFactor:2});
+page.setDefaultTimeout(20000);
+const errors=[];const trace=[];
+page.on('pageerror',e=>errors.push(e.message));
+page.on('response',r=>{if(r.url().includes('/api/')&&!r.url().includes('/auth/'))trace.push({path:new URL(r.url()).pathname,status:r.status()})});
+const base=process.env.ACL_UI_URL || 'http://localhost:18293';
+await page.goto(base+'/#execution?run=RUN-003');
+await page.locator('[data-live-login] [name=user_id]').fill('requester-01');
+await page.locator('[data-live-login] [name=password]').fill(process.env.ACL_TEST_PASSWORD);
+await page.locator('[data-live-login] button[type=submit]').click();
+await page.locator('#tutorial-invitation[open]').waitFor();
+await page.locator('#tutorial-invitation [data-action=dismiss-tutorial]').first().click();
+const captures=[];
+async function snap(selector,name){
+ const loc=page.locator(selector);await loc.scrollIntoViewIfNeeded();
+ await loc.screenshot({path:out+'/'+name,animations:'disabled'});
+ captures.push({file:name,selector,run:page.url().split('run=')[1],text:await loc.innerText(),bounds:await loc.boundingBox()});
+}
+async function settle(rid){
+ await page.waitForFunction(r=>location.hash.includes(r)&&document.querySelector('[data-live-summary]')?.innerText.includes(r)&&document.querySelector('[data-live-summary]')?.innerText.includes('수집 완료'),rid);
+ await page.locator('[data-live-summary]').waitFor({state:'visible'});
+ await page.locator('#live-scene svg').waitFor();
+ await page.evaluate(()=>Promise.all(document.getAnimations().filter(x=>x.effect?.getTiming().iterations!==Infinity).map(x=>x.finished.catch(()=>{}))));
+}
+await settle('RUN-003');
+await snap('[data-live-summary]','RUN-003-summary.png');
+await snap('[data-live-summary] .kpi-strip-card','RUN-003-kpi.png');
+await snap('[data-live-result] .checks','RUN-003-checks.png');
+await page.locator('[data-live-event="31"]').click();
+await page.waitForFunction(()=>document.querySelector('[data-live-evidence]')?.innerText.includes('BUSINESS_COMMITTED'));
+await snap('#live-scene','RUN-003-scene.png');
+await snap('[data-live-evidence]','RUN-003-event.png');
+await snap('[data-live-analysis]','RUN-003-analysis-panel.png');
+await page.getByText('추가 조사 기록',{exact:true}).click();
+await snap('[data-live-result] details:has(>summary:text-is("추가 조사 기록"))','RUN-003-investigation.png');
+await page.goto(base+'/#execution?run=RUN-004');await settle('RUN-004');
+await snap('[data-live-summary]','RUN-004-summary.png');
+await snap('[data-live-summary] .kpi-strip-card','RUN-004-kpi.png');
+await snap('[data-live-result] .checks','RUN-004-checks.png');
+await page.goto(base+'/#runs');
+await page.locator('[data-live-run-list] [data-live-run="RUN-006"]').waitFor();
+await snap('[data-live-run-list]','saved-runs.png');
+const result={captured_at:new Date().toISOString(),product_sha:'00bf03d1c2eb251e5e38ac1e236c6ba6505dc09e',cohort:'submission-20261026-main-00bf03d',mode:'actual frontend + HTTP API; read existing stored runs; no new Agent execution; no response mocking',viewport:{width:1440,height:1000,deviceScaleFactor:2},captures,page_errors:errors,http_reads:trace};
+await fs.writeFile(out+'/capture-manifest.json',JSON.stringify(result,null,2));
+await browser.close();
+console.log(JSON.stringify({images:captures.length,page_errors:errors,captured_at:result.captured_at}));

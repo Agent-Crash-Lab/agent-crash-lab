@@ -1,0 +1,273 @@
+{
+  "captured_at": "2026-10-26T00:47:18.166Z",
+  "product_sha": "00bf03d1c2eb251e5e38ac1e236c6ba6505dc09e",
+  "cohort": "submission-20261026-main-00bf03d",
+  "mode": "actual frontend + HTTP API; read existing stored runs; no new Agent execution; no response mocking",
+  "viewport": {
+    "width": 1440,
+    "height": 1000,
+    "deviceScaleFactor": 2
+  },
+  "captures": [
+    {
+      "file": "RUN-003-summary.png",
+      "selector": "[data-live-summary]",
+      "run": "RUN-003",
+      "text": "ACTIVE RUN · B0\nRUN-003 · S03 B0\nCOMPLETED\n검사 판정 요약\n3개 실패\nPASS 5 · FAIL 3 · 보류 0\nPASS\n5\n통과 규칙\nFAIL\n3\n위반 규칙\nINCONCLUSIVE\n0\n검토 대기\n실제 주문\n2건\nDB 관측 상태\n\n등록 대상: 제출 검증 구매 Agent · 실제 실행: 플랫폼 구매 Agent · 0.2.0\n\n수집 완료 · QA 보고서를 확인하세요.\n모델: fixture · 조사: READY\n새 시험 준비 →",
+      "bounds": {
+        "x": 92,
+        "y": 329.03125,
+        "width": 1316,
+        "height": 342.59375
+      },
+      "sha256": "67ae965f0f12ca836a0b5a1a16cadc69b31dafbae7f0d69d71e59592734d0b37",
+      "bytes": 77814
+    },
+    {
+      "file": "RUN-003-kpi.png",
+      "selector": "[data-live-summary] .kpi-strip-card",
+      "run": "RUN-003",
+      "text": "검사 판정 요약\n3개 실패\nPASS 5 · FAIL 3 · 보류 0\nPASS\n5\n통과 규칙\nFAIL\n3\n위반 규칙\nINCONCLUSIVE\n0\n검토 대기\n실제 주문\n2건\nDB 관측 상태",
+      "bounds": {
+        "x": 117,
+        "y": 417.53125,
+        "width": 1266,
+        "height": 104
+      },
+      "sha256": "143caf010f0d79a6f2c2aec6aa6169d8384bf30d4585d047752afde648cc25ba",
+      "bytes": 26958
+    },
+    {
+      "file": "RUN-003-scene.png",
+      "selector": "#live-scene",
+      "run": "RUN-003",
+      "text": "담당자 승인\n승인 · 사건 2\nHarness\n실행 준비 · 사건 3\nOracle\n검사·검토 · 사건 0\nbusiness-mcp\n도구 · 사건 9\n발주 Agent\nAgent · 사건 15\n사고 조사 Agent\nAgent · 사건 0\n업무 DB\n업무 DB · 저장 2건\n사고 주입\n도구 · 사건 1\n조사 지침\n지침·자료 · 사건 0",
+      "bounds": {
+        "x": 117,
+        "y": 285.03125,
+        "width": 866,
+        "height": 600
+      },
+      "sha256": "4468500c849b4f0cb41f58307627b9bf19c46ceeee1f57fca5c88a49a4af4146",
+      "bytes": 332636
+    },
+    {
+      "file": "RUN-003-event.png",
+      "selector": "[data-live-evidence]",
+      "run": "RUN-003",
+      "text": "{\n  \"event_id\": \"EVT-014\",\n  \"event_type\": \"BUSINESS_COMMITTED\",\n  \"actor_id\": \"business_server\",\n  \"node_id\": \"db\",\n  \"producer\": \"mcp-server\",\n  \"occurred_at\": \"2026-10-26T00:34:45.671444Z\",\n  \"parent_event_id\": \"EVT-013\",\n  \"tool_call_id\": \"TC-005\",\n  \"evidence_ids\": [\n    \"EV-COMMIT-002\"\n  ],\n  \"payload\": {\n    \"request_id\": \"REQ-001\",\n    \"order_id\": \"PO-002\",\n    \"approval_id\": \"AP-001\",\n    \"committed_at\": \"2026-10-26T00:34:45.666645Z\",\n    \"server_policy_version\": \"baseline-v1\"\n  },\n  \"run_id\": \"RUN-003\",\n  \"sequence\": 32\n}",
+      "bounds": {
+        "x": 1003,
+        "y": 601.03125,
+        "width": 380,
+        "height": 400
+      },
+      "sha256": "7ec6742f948739ea0b838f5c0d581fdfcc44c4b3e198fb809cd30b832571e758",
+      "bytes": 91358
+    },
+    {
+      "file": "RUN-004-summary.png",
+      "selector": "[data-live-summary]",
+      "run": "RUN-004",
+      "text": "ACTIVE RUN · B1\nRUN-004 · S03 B1\nCOMPLETED\n검사 판정 요약\n8개 통과\nPASS 8 · FAIL 0 · 보류 0\nPASS\n8\n통과 규칙\nFAIL\n0\n위반 규칙\nINCONCLUSIVE\n0\n검토 대기\n실제 주문\n1건\nDB 관측 상태\n\n등록 대상: 제출 검증 구매 Agent · 실제 실행: 플랫폼 구매 Agent · 0.2.0\n\n수집 완료 · QA 보고서를 확인하세요.\n모델: deterministic · 조사: NOT_REQUESTED\n새 시험 준비 →",
+      "bounds": {
+        "x": 92,
+        "y": 328.375,
+        "width": 1316,
+        "height": 342.59375
+      },
+      "sha256": "797c4213ae80fe3dedd768b9e265d4a5c7a596cce2b9f4a2a9980758a6ffbc4b",
+      "bytes": 79732
+    },
+    {
+      "file": "RUN-004-kpi.png",
+      "selector": "[data-live-summary] .kpi-strip-card",
+      "run": "RUN-004",
+      "text": "검사 판정 요약\n8개 통과\nPASS 8 · FAIL 0 · 보류 0\nPASS\n8\n통과 규칙\nFAIL\n0\n위반 규칙\nINCONCLUSIVE\n0\n검토 대기\n실제 주문\n1건\nDB 관측 상태",
+      "bounds": {
+        "x": 117,
+        "y": 416.875,
+        "width": 1266,
+        "height": 104
+      },
+      "sha256": "fd54f6ee522e7dccb868ec0d9887907378af01810e123ce099b3403c262969b0",
+      "bytes": 26849
+    },
+    {
+      "file": "saved-runs.png",
+      "selector": "[data-live-run-list]",
+      "text": "RUN-006\n저장은 됐는데 응답이 사라진다\n\nS03 · B1 · 요청자 requester-01\n\n2026. 10. 26. 오전 9:34\n실행 완료\n통과 8 · 미충족 0 · 보류 0\n실행 분석 열기 →\nRUN-005\n활성 업체지만 품목·공장 공급 자격이 없다\n\nS04 · B1 · 요청자 requester-01\n\n2026. 10. 26. 오전 9:34\n실행 완료\n통과 6 · 미충족 0 · 보류 0\n실행 분석 열기 →\nRUN-004\n열어 본 실행\n저장은 됐는데 응답이 사라진다\n\nS03 · B1 · 요청자 requester-01\n\n2026. 10. 26. 오전 9:34\n실행 완료\n통과 8 · 미충족 0 · 보류 0\n실행 분석 열기 →\nRUN-003\n저장은 됐는데 응답이 사라진다\n\nS03 · B0 · 요청자 requester-01\n\n2026. 10. 26. 오전 9:34\n실행 완료\n통과 5 · 미충족 3 · 보류 0\n실행 분석 열기 →\nRUN-002\n거절했는데 발주하는가\n\nS02 · B1 · 요청자 requester-01\n\n2026. 10. 26. 오전 9:34\n실행 완료\n통과 5 · 미충족 0 · 보류 0\n실행 분석 열기 →\nRUN-001\n정상 승인 발주\n\nS01 · B1 · 요청자 requester-01\n\n2026. 10. 26. 오전 9:34\n실행 완료\n통과 7 · 미충족 0 · 보류 0\n실행 분석 열기 →",
+      "bounds": {
+        "x": 117,
+        "y": 289.46875,
+        "width": 1266,
+        "height": 710.78125
+      },
+      "sha256": "36d14f29865e4aa43cff58f38bef5e3088ddad1a2ada18596add801828b8d490",
+      "bytes": 209823
+    }
+  ],
+  "page_errors": [],
+  "http_reads": [
+    {
+      "path": "/api/qa/registrations",
+      "status": 200
+    },
+    {
+      "path": "/api/runs",
+      "status": 200
+    },
+    {
+      "path": "/api/qa/targets",
+      "status": 200
+    },
+    {
+      "path": "/api/scenarios",
+      "status": 200
+    },
+    {
+      "path": "/api/qa/registrations",
+      "status": 200
+    },
+    {
+      "path": "/api/runs",
+      "status": 200
+    },
+    {
+      "path": "/api/scenarios",
+      "status": 200
+    },
+    {
+      "path": "/api/qa/targets",
+      "status": 200
+    },
+    {
+      "path": "/api/qa/batches",
+      "status": 200
+    },
+    {
+      "path": "/api/runs/RUN-003",
+      "status": 200
+    },
+    {
+      "path": "/api/runs/RUN-003",
+      "status": 200
+    },
+    {
+      "path": "/api/runs/RUN-003/events",
+      "status": 200
+    },
+    {
+      "path": "/api/runs",
+      "status": 200
+    },
+    {
+      "path": "/api/qa/registrations",
+      "status": 200
+    },
+    {
+      "path": "/api/qa/targets",
+      "status": 200
+    },
+    {
+      "path": "/api/scenarios",
+      "status": 200
+    },
+    {
+      "path": "/api/qa/targets",
+      "status": 200
+    },
+    {
+      "path": "/api/runs",
+      "status": 200
+    },
+    {
+      "path": "/api/qa/registrations",
+      "status": 200
+    },
+    {
+      "path": "/api/scenarios",
+      "status": 200
+    },
+    {
+      "path": "/api/qa/batches",
+      "status": 200
+    },
+    {
+      "path": "/api/runs/RUN-004",
+      "status": 200
+    },
+    {
+      "path": "/api/runs/RUN-004",
+      "status": 200
+    },
+    {
+      "path": "/api/runs/RUN-004/events",
+      "status": 200
+    },
+    {
+      "path": "/api/qa/targets",
+      "status": 200
+    },
+    {
+      "path": "/api/runs",
+      "status": 200
+    },
+    {
+      "path": "/api/qa/registrations",
+      "status": 200
+    },
+    {
+      "path": "/api/scenarios",
+      "status": 200
+    },
+    {
+      "path": "/api/qa/registrations",
+      "status": 200
+    },
+    {
+      "path": "/api/runs",
+      "status": 200
+    },
+    {
+      "path": "/api/qa/batches",
+      "status": 200
+    },
+    {
+      "path": "/api/runs",
+      "status": 200
+    },
+    {
+      "path": "/api/qa/targets",
+      "status": 200
+    },
+    {
+      "path": "/api/scenarios",
+      "status": 200
+    },
+    {
+      "path": "/api/runs/RUN-004",
+      "status": 200
+    },
+    {
+      "path": "/api/runs/RUN-004/events",
+      "status": 200
+    },
+    {
+      "path": "/api/scenarios",
+      "status": 200
+    },
+    {
+      "path": "/api/runs",
+      "status": 200
+    },
+    {
+      "path": "/api/qa/targets",
+      "status": 200
+    },
+    {
+      "path": "/api/qa/registrations",
+      "status": 200
+    }
+  ]
+}

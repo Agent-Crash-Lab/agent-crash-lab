@@ -244,8 +244,8 @@
   "public_files": [
     {
       "file": "README.md",
-      "sha256": "bfa7b212a751ca1ae2454d611d5183fb61fe8c6abb4bfeaa649cc147acf6ae6f",
-      "bytes": 6365
+      "sha256": "c822c984772baab1890cd059abf9332686be37365a4af1cd980a20676536ed4a",
+      "bytes": 6617
     },
     {
       "file": "acceptance-matrix.md",
@@ -521,6 +521,56 @@
       "file": "ui/results.json",
       "sha256": "813d5ffaa98781f3838107e3f1e079e13dc465dc90fd6cf113a766d072bdc9f0",
       "bytes": 770
+    },
+    {
+      "file": "ui/screenshots-20261026/README.md",
+      "sha256": "b0f8582db9cdab081cf25ece47248dc7866a4d3cc52a992cf2223113ac6ae9d5",
+      "bytes": 2852
+    },
+    {
+      "file": "ui/screenshots-20261026/RUN-003-event.png",
+      "sha256": "7ec6742f948739ea0b838f5c0d581fdfcc44c4b3e198fb809cd30b832571e758",
+      "bytes": 91358
+    },
+    {
+      "file": "ui/screenshots-20261026/RUN-003-kpi.png",
+      "sha256": "143caf010f0d79a6f2c2aec6aa6169d8384bf30d4585d047752afde648cc25ba",
+      "bytes": 26958
+    },
+    {
+      "file": "ui/screenshots-20261026/RUN-003-scene.png",
+      "sha256": "4468500c849b4f0cb41f58307627b9bf19c46ceeee1f57fca5c88a49a4af4146",
+      "bytes": 332636
+    },
+    {
+      "file": "ui/screenshots-20261026/RUN-003-summary.png",
+      "sha256": "67ae965f0f12ca836a0b5a1a16cadc69b31dafbae7f0d69d71e59592734d0b37",
+      "bytes": 77814
+    },
+    {
+      "file": "ui/screenshots-20261026/RUN-004-kpi.png",
+      "sha256": "fd54f6ee522e7dccb868ec0d9887907378af01810e123ce099b3403c262969b0",
+      "bytes": 26849
+    },
+    {
+      "file": "ui/screenshots-20261026/RUN-004-summary.png",
+      "sha256": "797c4213ae80fe3dedd768b9e265d4a5c7a596cce2b9f4a2a9980758a6ffbc4b",
+      "bytes": 79732
+    },
+    {
+      "file": "ui/screenshots-20261026/capture-manifest.json",
+      "sha256": "d5b8bb339d904d88d0686d9bfb9d58960084f2efd7bf0e98b9f8b746f2858c9e",
+      "bytes": 8940
+    },
+    {
+      "file": "ui/screenshots-20261026/capture_ui.mjs",
+      "sha256": "fb8d01b26267fecf21ddab1d59ea503d5a78033b2503670555af13734d08d90f",
+      "bytes": 3660
+    },
+    {
+      "file": "ui/screenshots-20261026/saved-runs.png",
+      "sha256": "36d14f29865e4aa43cff58f38bef5e3088ddad1a2ada18596add801828b8d490",
+      "bytes": 209823
     }
   ]
 }

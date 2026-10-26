@@ -59,3 +59,7 @@ UI-01은 접힌 ‘추가 조사 기록’을 열어 주문 2건이라는 문장
 - [Agent 회귀 로그](regression/agents-test.log), [Harness 회귀 로그](regression/harness-test.log), [MCP 회귀 로그](regression/mcp-test.log), [Frontend 회귀 로그](regression/frontend-test.log)
 
 현재 checkout에 포함되지 않은 과거 원시 응답은 공개 로그처럼 연결하지 않았습니다. 링크로 제공하는 각 파일의 범위와 원본 보존·제거 내역을 위 문서에서 확인할 수 있습니다.
+
+## 프론트엔드 캡처 보강
+
+[실제 실행 화면 7장과 캡처 근거](ui/screenshots-20261026/README.md)를 추가했습니다. 기존 RUN-003/004를 실제 API로 다시 조회한 화면이며 새 Agent 실행 수에 더하지 않습니다.
