@@ -1,0 +1,301 @@
+{
+  "policy": "credentials and personal local paths removed; retrieved source passages omitted with SHA-256. Test verdicts and denominators preserved.",
+  "fields": [
+    {
+      "path": "e2e/plan.json/cases/5/design_basis/sources/0/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/cases/5/design_basis/sources/1/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/cases/5/design_basis/sources/2/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/cases/5/evaluation_strategy/review/stages/0/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/cases/5/evaluation_strategy/review/stages/1/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/cases/7/design_basis/sources/0/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/cases/7/design_basis/sources/1/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/cases/7/design_basis/sources/2/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/cases/7/evaluation_strategy/review/stages/0/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/cases/7/evaluation_strategy/review/stages/1/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/cases/8/design_basis/sources/0/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/cases/8/design_basis/sources/1/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/cases/8/design_basis/sources/2/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/cases/8/evaluation_strategy/review/stages/0/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/cases/8/evaluation_strategy/review/stages/1/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/design/reviews/0/stages/0/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/design/reviews/0/stages/1/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/design/reviews/1/stages/0/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/design/reviews/1/stages/1/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/design/reviews/2/stages/0/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/design/reviews/2/stages/1/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/design/sources/0/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/design/sources/1/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/design/sources/2/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/design/sources/3/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/design/sources/4/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/design/sources/5/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/design/sources/6/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/design/sources/7/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/design/sources/8/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/design/sources/9/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/design/sources/10/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/design/sources/11/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/design/trace/6/reviews/0/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/design/trace/6/reviews/1/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/design/trace/6/reviews/2/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/design/trace/7/reviews/0/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/design/trace/7/reviews/1/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/plan.json/design/trace/7/reviews/2/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-006.json/run/qa_report/test/design_review/stages/0/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-006.json/run/qa_report/test/design_review/stages/1/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-006.json/run/qa_case/design_basis/sources/0/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-006.json/run/qa_case/design_basis/sources/1/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-006.json/run/qa_case/design_basis/sources/2/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-006.json/run/qa_case/evaluation_strategy/review/stages/0/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-006.json/run/qa_case/evaluation_strategy/review/stages/1/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-004.json/run/qa_report/test/design_review/stages/0/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-004.json/run/qa_report/test/design_review/stages/1/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-004.json/run/qa_case/design_basis/sources/0/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-004.json/run/qa_case/design_basis/sources/1/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-004.json/run/qa_case/design_basis/sources/2/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-004.json/run/qa_case/evaluation_strategy/review/stages/0/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-004.json/run/qa_case/evaluation_strategy/review/stages/1/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-005.json/run/qa_report/test/design_review/stages/0/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-005.json/run/qa_report/test/design_review/stages/1/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-005.json/run/qa_case/design_basis/sources/0/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-005.json/run/qa_case/design_basis/sources/1/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-005.json/run/qa_case/design_basis/sources/2/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-005.json/run/qa_case/evaluation_strategy/review/stages/0/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-005.json/run/qa_case/evaluation_strategy/review/stages/1/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-002.json/run/qa_report/test/design_review/stages/0/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-002.json/run/qa_report/test/design_review/stages/1/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-002.json/run/qa_case/design_basis/sources/0/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-002.json/run/qa_case/design_basis/sources/1/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-002.json/run/qa_case/design_basis/sources/2/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-002.json/run/qa_case/evaluation_strategy/review/stages/0/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-002.json/run/qa_case/evaluation_strategy/review/stages/1/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-003.json/run/qa_report/test/design_review/stages/0/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-003.json/run/qa_report/test/design_review/stages/1/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-003.json/run/qa_case/design_basis/sources/0/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-003.json/run/qa_case/design_basis/sources/1/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-003.json/run/qa_case/design_basis/sources/2/matched_text",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-003.json/run/qa_case/evaluation_strategy/review/stages/0/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    },
+    {
+      "path": "e2e/RUN-003.json/run/qa_case/evaluation_strategy/review/stages/1/score_reasons/evidence_quote",
+      "kind": "retrieved_passage"
+    }
+  ]
+}

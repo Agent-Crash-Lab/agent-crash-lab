@@ -1,0 +1,398 @@
+[
+  {
+    "suite": "com.agentcrashlab.mcp.domain.PurchasePayloadTests",
+    "name": "rejectsInvalidValues()",
+    "seconds": "0.001",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.domain.PurchasePayloadTests",
+    "name": "rejectsMissingOrExtraFields()",
+    "seconds": "0.0",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.domain.PurchasePayloadTests",
+    "name": "nonAsciiIsNotEscapedLikePython()",
+    "seconds": "0.0",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.domain.PurchasePayloadTests",
+    "name": "hashMatchesDraftFixtures()",
+    "seconds": "0.0",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.tool.rag.HarnessRunInvestigationTests",
+    "name": "investigatorReadsHarnessStateTraceAndScopedKnowledge()",
+    "seconds": "0.039",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.tool.rag.HarnessRunInvestigationTests",
+    "name": "purchaseRunKeepsPurchaseKnowledgeScope()",
+    "seconds": "0.014",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.tool.rag.HarnessRunInvestigationTests",
+    "name": "registrationIsInternalAndKeepsTheBusinessType()",
+    "seconds": "0.016",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.McpServerApplicationTests",
+    "name": "mcpEndpointKeepsProtocolFieldNames()",
+    "seconds": "0.022",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.McpServerApplicationTests",
+    "name": "restJsonUsesSnakeCase()",
+    "seconds": "0.003",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.McpServerApplicationTests",
+    "name": "healthEndpointIsUp()",
+    "seconds": "0.003",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.publicapi.ApprovalFlowTests",
+    "name": "decisionRequiresApproverAndTheShownPayload()",
+    "seconds": "0.188",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.publicapi.ApprovalFlowTests",
+    "name": "resumeFailureIsReportedAndTheSameDecisionCanBeResent()",
+    "seconds": "0.696",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.publicapi.ApprovalFlowTests",
+    "name": "approverDecidesAndHarnessIsAskedToResume()",
+    "seconds": "0.128",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.publicapi.ApprovalFlowTests",
+    "name": "loginRequiresTheDemoPassword()",
+    "seconds": "0.111",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.publicapi.ApprovalFlowTests",
+    "name": "approverFromAnotherOrgCannotDecideOrTakeAwayTheDecision()",
+    "seconds": "0.072",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.publicapi.ApprovalFlowTests",
+    "name": "registersOnePendingApprovalForTheRegisteredRequest()",
+    "seconds": "0.015",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.publicapi.ApprovalFlowTests",
+    "name": "transientResumeFailureIsRetried()",
+    "seconds": "0.275",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.tool.business.BusinessToolTests",
+    "name": "readToolsReturnWhatTheAgentChecks()",
+    "seconds": "0.02",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.tool.business.BusinessToolTests",
+    "name": "createIsBlockedWithoutValidApproval()",
+    "seconds": "0.029",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.tool.business.BusinessToolTests",
+    "name": "investigationAgentCannotCallPurchaseToolsAndTheAttemptIsRecorded()",
+    "seconds": "0.033",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.tool.business.BusinessToolTests",
+    "name": "activeSupplierWithoutScopedQualificationIsVisibleAndBlocked()",
+    "seconds": "0.027",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.tool.business.BusinessToolTests",
+    "name": "invalidArgumentsAreValidationErrors()",
+    "seconds": "0.018",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.tool.business.BusinessToolTests",
+    "name": "missingTokenIsPermissionDenied()",
+    "seconds": "0.004",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.tool.business.BusinessToolTests",
+    "name": "listsPurchaseTools()",
+    "seconds": "0.015",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.tool.business.BusinessToolTests",
+    "name": "approvedCreateCommitsOrderWithEvidenceAndB0AllowsDuplicates()",
+    "seconds": "0.03",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.tool.ToolContractTests",
+    "name": "ragToolsMatchDraftContract()",
+    "seconds": "0.001",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.tool.ToolContractTests",
+    "name": "businessToolsMatchDraftContract()",
+    "seconds": "0.0",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.internal.FinalizedRunTests",
+    "name": "stateBeforeFinalizeIsLiveAndMarkedIncomplete()",
+    "seconds": "0.007",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.internal.FinalizedRunTests",
+    "name": "snapshotEvidenceKeepsTheSameContent()",
+    "seconds": "0.009",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.internal.FinalizedRunTests",
+    "name": "lateApprovalIsRejectedAfterFinalize()",
+    "seconds": "0.014",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.event.EventDeliveryTests",
+    "name": "eventsKeepTheOrderTheyWerePublished()",
+    "seconds": "0.05",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.event.EventDeliveryTests",
+    "name": "slowHarnessDoesNotDelayToolResponse()",
+    "seconds": "1.24",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.ScenarioFlowTests",
+    "name": "s02RejectedPurchaseIsBlockedAndRecorded()",
+    "seconds": "0.225",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.ScenarioFlowTests",
+    "name": "s01ApprovedPurchaseEndsWithOneMatchingOrder()",
+    "seconds": "0.117",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.tool.rag.RagToolTests",
+    "name": "onlyTheInvestigatorOfThisRunCanUseRagTools()",
+    "seconds": "0.067",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.tool.rag.RagToolTests",
+    "name": "businessStateShowsTheDuplicateWithEvidence()",
+    "seconds": "0.032",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.tool.rag.RagToolTests",
+    "name": "guideResourceRequiresInvestigatorToken()",
+    "seconds": "0.008",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.tool.rag.RagToolTests",
+    "name": "failedChecksComeFromHarness()",
+    "seconds": "0.039",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.tool.rag.RagToolTests",
+    "name": "businessStateBeforeFinalizeIsNotComplete()",
+    "seconds": "0.027",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.tool.rag.RagToolTests",
+    "name": "guideSearchAndResourceRead()",
+    "seconds": "0.041",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.tool.rag.RagToolTests",
+    "name": "runTraceCombinesHarnessEventsAndToolCalls()",
+    "seconds": "0.028",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.tool.rag.RagToolTests",
+    "name": "harnessOutageIsRetryableInternalError()",
+    "seconds": "0.026",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.internal.ReferencePurchaseSimulationTests",
+    "name": "seedUsersAreLoaded()",
+    "seconds": "0.001",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.internal.ReferencePurchaseSimulationTests",
+    "name": "rejectsDuplicateRunAndUnknownFixture()",
+    "seconds": "0.011",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.internal.ReferencePurchaseSimulationTests",
+    "name": "initializesRunFromSeed()",
+    "seconds": "0.006",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.internal.ReferencePurchaseSimulationTests",
+    "name": "initializesPreparedDataAndRejectsAuthorityChangesBeforeWrites()",
+    "seconds": "0.008",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.internal.ReferencePurchaseSimulationTests",
+    "name": "rejectsMissingOrWrongInternalToken()",
+    "seconds": "0.002",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.fault.SignatureScenarioTests",
+    "name": "unreachedFaultBecomesNotReachedAtFinalize()",
+    "seconds": "0.037",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.fault.SignatureScenarioTests",
+    "name": "s03BaselineRetryCreatesDuplicateOrder()",
+    "seconds": "0.068",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.fault.SignatureScenarioTests",
+    "name": "everyEventMatchesTheDraftEventSchema()",
+    "seconds": "0.03",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.fault.SignatureScenarioTests",
+    "name": "s03IdempotentRetryReturnsTheSameOrder()",
+    "seconds": "0.028",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.fault.SignatureScenarioTests",
+    "name": "blockedCallsDoNotTriggerTheFault()",
+    "seconds": "0.025",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.fault.SignatureScenarioTests",
+    "name": "approvalEventsAreLinked()",
+    "seconds": "0.019",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.tool.ToolTimeoutTests",
+    "name": "slowCallReturnsToolTimeoutAndCompletesLater()",
+    "seconds": "1.601",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.tool.ToolTimeoutTests",
+    "name": "finalizeReportsUnsettledWhenCallsAreStillRunning()",
+    "seconds": "0.23",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.DatabaseSchemaTests",
+    "name": "oracleCanReadBusinessTables()",
+    "seconds": "0.029",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.DatabaseSchemaTests",
+    "name": "sameIdsCanBeReusedAcrossRuns()",
+    "seconds": "0.036",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.DatabaseSchemaTests",
+    "name": "oracleCannotReadSecretTables()",
+    "seconds": "0.011",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.DatabaseSchemaTests",
+    "name": "onlyOnePendingApprovalRequestPerRequest()",
+    "seconds": "0.009",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.DatabaseSchemaTests",
+    "name": "healthIsUpWithDatabase()",
+    "seconds": "0.047",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.DatabaseSchemaTests",
+    "name": "oracleCannotWrite()",
+    "seconds": "0.008",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.DatabaseSchemaTests",
+    "name": "migrationCreatesAllTablesOwnedByMcpApp()",
+    "seconds": "0.006",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.DatabaseSchemaTests",
+    "name": "sameRequestCanHaveTwoOrdersForB0()",
+    "seconds": "0.005",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.publicapi.RunGatewayTests",
+    "name": "forwardsTrustedIdentityAndPreservesUpstreamStatusAndQuery()",
+    "seconds": "0.079",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.publicapi.RunGatewayTests",
+    "name": "rejectsMissingSessionAndReadOnlyUsersBeforeStarting()",
+    "seconds": "0.002",
+    "status": "PASS"
+  },
+  {
+    "suite": "com.agentcrashlab.mcp.publicapi.RunGatewayTests",
+    "name": "manufacturingApprovalUsesApproverRoleWithoutAllowingRunCreation()",
+    "seconds": "0.003",
+    "status": "PASS"
+  }
+]

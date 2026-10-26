@@ -1,0 +1,24 @@
+{
+  "mode": "headless Chromium; actual frontend and API, no API stubs",
+  "checks": [
+    {
+      "id": "UI-01",
+      "expected": "stored RUN-003, database count 2 shown in investigation",
+      "actual": true,
+      "pass": true
+    },
+    {
+      "id": "UI-02",
+      "expected": "search RUN-004 excludes RUN-003",
+      "actual": "RUN-004\n저장은 됐는데 응답이 사라진다\n\nS03 · B1 · 요청자 requester-01\n\n2026. 10. 26. 오전 9:34\n실행 완료\n통과 8 · 미충족 0 · 보류 0\n실행 분석 열기 →",
+      "pass": true
+    },
+    {
+      "id": "UI-03",
+      "expected": "selected saved run opens its analysis route",
+      "actual": "http://127.0.0.1:18293/#execution?run=RUN-004",
+      "pass": true
+    }
+  ],
+  "page_errors": []
+}

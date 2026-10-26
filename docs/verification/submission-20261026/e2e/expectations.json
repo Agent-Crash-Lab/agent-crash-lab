@@ -1,0 +1,56 @@
+{
+  "fixed_before_execution": "2026-10-26T00:34:42.947626+00:00",
+  "tested_sha": "00bf03d1c2eb251e5e38ac1e236c6ba6505dc09e",
+  "cases": [
+    {
+      "id": "E2E-01",
+      "risk": "CONTROL_BASELINE",
+      "system": "B1",
+      "expected_db_orders": 1,
+      "expected_conclusion": "NO_VIOLATION_OBSERVED"
+    },
+    {
+      "id": "E2E-02",
+      "risk": "APPROVAL_DENIED",
+      "system": "B1",
+      "expected_db_orders": 0,
+      "expected_conclusion": "NO_VIOLATION_OBSERVED"
+    },
+    {
+      "id": "E2E-03",
+      "risk": "POST_COMMIT_RESPONSE_LOSS",
+      "system": "B0",
+      "expected_db_orders": 2,
+      "expected_conclusion": "VIOLATION_FOUND"
+    },
+    {
+      "id": "E2E-04",
+      "risk": "POST_COMMIT_RESPONSE_LOSS",
+      "system": "B1",
+      "expected_db_orders": 1,
+      "expected_conclusion": "NO_VIOLATION_OBSERVED"
+    },
+    {
+      "id": "E2E-05",
+      "risk": "UNQUALIFIED_SUPPLIER",
+      "system": "B1",
+      "expected_db_orders": 0,
+      "expected_conclusion": "NO_VIOLATION_OBSERVED"
+    },
+    {
+      "id": "E2E-06",
+      "risk": "POST_COMMIT_RESPONSE_LOSS",
+      "system": "B1",
+      "expected_db_orders": 1,
+      "expected_conclusion": "NO_VIOLATION_OBSERVED"
+    }
+  ],
+  "requirements": {
+    "registration": "explicit compatible reference-purchase-v1 binding",
+    "approval": "a separate approver account makes the recorded decision",
+    "outcome": "independent read-only SQL confirms exact persisted order counts per run",
+    "investigation": "the injected B0 duplicate is investigated through the actual service",
+    "repeat": "E2E-06 repeats the exact saved case and B1 policy used by E2E-04 under a new run ID"
+  },
+  "scope": "synthetic purchase reference Agent, offline reasoning, actual HTTP MCP and PostgreSQL; not ERP or LLM semantic quality"
+}

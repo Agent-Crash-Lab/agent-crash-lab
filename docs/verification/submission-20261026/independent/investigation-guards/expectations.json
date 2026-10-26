@@ -1,0 +1,46 @@
+{
+  "fixed_at": 1792974014.396265,
+  "reason": "Evidence existence is necessary but a fact contradicted by its cited snapshot must not be accepted as a verified report. No requirement to diagnose an unavailable root cause.",
+  "cases": [
+    [
+      "valid",
+      "ACCEPT"
+    ],
+    [
+      "unknown_evidence",
+      "REJECT"
+    ],
+    [
+      "wrong_target",
+      "REJECT"
+    ],
+    [
+      "unretrieved_source",
+      "REJECT"
+    ],
+    [
+      "wrong_source_version",
+      "REJECT"
+    ],
+    [
+      "hidden_missing",
+      "REJECT"
+    ],
+    [
+      "foreign_snapshot",
+      "REJECT"
+    ],
+    [
+      "false_count_valid_id",
+      "REJECT"
+    ],
+    [
+      "false_approval_valid_id",
+      "REJECT"
+    ],
+    [
+      "empty_evidence",
+      "REJECT"
+    ]
+  ]
+}

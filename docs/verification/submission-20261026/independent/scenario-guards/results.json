@@ -1,0 +1,132 @@
+[
+  {
+    "id": "valid",
+    "expected": "READY",
+    "level": "PLANNER_OBJECT_MUTATION",
+    "actual": "READY",
+    "execution": {
+      "status": "READY",
+      "registered_test_id": "S04",
+      "rule_ids": [
+        "R01",
+        "R04",
+        "R06",
+        "R09",
+        "R10"
+      ],
+      "missing_capabilities": [],
+      "reason": "Registered simulator and code evaluator available"
+    },
+    "matches": true
+  },
+  {
+    "id": "invented_source",
+    "expected": "BLOCKED",
+    "level": "PLANNER_OBJECT_MUTATION",
+    "actual": "BLOCKED",
+    "error": "Unretrieved design source",
+    "error_type": "ValueError",
+    "matches": true
+  },
+  {
+    "id": "missing_agentic_stage",
+    "expected": "BLOCKED",
+    "level": "PLANNER_OBJECT_MUTATION",
+    "actual": "BLOCKED",
+    "error": "Both ordered review gates are required",
+    "error_type": "ValueError",
+    "matches": true
+  },
+  {
+    "id": "wrong_stage_order",
+    "expected": "BLOCKED",
+    "level": "PLANNER_OBJECT_MUTATION",
+    "actual": "BLOCKED",
+    "error": "Both ordered review gates are required",
+    "error_type": "ValueError",
+    "matches": true
+  },
+  {
+    "id": "wrong_score_total",
+    "expected": "BLOCKED",
+    "level": "PLANNER_OBJECT_MUTATION",
+    "actual": "BLOCKED",
+    "error": "Review score total does not match its criteria",
+    "error_type": "ValueError",
+    "matches": true
+  },
+  {
+    "id": "zero_critical_score",
+    "expected": "BLOCKED",
+    "level": "PLANNER_OBJECT_MUTATION",
+    "actual": "BLOCKED",
+    "error": "Review decision contradicts its criteria",
+    "error_type": "ValueError",
+    "matches": true
+  },
+  {
+    "id": "unregistered_tool",
+    "expected": "BLOCKED",
+    "level": "PLANNER_OBJECT_MUTATION",
+    "actual": "BLOCKED",
+    "error": "Invalid proposal identity or tool",
+    "error_type": "ValueError",
+    "matches": true
+  },
+  {
+    "id": "stale_policy_hash",
+    "expected": "BLOCKED",
+    "level": "PLANNER_OBJECT_MUTATION",
+    "actual": "BLOCKED",
+    "error": "Test policy changed; design a new plan",
+    "error_type": "ValueError",
+    "matches": true
+  },
+  {
+    "id": "source_version_changed",
+    "expected": "BLOCKED",
+    "level": "PLANNER_OBJECT_MUTATION",
+    "actual": "BLOCKED",
+    "error": "Review citation is outside its domain, version or risk",
+    "error_type": "ValueError",
+    "matches": true
+  },
+  {
+    "id": "false_source_text",
+    "expected": "BLOCKED",
+    "level": "PLANNER_OBJECT_MUTATION",
+    "actual": "BLOCKED",
+    "error": "Unsupported domain claims cannot pass the review gate",
+    "error_type": "ValueError",
+    "matches": true
+  },
+  {
+    "id": "fabricated_quote",
+    "expected": "BLOCKED",
+    "level": "PLANNER_OBJECT_MUTATION",
+    "actual": "BLOCKED",
+    "error": "Unsupported domain claims cannot pass the review gate",
+    "error_type": "ValueError",
+    "matches": true
+  },
+  {
+    "id": "forged_text_and_quote",
+    "expected": "BLOCKED",
+    "level": "PLANNER_OBJECT_MUTATION",
+    "actual": "READY",
+    "execution": {
+      "status": "READY",
+      "registered_test_id": "S04",
+      "rule_ids": [
+        "R01",
+        "R04",
+        "R06",
+        "R09",
+        "R10"
+      ],
+      "missing_capabilities": [],
+      "reason": "Registered simulator and code evaluator available"
+    },
+    "matches": false
+  }
+]

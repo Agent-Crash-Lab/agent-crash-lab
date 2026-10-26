@@ -1,0 +1,54 @@
+{
+  "fixed_at": 1792974044.746082,
+  "cases": [
+    [
+      "valid",
+      "READY"
+    ],
+    [
+      "invented_source",
+      "BLOCKED"
+    ],
+    [
+      "missing_agentic_stage",
+      "BLOCKED"
+    ],
+    [
+      "wrong_stage_order",
+      "BLOCKED"
+    ],
+    [
+      "wrong_score_total",
+      "BLOCKED"
+    ],
+    [
+      "zero_critical_score",
+      "BLOCKED"
+    ],
+    [
+      "unregistered_tool",
+      "BLOCKED"
+    ],
+    [
+      "stale_policy_hash",
+      "BLOCKED"
+    ],
+    [
+      "source_version_changed",
+      "BLOCKED"
+    ],
+    [
+      "false_source_text",
+      "BLOCKED"
+    ],
+    [
+      "fabricated_quote",
+      "BLOCKED"
+    ],
+    [
+      "forged_text_and_quote",
+      "BLOCKED"
+    ]
+  ],
+  "basis": "A bound plan must retain two ordered reviews, exact score arithmetic, registered tools and current verified evidence. Changed citation bytes/version must not retain trusted readiness."
+}

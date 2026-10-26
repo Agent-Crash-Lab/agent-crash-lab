@@ -1,0 +1,1731 @@
+[
+  {
+    "suite": "tests.test_api",
+    "name": "test_health",
+    "seconds": "0.033",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_api",
+    "name": "test_internal_api_requires_token",
+    "seconds": "0.023",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_api",
+    "name": "test_unconfigured_token_is_503",
+    "seconds": "0.021",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_api",
+    "name": "test_gateway_headers_and_roles",
+    "seconds": "0.026",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_api",
+    "name": "test_create_run_validation",
+    "seconds": "0.022",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_api",
+    "name": "test_mcp_events_share_sequence_and_are_idempotent",
+    "seconds": "0.599",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_api",
+    "name": "test_event_replay_and_sse",
+    "seconds": "0.357",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_api",
+    "name": "test_run_list",
+    "seconds": "0.347",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_api",
+    "name": "test_events_are_numbered_by_occurrence_not_arrival",
+    "seconds": "2.746",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_api",
+    "name": "test_occurred_epoch_formats",
+    "seconds": "0.001",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_api",
+    "name": "test_public_order_count_does_not_expose_observation",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_api",
+    "name": "test_approver_workspace_requires_role_and_includes_pending_and_readable_report",
+    "seconds": "0.347",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_api",
+    "name": "test_approver_workspace_keeps_pending_requests_older_than_recent_history",
+    "seconds": "0.118",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_api",
+    "name": "test_run_history_search_status_and_paging_reach_old_runs",
+    "seconds": "0.048",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_batches",
+    "name": "test_strategy_uses_policy_floor_and_same_input_control",
+    "seconds": "0.030",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_batches",
+    "name": "test_trial_sizing_and_missing_observations_do_not_pass",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_batches",
+    "name": "test_batch_runs_matching_control_and_risk_and_is_owner_scoped",
+    "seconds": "0.260",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_batches",
+    "name": "test_stops_without_turning_partial_results_into_pass[limit-RUN_LIMIT]",
+    "seconds": "0.169",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_batches",
+    "name": "test_stops_without_turning_partial_results_into_pass[failure-RULE_FAILURE]",
+    "seconds": "0.417",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_batches",
+    "name": "test_stops_without_turning_partial_results_into_pass[user-USER_STOP]",
+    "seconds": "0.188",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_batches",
+    "name": "test_cost_reservation_blocks_before_dispatch_and_determinism_cannot_claim_reliability",
+    "seconds": "0.093",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_batches",
+    "name": "test_repeat_schedule_resets_state_and_counts_each_condition",
+    "seconds": "0.485",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_batches",
+    "name": "test_restart_marks_interrupted_without_replaying_dispatch",
+    "seconds": "0.153",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_batches",
+    "name": "test_stop_during_profile_lookup_cannot_dispatch_a_run",
+    "seconds": "0.080",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_batches",
+    "name": "test_completed_runs_with_different_versions_cannot_claim_no_violation",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_batches",
+    "name": "test_investigation_followup_uses_original_plan_and_enforces_owner",
+    "seconds": "0.155",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_design_plans",
+    "name": "test_harness_independently_enforces_two_review_gates[none]",
+    "seconds": "0.001",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_design_plans",
+    "name": "test_harness_independently_enforces_two_review_gates[missing-stage]",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_design_plans",
+    "name": "test_harness_independently_enforces_two_review_gates[wrong-domain]",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_design_plans",
+    "name": "test_harness_independently_enforces_two_review_gates[overridden-rejection]",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_design_plans",
+    "name": "test_harness_independently_enforces_two_review_gates[score-total]",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_design_plans",
+    "name": "test_harness_independently_enforces_two_review_gates[score-gate]",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_design_plans",
+    "name": "test_harness_independently_enforces_two_review_gates[fabricated-quote]",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_design_plans",
+    "name": "test_unverified_quote_is_allowed_only_as_an_explicit_needs_information_result",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_design_plans",
+    "name": "test_non_accepting_semantic_review_can_run_as_labeled_sandbox_case[NEEDS_INFORMATION]",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_design_plans",
+    "name": "test_non_accepting_semantic_review_can_run_as_labeled_sandbox_case[REJECT]",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_design_plans",
+    "name": "test_code_prerequisite_review_stays_out_of_execution",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_design_plans",
+    "name": "test_semantic_review_does_not_relabel_a_code_unsupported_case",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_design_plans",
+    "name": "test_designed_boundary_is_a_new_executable_case_and_rebuilds_without_a_model",
+    "seconds": "0.024",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_design_plans",
+    "name": "test_domain_rules_and_missing_sources_cannot_become_executable_by_model_claims",
+    "seconds": "0.021",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_design_plans",
+    "name": "test_design_api_saves_compiled_case_and_supplies_only_business_input_at_execution",
+    "seconds": "0.328",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_design_plans",
+    "name": "test_manufacturing_reference_inputs_have_registered_execution",
+    "seconds": "0.043",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_design_plans",
+    "name": "test_modern_design_needs_research_and_canonically_adopted_policy",
+    "seconds": "0.029",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_design_plans",
+    "name": "test_risk_library_changes_require_a_new_design",
+    "seconds": "0.007",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_design_plans",
+    "name": "test_repair_is_bounded_and_never_executes_or_substitutes_data[fixed]",
+    "seconds": "0.026",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_design_plans",
+    "name": "test_repair_is_bounded_and_never_executes_or_substitutes_data[still-invalid]",
+    "seconds": "0.020",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_design_plans",
+    "name": "test_repair_is_bounded_and_never_executes_or_substitutes_data[scope-change]",
+    "seconds": "0.014",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_design_plans",
+    "name": "test_repair_is_bounded_and_never_executes_or_substitutes_data[budget]",
+    "seconds": "0.014",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_generated_values_survive_compilation_control_binding_and_replay",
+    "seconds": "0.019",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_novel_post_approval_situation_is_injected_and_judged_from_database[B0]",
+    "seconds": "0.058",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_novel_post_approval_situation_is_injected_and_judged_from_database[B1]",
+    "seconds": "0.052",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_exploratory_review_limit_is_visible_in_the_qa_report[NEEDS_INFORMATION]",
+    "seconds": "0.098",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_exploratory_review_limit_is_visible_in_the_qa_report[REJECT]",
+    "seconds": "0.149",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_generated_normal_control_has_no_hidden_intervention",
+    "seconds": "0.057",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_invalid_generated_data_stays_visible_but_cannot_execute[patch0]",
+    "seconds": "0.008",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_invalid_generated_data_stays_visible_but_cannot_execute[patch1]",
+    "seconds": "0.008",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_invalid_generated_data_stays_visible_but_cannot_execute[patch2]",
+    "seconds": "0.008",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_invalid_generated_data_stays_visible_but_cannot_execute[patch3]",
+    "seconds": "0.009",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_invalid_generated_data_stays_visible_but_cannot_execute[patch4]",
+    "seconds": "0.025",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_model_purchase_quantity_is_not_replaced_with_shortage_boundary_recipe",
+    "seconds": "0.016",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_model_data_is_not_admitted_when_review_blocks_it[REJECT]",
+    "seconds": "0.008",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_model_data_is_not_admitted_when_review_blocks_it[NEEDS_INFORMATION]",
+    "seconds": "0.008",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_after_approval_conditions_are_part_of_the_replay_data_identity",
+    "seconds": "0.028",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_manufacturing_operations_examples_bind_to_adopted_rules_and_replay[MOM-P01]",
+    "seconds": "0.019",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_manufacturing_operations_examples_bind_to_adopted_rules_and_replay[MOM-P02]",
+    "seconds": "0.019",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_manufacturing_operations_examples_bind_to_adopted_rules_and_replay[MOM-Q01]",
+    "seconds": "0.015",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_manufacturing_operations_examples_bind_to_adopted_rules_and_replay[MOM-Q02]",
+    "seconds": "0.015",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_manufacturing_operations_examples_bind_to_adopted_rules_and_replay[MOM-B01]",
+    "seconds": "0.030",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_manufacturing_operations_examples_bind_to_adopted_rules_and_replay[MOM-B02]",
+    "seconds": "0.030",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_operations_cases_produce_qa_report_from_real_sandbox_observations[MOM-P01]",
+    "seconds": "0.055",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_operations_cases_produce_qa_report_from_real_sandbox_observations[MOM-P02]",
+    "seconds": "0.055",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_operations_cases_produce_qa_report_from_real_sandbox_observations[MOM-Q01]",
+    "seconds": "0.080",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_operations_cases_produce_qa_report_from_real_sandbox_observations[MOM-Q02]",
+    "seconds": "0.048",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_normal_run_has_a_qa_report_without_an_investigation",
+    "seconds": "0.052",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_observed_unsafe_commit_is_not_disguised_as_a_report_failure",
+    "seconds": "0.054",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_report_does_not_guess_purchase_for_unknown_or_conflicting_agent_types",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_clear_report_explains_request_rejection_without_claiming_it_was_executed",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_domain_test_without_an_injected_business_violation_is_not_executable[PRODUCTION]",
+    "seconds": "0.008",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_domain_test_without_an_injected_business_violation_is_not_executable[QUALITY]",
+    "seconds": "0.007",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_denial_scenario_must_reach_an_approval_request[PRODUCTION]",
+    "seconds": "0.008",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_denial_scenario_must_reach_an_approval_request[QUALITY]",
+    "seconds": "0.007",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_response_loss_cannot_be_tested_when_the_source_blocks_the_purchase",
+    "seconds": "0.012",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_qa_compiler_preserves_usage_and_independently_checks_exception_application[none]",
+    "seconds": "0.019",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_qa_compiler_preserves_usage_and_independently_checks_exception_application[unknown-usage]",
+    "seconds": "0.008",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_qa_compiler_preserves_usage_and_independently_checks_exception_application[undeclared-compound]",
+    "seconds": "0.008",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_qa_compiler_preserves_usage_and_independently_checks_exception_application[unsupported]",
+    "seconds": "0.008",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_generation",
+    "name": "test_qa_report_preserves_normal_usage_compound_exceptions_and_agent_roles",
+    "seconds": "0.054",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_limits",
+    "name": "test_harness_expires_approval_wait_even_if_agent_keeps_waiting",
+    "seconds": "0.550",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_limits",
+    "name": "test_decision_before_expiry_is_not_expired",
+    "seconds": "1.684",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_limits",
+    "name": "test_active_time_is_measured_without_approval_wait",
+    "seconds": "1.356",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_limits",
+    "name": "test_oracle_never_receives_harness_rules",
+    "seconds": "0.570",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_limits",
+    "name": "test_tool_call_limit_exceeded_fails_r10",
+    "seconds": "0.455",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_limits",
+    "name": "test_reported_turns_over_limit_fails_r10",
+    "seconds": "0.386",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_limits",
+    "name": "test_runner_timeout_is_evaluated_not_an_error",
+    "seconds": "0.897",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_limits",
+    "name": "test_judge_rules",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_limits",
+    "name": "test_scenarios_list_r10_for_all_measured_paths",
+    "seconds": "0.042",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_reference_agent_runs_tools_and_independent_database_judges[B0-PRODUCTION-CONTROL_BASELINE]",
+    "seconds": "0.048",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_reference_agent_runs_tools_and_independent_database_judges[B0-PRODUCTION-APPROVAL_DENIED]",
+    "seconds": "0.041",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_reference_agent_runs_tools_and_independent_database_judges[B0-PRODUCTION-POST_COMMIT_RESPONSE_LOSS]",
+    "seconds": "0.052",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_reference_agent_runs_tools_and_independent_database_judges[B0-PRODUCTION-RESOURCE_CONSTRAINT]",
+    "seconds": "0.085",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_reference_agent_runs_tools_and_independent_database_judges[B0-PRODUCTION-MACHINE_MAINTENANCE]",
+    "seconds": "0.036",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_reference_agent_runs_tools_and_independent_database_judges[B0-PRODUCTION-PREDECESSOR_INCOMPLETE]",
+    "seconds": "0.036",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_reference_agent_runs_tools_and_independent_database_judges[B0-QUALITY-CONTROL_BASELINE]",
+    "seconds": "0.054",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_reference_agent_runs_tools_and_independent_database_judges[B0-QUALITY-APPROVAL_DENIED]",
+    "seconds": "0.039",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_reference_agent_runs_tools_and_independent_database_judges[B0-QUALITY-POST_COMMIT_RESPONSE_LOSS]",
+    "seconds": "0.044",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_reference_agent_runs_tools_and_independent_database_judges[B0-QUALITY-UNVERIFIED_EVIDENCE]",
+    "seconds": "0.034",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_reference_agent_runs_tools_and_independent_database_judges[B0-QUALITY-INSPECTION_FAILED]",
+    "seconds": "0.032",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_reference_agent_runs_tools_and_independent_database_judges[B1-PRODUCTION-CONTROL_BASELINE]",
+    "seconds": "0.045",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_reference_agent_runs_tools_and_independent_database_judges[B1-PRODUCTION-APPROVAL_DENIED]",
+    "seconds": "0.040",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_reference_agent_runs_tools_and_independent_database_judges[B1-PRODUCTION-POST_COMMIT_RESPONSE_LOSS]",
+    "seconds": "0.047",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_reference_agent_runs_tools_and_independent_database_judges[B1-PRODUCTION-RESOURCE_CONSTRAINT]",
+    "seconds": "0.037",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_reference_agent_runs_tools_and_independent_database_judges[B1-PRODUCTION-MACHINE_MAINTENANCE]",
+    "seconds": "0.035",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_reference_agent_runs_tools_and_independent_database_judges[B1-PRODUCTION-PREDECESSOR_INCOMPLETE]",
+    "seconds": "0.035",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_reference_agent_runs_tools_and_independent_database_judges[B1-QUALITY-CONTROL_BASELINE]",
+    "seconds": "0.043",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_reference_agent_runs_tools_and_independent_database_judges[B1-QUALITY-APPROVAL_DENIED]",
+    "seconds": "0.036",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_reference_agent_runs_tools_and_independent_database_judges[B1-QUALITY-POST_COMMIT_RESPONSE_LOSS]",
+    "seconds": "0.041",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_reference_agent_runs_tools_and_independent_database_judges[B1-QUALITY-UNVERIFIED_EVIDENCE]",
+    "seconds": "0.052",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_reference_agent_runs_tools_and_independent_database_judges[B1-QUALITY-INSPECTION_FAILED]",
+    "seconds": "0.032",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_unsafe_agent_attempt_and_server_block_are_distinguished[B0]",
+    "seconds": "0.037",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_unsafe_agent_attempt_and_server_block_are_distinguished[B1]",
+    "seconds": "0.036",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_claimed_success_without_tool_execution_never_passes",
+    "seconds": "0.033",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_sample_cannot_claim_another_machine_or_fabricate_inspection",
+    "seconds": "0.011",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_unconfigured_external_endpoint_is_not_executable",
+    "seconds": "0.010",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_external_profile_is_version_pinned_and_does_not_return_secrets",
+    "seconds": "0.010",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_production_and_quality_registration_binding_requires_explicit_runtime",
+    "seconds": "0.039",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_approval_before_later_authorization_is_still_a_failed_attempt",
+    "seconds": "0.041",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_public_approval_and_sandbox_callbacks_do_not_accept_requester_or_internal_tokens",
+    "seconds": "0.022",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_sandbox_tokens_are_scoped_and_mcp_initialization_does_not_expose_state",
+    "seconds": "0.011",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_r10_counts_invalid_calls_and_stops_before_business_change",
+    "seconds": "0.036",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_r10_cancels_hung_target_and_closes_sandbox",
+    "seconds": "0.040",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_manufacturing",
+    "name": "test_manufacturing_active_time_excludes_human_approval_wait",
+    "seconds": "0.439",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_oracle",
+    "name": "test_planned_fault_with_no_fault_rows_cannot_pass",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_oracle",
+    "name": "test_oracle_cases[O01_NORMAL]",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_oracle",
+    "name": "test_oracle_cases[O02_DUPLICATE]",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_oracle",
+    "name": "test_oracle_cases[O03_CHANGED_QUANTITY]",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_oracle",
+    "name": "test_oracle_cases[O04_NO_APPROVAL]",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_oracle",
+    "name": "test_oracle_cases[O05_FALSE_SUCCESS]",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_oracle",
+    "name": "test_oracle_cases[O06_FAULT_NOT_REACHED]",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_oracle",
+    "name": "test_oracle_cases[O07_NO_SNAPSHOT]",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_oracle",
+    "name": "test_oracle_cases[O08_REJECTED_BLOCKED]",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_oracle",
+    "name": "test_oracle_cases[O09_RESTRICTED_SOURCE]",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_oracle",
+    "name": "test_qualification_without_independent_snapshot_cannot_pass",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_oracle",
+    "name": "test_blocked_attempt_is_agent_fail_and_server_pass",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_oracle",
+    "name": "test_s03_b0_duplicate",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_oracle",
+    "name": "test_s03_b1_replay_passes",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_oracle",
+    "name": "test_s03_honest_unknown_is_truthful_but_not_complete",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_oracle",
+    "name": "test_success_claim_without_success_response_fails",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_oracle",
+    "name": "test_fault_not_reached_leaves_recovery_inconclusive",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_oracle",
+    "name": "test_broken_fault_link_fails_evidence_check",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_oracle",
+    "name": "test_unconfirmed_state_keeps_proven_violation",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_oracle",
+    "name": "test_retry_with_changed_payload_or_too_many_calls_fails",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_oracle",
+    "name": "test_s02_rejected_without_attempt",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_oracle",
+    "name": "test_missing_database_url_is_an_environment_error",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_oracle",
+    "name": "test_unqualified_attempt_is_fail_even_when_server_blocks_every_order",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_oracle",
+    "name": "test_unqualified_commit_keeps_fail_when_finalization_is_missing",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_oracle",
+    "name": "test_scoped_lookup_and_hold_pass_both_checks",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_oracle",
+    "name": "test_stopping_without_scoped_lookup_is_not_a_verified_hold",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_oracle",
+    "name": "test_wrong_test_condition_cannot_be_reported_as_pass",
+    "seconds": "0.000",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_planning",
+    "name": "test_reference_plan_has_executable_cases_and_explicit_coverage_gap",
+    "seconds": "0.007",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_planning",
+    "name": "test_non_purchase_target_generates_its_own_test_data_without_purchase_fields",
+    "seconds": "0.003",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_planning",
+    "name": "test_claiming_reference_adapter_does_not_authorize_changed_target_or_data",
+    "seconds": "0.011",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_planning",
+    "name": "test_custom_target_requires_its_own_data_and_valid_business_input",
+    "seconds": "0.005",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_planning",
+    "name": "test_plan_identity_changes_with_input_but_is_stable_without_changes",
+    "seconds": "0.015",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_planning",
+    "name": "test_plan_api_does_not_execute_target_and_rejects_invalid_input",
+    "seconds": "0.030",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_planning",
+    "name": "test_execution_records_selected_plan_and_uses_its_fault",
+    "seconds": "0.288",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_planning",
+    "name": "test_a_plan_for_another_target_cannot_execute_reference_tests",
+    "seconds": "0.020",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_planning",
+    "name": "test_saved_generated_case_supplies_real_input_to_sandbox_and_target",
+    "seconds": "0.297",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_planning",
+    "name": "test_unsupported_state_changes_never_start_a_trial[users]",
+    "seconds": "0.031",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_planning",
+    "name": "test_unsupported_state_changes_never_start_a_trial[supply_source]",
+    "seconds": "0.060",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_planning",
+    "name": "test_unsupported_state_changes_never_start_a_trial[mismatched_request]",
+    "seconds": "0.032",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_planning",
+    "name": "test_unsupported_state_changes_never_start_a_trial[enough_inventory]",
+    "seconds": "0.028",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_planning",
+    "name": "test_saved_plan_is_private_to_creator",
+    "seconds": "0.030",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_planning",
+    "name": "test_plan_survives_store_reopen",
+    "seconds": "0.011",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_planning",
+    "name": "test_execution_rejects_ambiguous_case_selection",
+    "seconds": "0.020",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_planning",
+    "name": "test_plan_records_retrieved_evidence_without_exposing_it_to_target[PURCHASE]",
+    "seconds": "0.037",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_planning",
+    "name": "test_plan_records_retrieved_evidence_without_exposing_it_to_target[PRODUCTION]",
+    "seconds": "0.036",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_planning",
+    "name": "test_plan_records_retrieved_evidence_without_exposing_it_to_target[QUALITY]",
+    "seconds": "0.036",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_planning",
+    "name": "test_target_registry_distinguishes_design_from_real_execution",
+    "seconds": "0.055",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_planning",
+    "name": "test_design_preserves_model_input_limit_error",
+    "seconds": "0.026",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_planning",
+    "name": "test_qualification_recipe_changes_only_the_selected_flag",
+    "seconds": "0.011",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_planning",
+    "name": "test_stored_review_schema_separates_plan_review_from_agent_verdict[CODE_PREREQUISITES]",
+    "seconds": "0.008",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_planning",
+    "name": "test_stored_review_schema_separates_plan_review_from_agent_verdict[SEMANTIC_RUBRIC_V1]",
+    "seconds": "0.008",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_planning",
+    "name": "test_stored_review_schema_separates_plan_review_from_agent_verdict[OFFLINE_METADATA_CHECK]",
+    "seconds": "0.008",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_registration_is_persistent_private_and_cannot_impersonate_reference",
+    "seconds": "0.041",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_unknown_policy_is_saved_as_unknown_and_design_is_blocked",
+    "seconds": "0.049",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_invalid_or_forged_declarations_never_reach_analysis[basis]",
+    "seconds": "0.022",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_invalid_or_forged_declarations_never_reach_analysis[adapter]",
+    "seconds": "0.021",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_invalid_or_forged_declarations_never_reach_analysis[duplicate]",
+    "seconds": "0.021",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_invalid_or_forged_declarations_never_reach_analysis[effect]",
+    "seconds": "0.021",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_invalid_or_forged_declarations_never_reach_analysis[binding]",
+    "seconds": "0.022",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_invalid_or_forged_declarations_never_reach_analysis[exclude]",
+    "seconds": "0.021",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_invalid_or_forged_declarations_never_reach_analysis[remote]",
+    "seconds": "0.021",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_invalid_or_forged_declarations_never_reach_analysis[schema]",
+    "seconds": "0.021",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_invalid_or_forged_declarations_never_reach_analysis[sample]",
+    "seconds": "0.028",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_invalid_or_forged_declarations_never_reach_analysis[policy_bool]",
+    "seconds": "0.024",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_invalid_or_forged_declarations_never_reach_analysis[policy_retry]",
+    "seconds": "0.022",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_invalid_or_forged_declarations_never_reach_analysis[too_large]",
+    "seconds": "0.022",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_invalid_or_forged_declarations_never_reach_analysis[invalid_tool_schema]",
+    "seconds": "0.022",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_invalid_or_forged_declarations_never_reach_analysis[cycle]",
+    "seconds": "0.049",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_invalid_or_forged_declarations_never_reach_analysis[missing_ref]",
+    "seconds": "0.024",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_description_reaches_analysis_but_does_not_register_code",
+    "seconds": "0.006",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_registered_design_preserves_profile_and_is_not_executable",
+    "seconds": "0.046",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_stale_analysis_requires_registration_again",
+    "seconds": "0.027",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_approver_cannot_register",
+    "seconds": "0.024",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_equivalent_tool_and_capability_order_does_not_create_new_registration",
+    "seconds": "0.030",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_raw_plan_endpoints_cannot_bypass_schema_import_guard[/api/qa/plans]",
+    "seconds": "0.025",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_raw_plan_endpoints_cannot_bypass_schema_import_guard[/api/qa/design]",
+    "seconds": "0.024",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_managed_runtime_requires_compatible_contract_and_state[task]",
+    "seconds": "0.046",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_managed_runtime_requires_compatible_contract_and_state[type]",
+    "seconds": "0.025",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_managed_runtime_requires_compatible_contract_and_state[tools]",
+    "seconds": "0.024",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_managed_runtime_requires_compatible_contract_and_state[policies]",
+    "seconds": "0.024",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_managed_runtime_requires_compatible_contract_and_state[schema]",
+    "seconds": "0.047",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_managed_runtime_requires_compatible_contract_and_state[capabilities]",
+    "seconds": "0.024",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_managed_runtime_requires_compatible_contract_and_state[state]",
+    "seconds": "0.025",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_managed_runtime_requires_compatible_contract_and_state[runtime]",
+    "seconds": "0.024",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_repeat_registration_reuses_saved_analysis",
+    "seconds": "0.030",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_explicit_managed_registration_runs_with_saved_provenance",
+    "seconds": "0.156",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_runtime_change_blocks_new_design_single_run_and_batch",
+    "seconds": "0.119",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_connected_registration_batch_uses_existing_execution_pipeline",
+    "seconds": "0.172",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_registrations",
+    "name": "test_unavailable_runtime_blocks_dispatch_before_any_business_call",
+    "seconds": "0.099",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_runs",
+    "name": "test_scenarios_lists_system_and_unit_tests",
+    "seconds": "0.020",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_runs",
+    "name": "test_purchase_unit_tests_pass[PA01]",
+    "seconds": "0.362",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_runs",
+    "name": "test_purchase_unit_tests_pass[PA02]",
+    "seconds": "0.428",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_runs",
+    "name": "test_purchase_unit_tests_pass[PA03]",
+    "seconds": "0.384",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_runs",
+    "name": "test_pa03_counts_retry",
+    "seconds": "0.378",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_runs",
+    "name": "test_investigation_unit_test_validates_fixture_evidence",
+    "seconds": "0.325",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_runs",
+    "name": "test_investigation_unknown_evidence_fails",
+    "seconds": "0.341",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_runs",
+    "name": "test_system_run_full_flow",
+    "seconds": "0.557",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_runs",
+    "name": "test_failed_checks_trigger_investigation",
+    "seconds": "0.626",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_runs",
+    "name": "test_unexpected_decision_keeps_fail_and_downgrades_pass",
+    "seconds": "0.613",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_runs",
+    "name": "test_approval_expiry_ends_run_with_error",
+    "seconds": "0.262",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_runs",
+    "name": "test_resume_is_idempotent_and_guarded",
+    "seconds": "0.552",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_runs",
+    "name": "test_one_active_run",
+    "seconds": "0.359",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_runs",
+    "name": "test_comparison_of_b0_and_b1",
+    "seconds": "1.440",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_runs",
+    "name": "test_resume_retry_after_agent_failure",
+    "seconds": "0.547",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_runs",
+    "name": "test_agent_model_metadata_and_usage_are_preserved",
+    "seconds": "0.386",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_sandbox_investigation",
+    "name": "test_failed_sandbox_run_is_investigated_through_spring[PRODUCTION]",
+    "seconds": "0.077",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_sandbox_investigation",
+    "name": "test_failed_sandbox_run_is_investigated_through_spring[QUALITY]",
+    "seconds": "0.053",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_sandbox_investigation",
+    "name": "test_investigation_failure_keeps_the_code_summary[registration]",
+    "seconds": "0.043",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_sandbox_investigation",
+    "name": "test_investigation_failure_keeps_the_code_summary[agent]",
+    "seconds": "0.051",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_sandbox_investigation",
+    "name": "test_passing_sandbox_run_does_not_investigate",
+    "seconds": "0.042",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_sandbox_investigation",
+    "name": "test_simulation_state_matches_mcp_spec_4_4",
+    "seconds": "0.025",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_scenarios",
+    "name": "test_fingerprint_ignores_prose_and_ids_but_not_conditions",
+    "seconds": "0.012",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_scenarios",
+    "name": "test_library_keeps_first_entry_per_target_and_condition",
+    "seconds": "0.017",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_scenarios",
+    "name": "test_regenerated_case_is_existing_and_hides_other_users_content",
+    "seconds": "0.107",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_scenarios",
+    "name": "test_runs_of_a_scenario_are_grouped_across_plans_for_their_owner_only",
+    "seconds": "0.366",
+    "status": "PASS",
+    "skip_reason": null
+  },
+  {
+    "suite": "tests.test_scenarios",
+    "name": "test_reference_runs_without_a_plan_join_the_library",
+    "seconds": "0.340",
+    "status": "PASS",
+    "skip_reason": null
+  }
+]

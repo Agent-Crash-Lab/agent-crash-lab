@@ -1,0 +1,304 @@
+[
+  {
+    "id": "valid",
+    "expected": "ACCEPT",
+    "level": "SCRIPTED_MODEL_VALIDATOR",
+    "input": {
+      "run_id": "INV-GUARD",
+      "orders": [],
+      "approvals": [
+        {
+          "decision": "REJECTED"
+        }
+      ],
+      "snapshot_complete": true,
+      "snapshot_evidence_ids": [
+        "SNAP-GUARD"
+      ]
+    },
+    "actual": "ACCEPT",
+    "output": {
+      "target_run_id": "INV-GUARD",
+      "facts": [
+        {
+          "text": "발주 0건이며 승인은 거절되었습니다.",
+          "evidence_ids": [
+            "SNAP-GUARD"
+          ]
+        }
+      ],
+      "cause_candidates": [],
+      "missing_evidence": [],
+      "improvements": [
+        {
+          "text": "승인 거절 시 생성하지 않도록 확인합니다.",
+          "sources": [
+            {
+              "document_id": "guide",
+              "version": "1",
+              "location": "p1"
+            }
+          ]
+        }
+      ],
+      "retest_scenario_ids": [
+        "S02"
+      ]
+    },
+    "matches": true
+  },
+  {
+    "id": "unknown_evidence",
+    "expected": "REJECT",
+    "level": "SCRIPTED_MODEL_VALIDATOR",
+    "input": {
+      "run_id": "INV-GUARD",
+      "orders": [],
+      "approvals": [
+        {
+          "decision": "REJECTED"
+        }
+      ],
+      "snapshot_complete": true,
+      "snapshot_evidence_ids": [
+        "SNAP-GUARD"
+      ]
+    },
+    "actual": "REJECT",
+    "error_type": "ModelError",
+    "error": "REPORT_UNKNOWN_EVIDENCE",
+    "matches": true
+  },
+  {
+    "id": "wrong_target",
+    "expected": "REJECT",
+    "level": "SCRIPTED_MODEL_VALIDATOR",
+    "input": {
+      "run_id": "INV-GUARD",
+      "orders": [],
+      "approvals": [
+        {
+          "decision": "REJECTED"
+        }
+      ],
+      "snapshot_complete": true,
+      "snapshot_evidence_ids": [
+        "SNAP-GUARD"
+      ]
+    },
+    "actual": "REJECT",
+    "error_type": "ModelError",
+    "error": "REPORT_TARGET_MISMATCH",
+    "matches": true
+  },
+  {
+    "id": "unretrieved_source",
+    "expected": "REJECT",
+    "level": "SCRIPTED_MODEL_VALIDATOR",
+    "input": {
+      "run_id": "INV-GUARD",
+      "orders": [],
+      "approvals": [
+        {
+          "decision": "REJECTED"
+        }
+      ],
+      "snapshot_complete": true,
+      "snapshot_evidence_ids": [
+        "SNAP-GUARD"
+      ]
+    },
+    "actual": "REJECT",
+    "error_type": "ModelError",
+    "error": "REPORT_UNRETRIEVED_GUIDE",
+    "matches": true
+  },
+  {
+    "id": "wrong_source_version",
+    "expected": "REJECT",
+    "level": "SCRIPTED_MODEL_VALIDATOR",
+    "input": {
+      "run_id": "INV-GUARD",
+      "orders": [],
+      "approvals": [
+        {
+          "decision": "REJECTED"
+        }
+      ],
+      "snapshot_complete": true,
+      "snapshot_evidence_ids": [
+        "SNAP-GUARD"
+      ]
+    },
+    "actual": "REJECT",
+    "error_type": "ModelError",
+    "error": "REPORT_UNRETRIEVED_GUIDE",
+    "matches": true
+  },
+  {
+    "id": "hidden_missing",
+    "expected": "REJECT",
+    "level": "SCRIPTED_MODEL_VALIDATOR",
+    "input": {
+      "run_id": "INV-GUARD",
+      "orders": [],
+      "approvals": [
+        {
+          "decision": "REJECTED"
+        }
+      ],
+      "snapshot_complete": false,
+      "snapshot_evidence_ids": [
+        "SNAP-GUARD"
+      ]
+    },
+    "actual": "REJECT",
+    "error_type": "ModelError",
+    "error": "REPORT_HIDDEN_GAP",
+    "matches": true
+  },
+  {
+    "id": "foreign_snapshot",
+    "expected": "REJECT",
+    "level": "SCRIPTED_MODEL_VALIDATOR",
+    "input": {
+      "run_id": "INV-GUARD",
+      "orders": [
+        {
+          "run_id": "OTHER"
+        }
+      ],
+      "approvals": [
+        {
+          "decision": "REJECTED"
+        }
+      ],
+      "snapshot_complete": true,
+      "snapshot_evidence_ids": [
+        "SNAP-GUARD"
+      ]
+    },
+    "actual": "REJECT",
+    "error_type": "ValueError",
+    "error": "Evidence belongs to a different run",
+    "matches": true
+  },
+  {
+    "id": "false_count_valid_id",
+    "expected": "REJECT",
+    "level": "SCRIPTED_MODEL_VALIDATOR",
+    "input": {
+      "run_id": "INV-GUARD",
+      "orders": [],
+      "approvals": [
+        {
+          "decision": "REJECTED"
+        }
+      ],
+      "snapshot_complete": true,
+      "snapshot_evidence_ids": [
+        "SNAP-GUARD"
+      ]
+    },
+    "actual": "ACCEPT",
+    "output": {
+      "target_run_id": "INV-GUARD",
+      "facts": [
+        {
+          "text": "실제 발주는 999건 저장되었습니다.",
+          "evidence_ids": [
+            "SNAP-GUARD"
+          ]
+        }
+      ],
+      "cause_candidates": [],
+      "missing_evidence": [],
+      "improvements": [
+        {
+          "text": "승인 거절 시 생성하지 않도록 확인합니다.",
+          "sources": [
+            {
+              "document_id": "guide",
+              "version": "1",
+              "location": "p1"
+            }
+          ]
+        }
+      ],
+      "retest_scenario_ids": [
+        "S02"
+      ]
+    },
+    "matches": false
+  },
+  {
+    "id": "false_approval_valid_id",
+    "expected": "REJECT",
+    "level": "SCRIPTED_MODEL_VALIDATOR",
+    "input": {
+      "run_id": "INV-GUARD",
+      "orders": [],
+      "approvals": [
+        {
+          "decision": "REJECTED"
+        }
+      ],
+      "snapshot_complete": true,
+      "snapshot_evidence_ids": [
+        "SNAP-GUARD"
+      ]
+    },
+    "actual": "ACCEPT",
+    "output": {
+      "target_run_id": "INV-GUARD",
+      "facts": [
+        {
+          "text": "담당자가 승인했으며 승인에 문제가 없습니다.",
+          "evidence_ids": [
+            "SNAP-GUARD"
+          ]
+        }
+      ],
+      "cause_candidates": [],
+      "missing_evidence": [],
+      "improvements": [
+        {
+          "text": "승인 거절 시 생성하지 않도록 확인합니다.",
+          "sources": [
+            {
+              "document_id": "guide",
+              "version": "1",
+              "location": "p1"
+            }
+          ]
+        }
+      ],
+      "retest_scenario_ids": [
+        "S02"
+      ]
+    },
+    "matches": false
+  },
+  {
+    "id": "empty_evidence",
+    "expected": "REJECT",
+    "level": "SCRIPTED_MODEL_VALIDATOR",
+    "input": {
+      "run_id": "INV-GUARD",
+      "orders": [],
+      "approvals": [
+        {
+          "decision": "REJECTED"
+        }
+      ],
+      "snapshot_complete": true,
+      "snapshot_evidence_ids": [
+        "SNAP-GUARD"
+      ]
+    },
+    "actual": "REJECT",
+    "error_type": "ValidationError",
+    "error": "1 validation error for InvestigationReport\nfacts.0.evidence_ids\n  List should have at least 1 item after validation, not 0 [type=too_short, input_value=[], input_type=list]\n    For further information visit https://errors.pydantic.dev/2.14/v/too_short",
+    "matches": true
+  }
+]

@@ -1,0 +1,55 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.8.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :compileJava
+> Task :processResources
+> Task :classes
+> Task :compileTestJava
+> Task :processTestResources NO-SOURCE
+> Task :testClasses
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-10-26T09:20:04.741+09:00 DEBUG 79338 --- [mcp-server] [ionShutdownHook] o.s.w.c.s.GenericWebApplicationContext   : Closing org.springframework.web.context.support.GenericWebApplicationContext@615e83ac, started on Mon Oct 26 09:19:55 KST 2026
+2026-10-26T09:20:04.744+09:00  INFO 79338 --- [mcp-server] [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2026-10-26T09:20:04.744+09:00  INFO 79338 --- [mcp-server] [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+2026-10-26T09:20:04.745+09:00 DEBUG 79338 --- [mcp-server] [ionShutdownHook] o.s.w.c.s.GenericWebApplicationContext   : Closing org.springframework.web.context.support.GenericWebApplicationContext@19f72e12, started on Mon Oct 26 09:19:56 KST 2026
+2026-10-26T09:20:04.746+09:00  INFO 79338 --- [mcp-server] [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-2 - Shutdown initiated...
+2026-10-26T09:20:04.747+09:00  INFO 79338 --- [mcp-server] [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-2 - Shutdown completed.
+2026-10-26T09:20:04.748+09:00 DEBUG 79338 --- [mcp-server] [ionShutdownHook] o.s.b.a.ApplicationAvailabilityBean      : Application availability state ReadinessState changed from ACCEPTING_TRAFFIC to REFUSING_TRAFFIC
+2026-10-26T09:20:04.748+09:00 DEBUG 79338 --- [mcp-server] [ionShutdownHook] ConfigServletWebServerApplicationContext : Closing org.springframework.boot.web.server.servlet.context.AnnotationConfigServletWebServerApplicationContext@4515dfae, started on Mon Oct 26 09:19:57 KST 2026
+2026-10-26T09:20:04.748+09:00  INFO 79338 --- [mcp-server] [ionShutdownHook] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
+2026-10-26T09:20:04.750+09:00  INFO 79338 --- [mcp-server] [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
+2026-10-26T09:20:04.752+09:00  INFO 79338 --- [mcp-server] [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-3 - Shutdown initiated...
+2026-10-26T09:20:04.754+09:00  INFO 79338 --- [mcp-server] [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-3 - Shutdown completed.
+2026-10-26T09:20:04.757+09:00 DEBUG 79338 --- [mcp-server] [ionShutdownHook] o.s.b.a.ApplicationAvailabilityBean      : Application availability state ReadinessState changed from ACCEPTING_TRAFFIC to REFUSING_TRAFFIC
+2026-10-26T09:20:04.757+09:00 DEBUG 79338 --- [mcp-server] [ionShutdownHook] ConfigServletWebServerApplicationContext : Closing org.springframework.boot.web.server.servlet.context.AnnotationConfigServletWebServerApplicationContext@5c3d91bc, started on Mon Oct 26 09:19:57 KST 2026
+2026-10-26T09:20:04.758+09:00  INFO 79338 --- [mcp-server] [ionShutdownHook] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
+2026-10-26T09:20:04.758+09:00  INFO 79338 --- [mcp-server] [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
+2026-10-26T09:20:04.759+09:00  INFO 79338 --- [mcp-server] [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-4 - Shutdown initiated...
+2026-10-26T09:20:04.759+09:00  INFO 79338 --- [mcp-server] [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-4 - Shutdown completed.
+2026-10-26T09:20:04.762+09:00 DEBUG 79338 --- [mcp-server] [ionShutdownHook] o.s.b.a.ApplicationAvailabilityBean      : Application availability state ReadinessState changed from ACCEPTING_TRAFFIC to REFUSING_TRAFFIC
+2026-10-26T09:20:04.762+09:00 DEBUG 79338 --- [mcp-server] [ionShutdownHook] ConfigServletWebServerApplicationContext : Closing org.springframework.boot.web.server.servlet.context.AnnotationConfigServletWebServerApplicationContext@622ae2ba, started on Mon Oct 26 09:19:59 KST 2026
+2026-10-26T09:20:04.762+09:00  INFO 79338 --- [mcp-server] [ionShutdownHook] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
+2026-10-26T09:20:04.763+09:00  INFO 79338 --- [mcp-server] [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
+2026-10-26T09:20:04.764+09:00  INFO 79338 --- [mcp-server] [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-5 - Shutdown initiated...
+2026-10-26T09:20:04.766+09:00  INFO 79338 --- [mcp-server] [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-5 - Shutdown completed.
+2026-10-26T09:20:04.767+09:00 DEBUG 79338 --- [mcp-server] [ionShutdownHook] o.s.b.a.ApplicationAvailabilityBean      : Application availability state ReadinessState changed from ACCEPTING_TRAFFIC to REFUSING_TRAFFIC
+2026-10-26T09:20:04.767+09:00 DEBUG 79338 --- [mcp-server] [ionShutdownHook] ConfigServletWebServerApplicationContext : Closing org.springframework.boot.web.server.servlet.context.AnnotationConfigServletWebServerApplicationContext@711d66e0, started on Mon Oct 26 09:20:01 KST 2026
+2026-10-26T09:20:04.768+09:00  INFO 79338 --- [mcp-server] [ionShutdownHook] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
+2026-10-26T09:20:04.768+09:00  INFO 79338 --- [mcp-server] [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
+2026-10-26T09:20:05.177+09:00 DEBUG 79338 --- [mcp-server] [    virtual-251] o.s.jdbc.core.JdbcTemplate               : Executing prepared SQL update
+2026-10-26T09:20:05.177+09:00 DEBUG 79338 --- [mcp-server] [    virtual-251] o.s.jdbc.core.JdbcTemplate               : Executing prepared SQL statement [UPDATE tool_call SET is_error = ?, error_code = ?
+WHERE run_id = ? AND tool_call_id = ? AND is_error IS NULL]
+2026-10-26T09:20:05.179+09:00 DEBUG 79338 --- [mcp-server] [    virtual-251] o.s.jdbc.core.JdbcTemplate               : Executing prepared SQL update
+2026-10-26T09:20:05.179+09:00 DEBUG 79338 --- [mcp-server] [    virtual-251] o.s.jdbc.core.JdbcTemplate               : Executing prepared SQL statement [UPDATE tool_call SET status = 'COMPLETED', finished_at = now() WHERE run_id = ? AND tool_call_id = ?]
+2026-10-26T09:20:05.181+09:00  INFO 79338 --- [mcp-server] [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-6 - Shutdown initiated...
+2026-10-26T09:20:05.187+09:00  INFO 79338 --- [mcp-server] [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-6 - Shutdown completed.
+2026-10-26T09:20:05.190+09:00 DEBUG 79338 --- [mcp-server] [ionShutdownHook] o.s.b.a.ApplicationAvailabilityBean      : Application availability state ReadinessState changed from ACCEPTING_TRAFFIC to REFUSING_TRAFFIC
+2026-10-26T09:20:05.190+09:00 DEBUG 79338 --- [mcp-server] [ionShutdownHook] ConfigServletWebServerApplicationContext : Closing org.springframework.boot.web.server.servlet.context.AnnotationConfigServletWebServerApplicationContext@7c4b7f2e, started on Mon Oct 26 09:20:04 KST 2026
+2026-10-26T09:20:05.191+09:00  INFO 79338 --- [mcp-server] [ionShutdownHook] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
+2026-10-26T09:20:05.192+09:00  INFO 79338 --- [mcp-server] [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
+2026-10-26T09:20:05.194+09:00  INFO 79338 --- [mcp-server] [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-7 - Shutdown initiated...
+2026-10-26T09:20:05.198+09:00  INFO 79338 --- [mcp-server] [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-7 - Shutdown completed.
+> Task :test
+
+BUILD SUCCESSFUL in 18s
+4 actionable tasks: 4 executed
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.8.1/userguide/configuration_cache_enabling.html

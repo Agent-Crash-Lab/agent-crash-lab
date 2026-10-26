@@ -1,0 +1,7 @@
+{"profile_id": "TARGET-4091bb8362e6e41ba1aa7d4daa336d9f", "plan_id": "QAP-3f18dd26eb5fed55be23c44b", "proposals": 3, "model_kind": "offline"}
+{"id": "E2E-01", "run_id": "RUN-001", "actual_db_orders": 1, "actual_conclusion": "NO_VIOLATION_OBSERVED", "investigation_status": "NOT_REQUESTED", "matches_count": true, "matches_conclusion": true}
+{"id": "E2E-02", "run_id": "RUN-002", "actual_db_orders": 0, "actual_conclusion": "NO_VIOLATION_OBSERVED", "investigation_status": "NOT_REQUESTED", "matches_count": true, "matches_conclusion": true}
+{"id": "E2E-03", "run_id": "RUN-003", "actual_db_orders": 2, "actual_conclusion": "VIOLATION_FOUND", "investigation_status": "READY", "matches_count": true, "matches_conclusion": true}
+{"id": "E2E-04", "run_id": "RUN-004", "actual_db_orders": 1, "actual_conclusion": "NO_VIOLATION_OBSERVED", "investigation_status": "NOT_REQUESTED", "matches_count": true, "matches_conclusion": true}
+{"id": "E2E-05", "run_id": "RUN-005", "actual_db_orders": 0, "actual_conclusion": "NO_VIOLATION_OBSERVED", "investigation_status": "NOT_REQUESTED", "matches_count": true, "matches_conclusion": true}
+{"id": "E2E-06", "run_id": "RUN-006", "actual_db_orders": 1, "actual_conclusion": "NO_VIOLATION_OBSERVED", "investigation_status": "NOT_REQUESTED", "matches_count": true, "matches_conclusion": true}

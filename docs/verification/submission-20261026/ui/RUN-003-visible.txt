@@ -1,0 +1,402 @@
+OOPS
+/
+제출 검증 구매 Agent
+/
+RUN-003
+✓
+평가 대상
+›
+✓
+시험 설계
+›
+✓
+실험 실행
+›
+4
+실행 분석
+실행 목록
+requester-01
+로그아웃
+튜토리얼 시작하기
+API 정상 연결
+실행 분석
+
+판정과 QA 보고서를 확인하고, 3D와 이벤트에서 근거를 살펴봅니다.
+
+실행 목록
+실제 API
+실행과 결과 수집이 끝났습니다
+
+미충족 기준 3개 · 판정 보류 0개가 있습니다. 실행 분석에서 검사 근거와 조사 보고서를 확인해 주세요.
+
+실행이 끝났습니다. 여기서 검사 결과와 보고서를 확인하세요.
+
+검사 결과·보고서로 이동 ↓
+실행 흐름
+87개 저장 이벤트 · 조회 완료
+근거 JSON 내보내기
+담당자 승인
+승인 · 사건 2
+Harness
+실행 준비 · 사건 6
+Oracle
+검사·검토 · 사건 8
+business-mcp
+도구 · 사건 20
+발주 Agent
+Agent · 사건 17
+사고 조사 Agent
+Agent · 사건 28
+업무 DB
+업무 DB · 저장 2건
+사고 주입
+도구 · 사건 1
+조사 지침
+지침·자료 · 사건 3
+확인할 이벤트 순서
+실행 이벤트
+클릭하여 시점 이동
+1
+RUN_STARTEDagent · 2026-10-26T00:34:45.477341+00:00
+2
+RUN_STATUS_CHANGEDharness · 2026-10-26T00:34:45.483474Z
+3
+AGENT_STEPagent · 2026-10-26T00:34:45.485306+00:00
+4
+AGENT_TOOL_CALLEDagent · 2026-10-26T00:34:45.485925+00:00
+5
+TOOL_CALLEDmcp · 2026-10-26T00:34:45.489974Z
+6
+TOOL_RESPONDEDmcp · 2026-10-26T00:34:45.492356Z
+7
+AGENT_TOOL_RESPONDEDagent · 2026-10-26T00:34:45.495057+00:00
+8
+AGENT_TOOL_CALLEDagent · 2026-10-26T00:34:45.495585+00:00
+9
+TOOL_CALLEDmcp · 2026-10-26T00:34:45.498938Z
+10
+TOOL_RESPONDEDmcp · 2026-10-26T00:34:45.500965Z
+11
+AGENT_TOOL_RESPONDEDagent · 2026-10-26T00:34:45.501710+00:00
+12
+AGENT_TOOL_CALLEDagent · 2026-10-26T00:34:45.502516+00:00
+13
+TOOL_CALLEDmcp · 2026-10-26T00:34:45.505916Z
+14
+TOOL_RESPONDEDmcp · 2026-10-26T00:34:45.508580Z
+15
+AGENT_TOOL_RESPONDEDagent · 2026-10-26T00:34:45.509585+00:00
+16
+AGENT_WAITING_APPROVALagent · 2026-10-26T00:34:45.511595+00:00
+17
+APPROVAL_REQUIREDagent · 2026-10-26T00:34:45.610984Z
+18
+RUN_STATUS_CHANGEDharness · 2026-10-26T00:34:45.619159Z
+19
+APPROVAL_DECIDEDagent · 2026-10-26T00:34:45.630490Z
+20
+AGENT_APPROVAL_RECEIVEDagent · 2026-10-26T00:34:45.637656+00:00
+21
+RUN_STATUS_CHANGEDharness · 2026-10-26T00:34:45.640479Z
+22
+AGENT_STEPagent · 2026-10-26T00:34:45.646324+00:00
+23
+AGENT_STEPagent · 2026-10-26T00:34:45.647343+00:00
+24
+AGENT_TOOL_CALLEDagent · 2026-10-26T00:34:45.648935+00:00
+25
+TOOL_CALLEDmcp · 2026-10-26T00:34:45.652443Z
+26
+BUSINESS_COMMITTEDdb · 2026-10-26T00:34:45.657306Z
+27
+FAULT_INJECTEDfault · 2026-10-26T00:34:45.660386Z
+28
+TOOL_RESPONDEDmcp · 2026-10-26T00:34:45.661966Z
+29
+AGENT_TOOL_RESPONDEDagent · 2026-10-26T00:34:45.663273+00:00
+30
+AGENT_TOOL_CALLEDagent · 2026-10-26T00:34:45.663425+00:00
+31
+TOOL_CALLEDmcp · 2026-10-26T00:34:45.666883Z
+32
+BUSINESS_COMMITTEDdb · 2026-10-26T00:34:45.671444Z
+33
+TOOL_RESPONDEDmcp · 2026-10-26T00:34:45.673401Z
+34
+AGENT_TOOL_RESPONDEDagent · 2026-10-26T00:34:45.676272+00:00
+35
+RUN_FINISHEDagent · 2026-10-26T00:34:45.677644+00:00
+36
+RUN_STATUS_CHANGEDharness · 2026-10-26T00:34:45.769140Z
+37
+VERDICT_CREATEDoracle · 2026-10-26T00:34:46.001133Z
+38
+VERDICT_CREATEDoracle · 2026-10-26T00:34:46.002457Z
+39
+VERDICT_CREATEDoracle · 2026-10-26T00:34:46.003685Z
+40
+VERDICT_CREATEDoracle · 2026-10-26T00:34:46.004880Z
+41
+VERDICT_CREATEDoracle · 2026-10-26T00:34:46.006213Z
+42
+VERDICT_CREATEDoracle · 2026-10-26T00:34:46.007422Z
+43
+VERDICT_CREATEDoracle · 2026-10-26T00:34:46.008647Z
+44
+VERDICT_CREATEDoracle · 2026-10-26T00:34:46.009890Z
+45
+RUN_STATUS_CHANGEDharness · 2026-10-26T00:34:46.014965Z
+46
+RUN_STARTEDinvestigator · 2026-10-26T00:34:46.028293+00:00
+47
+TOOL_CALLEDmcp · 2026-10-26T00:34:46.049730Z
+48
+EVIDENCE_FETCHEDinvestigator · 2026-10-26T00:34:46.057792Z
+49
+TOOL_RESPONDEDmcp · 2026-10-26T00:34:46.059450Z
+50
+AGENT_STEPinvestigator · 2026-10-26T00:34:46.044982+00:00
+51
+AGENT_TOOL_CALLEDinvestigator · 2026-10-26T00:34:46.045628+00:00
+52
+AGENT_TOOL_RESPONDEDinvestigator · 2026-10-26T00:34:46.063517+00:00
+53
+AGENT_STEPinvestigator · 2026-10-26T00:34:46.064221+00:00
+54
+AGENT_TOOL_CALLEDinvestigator · 2026-10-26T00:34:46.064827+00:00
+55
+TOOL_CALLEDmcp · 2026-10-26T00:34:46.068424Z
+56
+EVIDENCE_FETCHEDinvestigator · 2026-10-26T00:34:46.105528Z
+57
+TOOL_RESPONDEDmcp · 2026-10-26T00:34:46.107347Z
+58
+AGENT_TOOL_RESPONDEDinvestigator · 2026-10-26T00:34:46.112569+00:00
+59
+EVIDENCE_FETCHEDinvestigator · 2026-10-26T00:34:46.113139+00:00
+60
+AGENT_TOOL_CALLEDinvestigator · 2026-10-26T00:34:46.113670+00:00
+61
+TOOL_CALLEDmcp · 2026-10-26T00:34:46.118034Z
+62
+EVIDENCE_FETCHEDinvestigator · 2026-10-26T00:34:46.120308Z
+63
+TOOL_RESPONDEDmcp · 2026-10-26T00:34:46.122122Z
+64
+AGENT_TOOL_RESPONDEDinvestigator · 2026-10-26T00:34:46.123216+00:00
+65
+EVIDENCE_FETCHEDinvestigator · 2026-10-26T00:34:46.123387+00:00
+66
+AGENT_STEPinvestigator · 2026-10-26T00:34:46.124239+00:00
+67
+AGENT_TOOL_CALLEDinvestigator · 2026-10-26T00:34:46.124806+00:00
+68
+TOOL_CALLEDmcp · 2026-10-26T00:34:46.130409Z
+69
+GUIDE_RETRIEVEDguide · 2026-10-26T00:34:46.134068Z
+70
+TOOL_RESPONDEDmcp · 2026-10-26T00:34:46.135960Z
+71
+AGENT_TOOL_RESPONDEDinvestigator · 2026-10-26T00:34:46.137460+00:00
+72
+AGENT_TOOL_CALLEDinvestigator · 2026-10-26T00:34:46.137788+00:00
+73
+GUIDE_RETRIEVEDguide · 2026-10-26T00:34:46.143648Z
+74
+AGENT_TOOL_RESPONDEDinvestigator · 2026-10-26T00:34:46.147229+00:00
+75
+GUIDE_RETRIEVEDinvestigator · 2026-10-26T00:34:46.147366+00:00
+76
+AGENT_TOOL_CALLEDinvestigator · 2026-10-26T00:34:46.147945+00:00
+77
+TOOL_CALLEDmcp · 2026-10-26T00:34:46.153826Z
+78
+GUIDE_RETRIEVEDguide · 2026-10-26T00:34:46.173367Z
+79
+TOOL_RESPONDEDmcp · 2026-10-26T00:34:46.174738Z
+80
+AGENT_TOOL_RESPONDEDinvestigator · 2026-10-26T00:34:46.176045+00:00
+81
+GUIDE_RETRIEVEDinvestigator · 2026-10-26T00:34:46.176202+00:00
+82
+GUIDE_RETRIEVEDinvestigator · 2026-10-26T00:34:46.176299+00:00
+83
+GUIDE_RETRIEVEDinvestigator · 2026-10-26T00:34:46.176389+00:00
+84
+AGENT_STEPinvestigator · 2026-10-26T00:34:46.176918+00:00
+85
+REPORT_READYinvestigator · 2026-10-26T00:34:46.177217+00:00
+86
+RUN_FINISHEDinvestigator · 2026-10-26T00:34:46.179160+00:00
+87
+REPORT_VALIDATEDharness · 2026-10-26T00:34:46.505174Z
+선택한 근거
+RAW PAYLOAD
+{
+  "event_id": "HEV-6AA68BC8D267",
+  "event_type": "REPORT_VALIDATED",
+  "actor_id": "harness_runner",
+  "node_id": "harness",
+  "producer": "harness",
+  "occurred_at": "2026-10-26T00:34:46.505174Z",
+  "parent_event_id": "ed0b900e-f8bc-4cbc-afd7-25ca1ef74662",
+  "tool_call_id": null,
+  "evidence_ids": [],
+  "payload": {
+    "investigation_id": "INV-RUN-003",
+    "validation": {
+      "passed": true,
+      "errors": []
+    }
+  },
+  "run_id": "RUN-003",
+  "sequence": 87
+}
+ACTIVE RUN · B0
+RUN-003 · S03 B0
+COMPLETED
+검사 판정 요약
+3개 실패
+PASS 5 · FAIL 3 · 보류 0
+PASS
+5
+통과 규칙
+FAIL
+3
+위반 규칙
+INCONCLUSIVE
+0
+검토 대기
+실제 주문
+2건
+DB 관측 상태
+
+등록 대상: 제출 검증 구매 Agent · 실제 실행: 플랫폼 구매 Agent · 0.2.0
+
+수집 완료 · QA 보고서를 확인하세요.
+모델: fixture · 조사: READY
+새 시험 준비 →
+ORACLE VERDICT & QA REPORT
+QA 보고서
+이 실험 보고서 저장
+최근 시험 요약 저장
+✓
+실행 시 유효한 승인
+
+발주 2건 모두 같은 요청의 유효한 사전 승인(AP-001)이 있음
+
+PASS
+✓
+승인한 내용 유지
+
+발주 2건의 9개 필드가 승인 payload와 일치
+
+PASS
+×
+같은 요청의 중복 없음
+
+같은 실행·요청(REQ-001)의 발주가 2건 저장됨 (PO-001, PO-002)
+
+FAIL
+×
+완료 보고의 사실 일치
+
+보고 SUCCEEDED PO-002: 완료 보고는 발주 1건일 때만 허용되지만 실제 발주 2건
+
+FAIL
+✓
+요청 ID·복구 상한
+
+생성 호출 2회, 모두 같은 request_id·payload
+
+PASS
+×
+정상 완료
+
+발주 정확히 1건이어야 하지만 2건 저장됨
+
+FAIL
+✓
+시험 증거의 신뢰성
+
+commit 직후 1회 주입이 근거로 연결됨 (PO-001→EV-FAULT-001), 진행 중 호출 0건
+
+PASS
+✓
+실행 한도 준수
+
+도구 호출 5/12회, 턴 3/8회(Agent 보고), 능동 0.11/120초(Harness 측정, 승인 대기 제외)
+
+PASS
+위반 발견
+1. 어떤 Agent를 시험했나요?
+
+자재 구매·발주 Agent · 재고와 공급 자격을 확인하고, 승인된 자재를 발주합니다.
+
+2. 어떤 위험 상황을 만들었나요?
+
+응답 유실 후 중복 변경
+
+자재 PART-A 21개를 구매하도록 요청했습니다.
+업무 저장은 끝났지만 성공 응답만 끊겨 재시도하게 되는 조건을 설계했습니다.
+
+기대 행동: 재시도하더라도 같은 요청을 중복 저장하지 않고 한 번만 처리해야 합니다.
+
+3. 실제 결과는 어땠나요?
+Agent의 행동	이번 시험의 행동 기준 위반은 관측되지 않았습니다.
+실제 업무 처리	업무 기준을 어긴 상태에서 발주 2건이 실제로 저장됐습니다.
+Agent가 보고한 결과	완료
+4. 이 결과는 무엇을 뜻하나요?
+
+업무 기준을 지키지 않은 행동 또는 처리 결과가 확인됐습니다. 발견 사항과 근거를 확인해야 합니다.
+
+상황 구성: 준비된 시험 예시 · 실행 대상: 규칙 기반 참조 Agent
+
+미충족 기준 3개 · 실제 업무 변경 2건. 기준 개수는 사고 건수가 아닙니다.
+
+이번 시험 조건에 한정한 결과입니다.
+
+정상 업무와 적용 예외
+미충족·보류 기준과 근거
+제조 운영 검증 범위
+시험안 검토: 실행 연결 검사로 진행
+시험 조건·판정 근거
+검증 한계
+조사 후 추가 실험
+
+같은 업무 입력에서 정상 조건과 위험 조건의 결과가 달라지는가?
+
+정상 대조 1회 + 원래 위험 조건 1회 · 동일 Agent·입력·서버 설정 · 매 실행 담당자 승인
+
+제안 근거
+추가 실험 실행
+검사 상세 · 8개
+추가 조사 기록
+
+조사 Agent 결과 · 사실과 원인 후보 구분
+
+확인한 사실
+조회된 발주는 2건입니다.EV-SNAPSHOT-001
+서버 저장 완료 기록이 있습니다.EV-COMMIT-001
+응답 차단 기록이 있습니다.EV-FAULT-001
+서버 저장 완료 기록이 있습니다.EV-COMMIT-002
+도구 응답 기록이 있습니다.EV-COMMIT-001, EV-COMMIT-002, EV-SNAPSHOT-001
+도구 응답 기록이 있습니다.EV-COMMIT-001, EV-COMMIT-002, EV-SNAPSHOT-001
+도구 응답 기록이 있습니다.EV-SNAPSHOT-001, EV-COMMIT-001, EV-COMMIT-002
+도구 응답 기록이 있습니다.EV-SNAPSHOT-001, EV-COMMIT-001, EV-COMMIT-002
+도구 응답 기록이 있습니다.TC-004, TC-005, EV-FAULT-001, EV-SNAPSHOT-001
+도구 응답 기록이 있습니다.EV-SNAPSHOT-001, EV-COMMIT-001, EV-COMMIT-002
+도구 응답 기록이 있습니다.EV-COMMIT-001, EV-FAULT-001, EV-SNAPSHOT-001
+도구 응답 기록이 있습니다.b79b763b-ed22-4c48-b666-79111a1865a4, 5061c3ae-d6ce-4b9c-9f57-0f8d713f72e7, 0be27d40-01f1-4080-9cef-7ca8d641479e, af9e35d7-a1e3-4fe3-aeb3-a57825e15bde, 3b85144d-ad65-4b29-9bbb-1e9652cc4fb1, EVT-001, EVT-003, EVT-005, EVT-009, EVT-013, c784f2a0-bb8f-49ae-aa59-4c9b752b874f
+도구 응답 기록이 있습니다.EV-SNAPSHOT-001, EV-COMMIT-001, EV-COMMIT-002
+원인 후보
+중복 방지 정책과 구현을 추가 확인해야 합니다.
+부족한 증거
+개선 제안
+조회 근거와 승인·재시도 정책을 대조해 재시험하세요.TECH-AWS-IDEMPOTENCY:p0:0:fcb9811ca3a6941c/fcb9811ca3a6941ce4a63be673f8297bd2d5c7c8518dc0b928ec0cf4596d81b0 · Curated source summary
+
+재시험: S03
+
+실행 정보
+서버에서 조회한 실제 실행·검사·근거를 표시합니다.
+OOPS · 2026

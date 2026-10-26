@@ -1,0 +1,83 @@
+{
+  "evaluation_id": "submission-20261026-main-00bf03d",
+  "tested_commit": "00bf03d1c2eb251e5e38ac1e236c6ba6505dc09e",
+  "date": "2026-10-26",
+  "scope": "Synthetic manufacturing reference environment. Current live E2E is PROCUREMENT.",
+  "regression": {
+    "Agent": 161,
+    "Harness": 247,
+    "MCP": 66,
+    "Frontend": 77,
+    "total_passed": 551,
+    "opt_in_skipped": 15
+  },
+  "independent": {
+    "scenario": {
+      "expected_matches": 11,
+      "n": 12
+    },
+    "investigation": {
+      "expected_matches": 8,
+      "n": 10
+    },
+    "oracle_behavior": {
+      "expected_matches": 7,
+      "n": 13,
+      "normal": {
+        "PASS": 2,
+        "INCONCLUSIVE": 2,
+        "n": 4
+      },
+      "violations": {
+        "FAIL": 4,
+        "PASS": 4,
+        "n": 8
+      },
+      "environment": {
+        "ERROR": 1,
+        "n": 1
+      }
+    }
+  },
+  "end_to_end": {
+    "expected_db_matches": 6,
+    "expected_conclusion_matches": 6,
+    "n": 6,
+    "model": "offline",
+    "actual_services": [
+      "MCP HTTP",
+      "PostgreSQL",
+      "Harness",
+      "Agent runtime",
+      "BGE / pgvector"
+    ],
+    "investigation": "RUN-003 READY, fixture report model",
+    "approval": "separate test approver account"
+  },
+  "llm_quality": "Historical committed documents only; no new paid LLM inference or independent semantic-quality score.",
+  "sanitization": "credentials and personal local paths removed; retrieved source passages omitted with SHA-256. Test verdicts and denominators preserved.",
+  "ui": {
+    "mode": "headless Chromium; actual frontend and API, no API stubs",
+    "checks": [
+      {
+        "id": "UI-01",
+        "expected": "stored RUN-003, database count 2 shown in investigation",
+        "actual": true,
+        "pass": true
+      },
+      {
+        "id": "UI-02",
+        "expected": "search RUN-004 excludes RUN-003",
+        "actual": "RUN-004\n저장은 됐는데 응답이 사라진다\n\nS03 · B1 · 요청자 requester-01\n\n2026. 10. 26. 오전 9:34\n실행 완료\n통과 8 · 미충족 0 · 보류 0\n실행 분석 열기 →",
+        "pass": true
+      },
+      {
+        "id": "UI-03",
+        "expected": "selected saved run opens its analysis route",
+        "actual": "http://127.0.0.1:18293/#execution?run=RUN-004",
+        "pass": true
+      }
+    ],
+    "page_errors": []
+  }
+}

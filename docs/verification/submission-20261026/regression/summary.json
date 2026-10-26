@@ -1,0 +1,52 @@
+{
+  "date": "2026-10-26",
+  "branch": "main",
+  "sha": "00bf03d1c2eb251e5e38ac1e236c6ba6505dc09e",
+  "tracked_changes": "",
+  "baseline_sha": "68dbe1816547de4eecf6aac97f66de47e512974e",
+  "built_in_suites": {
+    "agents": {
+      "passed": 161,
+      "skipped": 15,
+      "failure": 0
+    },
+    "harness": {
+      "passed": 247,
+      "skipped": 0,
+      "failure": 0
+    },
+    "mcp": {
+      "passed": 66,
+      "skipped": 0,
+      "failure": 0
+    },
+    "frontend": {
+      "passed": 77,
+      "skipped": 0,
+      "failure": 0,
+      "syntax_check": "passed"
+    }
+  },
+  "independent": {
+    "scenario": {
+      "cases": 12,
+      "expected_matches": 11,
+      "mode": "offline design + local corpus retrieval fixture, planner object mutations"
+    },
+    "investigation": {
+      "cases": 10,
+      "expected_matches": 8,
+      "mode": "actual investigation graph + scripted model + synthetic retrieval"
+    },
+    "behavior": {
+      "cases": 13,
+      "expected_matches": 7,
+      "mode": "Runner and SQLite with scripted dispatch, 11 behaviors + 2 judge object mutations; investigation MCP intentionally absent"
+    }
+  },
+  "llm_new_calls": 0,
+  "historical_llm": "committed documentation only; referenced raw JSON not present in clean clone",
+  "presentation_url": "https://docs.google.com/presentation/d/1aMwAspK4pvfe5av94qwQa3K9wbEUxvGfWsG46emSuQ4",
+  "source_backup": "raw-before.json",
+  "output_pdf": "renders/final/presentation.pdf"
+}
