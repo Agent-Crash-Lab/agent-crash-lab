@@ -30,6 +30,20 @@ export function mergeEvents(existing, incoming, runId) {
 export function isFinished(run) {
   return ['COMPLETED','ERROR'].includes(run.status) && run.investigation?.status !== 'RUNNING';
 }
+export function investigationLabel(run) {
+  const investigation=run.investigation || {};
+  if(investigation.method==='CODE_EVIDENCE_SUMMARY') return '조사 Agent 연결 실패 · 저장 근거 요약 제공';
+  if(investigation.status==='RUNNING') return '추가 조사 진행 중';
+  if(investigation.status==='READY') return investigation.validation?.passed===false ? '조사 보고서 근거 확인 필요' : '추가 조사 완료';
+  if(investigation.status==='ERROR') {
+    const reason={LLM_BUDGET_EXHAUSTED:'LLM 예산 소진',LLM_KEY_NOT_CONFIGURED:'모델 설정 필요',LLM_MODEL_NOT_CONFIGURED:'모델 설정 필요'}[investigation.status_reason];
+    return `추가 조사 실패${reason?' · '+reason:''} · 실행 판정은 보존됨`;
+  }
+  if(!['COMPLETED','ERROR'].includes(run.status)) return '실행 판정 후 필요 시 조사';
+  if(run.status==='ERROR') return '실행 오류로 추가 조사 미실행';
+  if((run.summary?.FAIL || 0)+(run.summary?.INCONCLUSIVE || 0)>0) return '추가 조사 미실행';
+  return '추가 조사 생략 · 실패·판정 보류 없음';
+}
 export function sceneEvents(events) {
   return events.map(event => ({...event, type:event.event_type, title:event.event_type,
     // An approval decision is shown at the approval node; the original node remains in raw evidence.

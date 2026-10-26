@@ -30,6 +30,16 @@ class Store:
     def all(self):
         return [json.loads(row[0]) for row in self.db.execute("SELECT body FROM runs")]
 
+    def active(self):
+        # Match the partial index: completed history must not enter the 0.2s monitor loop.
+        return [
+            json.loads(row[0])
+            for row in self.db.execute(
+                "SELECT body FROM runs "
+                "WHERE status IN ('PREPARING','RUNNING','WAITING_APPROVAL')"
+            )
+        ]
+
     def put(self, run):
         with self.db:
             self.db.execute(

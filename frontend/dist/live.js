@@ -1,5 +1,5 @@
 import {mountApprover, leaveApprover} from './approver.js?v=0.15.7';
-import {LIVE_COMPARISON_ENABLED, workspaceRoute, runListMarkup, api, mergeEvents, isFinished, sceneEvents, escapeHtml as esc, normalizeDraft, designStartPayload, runDestination, progressEventsMarkup, runGuidance, nextActionHint, completedSystemRuns, qaReportMarkup, qaReportDocument, qaReportCollectionDocument, reviewMarkup, repairMarkup, followupMarkup, scenarioMarkup, caseReadinessLabel, caseBlockerMarkup} from './live-api.js?v=0.15.7';
+import {LIVE_COMPARISON_ENABLED, workspaceRoute, runListMarkup, api, mergeEvents, isFinished, investigationLabel, sceneEvents, escapeHtml as esc, normalizeDraft, designStartPayload, runDestination, progressEventsMarkup, runGuidance, nextActionHint, completedSystemRuns, qaReportMarkup, qaReportDocument, qaReportCollectionDocument, reviewMarkup, repairMarkup, followupMarkup, scenarioMarkup, caseReadinessLabel, caseBlockerMarkup} from './live-api.js?v=0.15.7';
 import {registrationMarkup,parseTools,exampleDeclaration,fillDeclaration,renderToolBindings,collectDeclaration,profileAnalysis,capabilityLabel,registeredCaseReady} from './qa-targets.js?v=0.15.7';
 import {purchaseTopology} from './topologies.js?v=0.15.7';
 import {mountScene, pauseScene} from './scene.js?v=0.15.7';
@@ -28,6 +28,8 @@ const messages = {
   PROFILE_ANALYSIS_CHANGED:'위험 분류 기준이 바뀌었습니다. 등록 정보를 다시 저장해 분석하세요.',
   QA_ANALYSIS_UNAVAILABLE:'Agent 설명 분석 서비스에 연결하지 못했습니다.',
   INVALID_QA_TARGET:'도구 정의·입력 형식·기능 연결을 확인해 주세요.',
+  KNOWLEDGE_UNAVAILABLE:'문헌 검색 서비스가 준비되지 않았습니다. 서비스와 문헌 색인 상태를 확인한 뒤 다시 제안받으세요.',
+  DESIGN_RISK_COVERAGE_MISMATCH:'모델이 요청된 위험별 시험안을 모두 반환하지 않았습니다. 다시 제안받으세요. 기존 실행은 시작되지 않았습니다.',
   QA_DESIGN_UNAVAILABLE:'시험 설계 서비스 또는 문서 검색에 연결하지 못했습니다. 서비스 상태와 설계 모델 설정을 확인해 주세요.',
   QA_BATCH_IN_PROGRESS:'반복 실험이 진행 중입니다. 현재 실험을 확인하거나 중단을 요청하세요.',
   RELIABILITY_REQUIRES_LLM:'현재 대상은 규칙 기반입니다. 기본 연결 점검으로 실행하세요.',
@@ -973,7 +975,7 @@ function renderRun(force=false) {
     ${run.manifest?.registered_target?`<p><strong>등록 대상: ${esc(run.manifest.registered_target.name)}</strong> · 실제 실행: ${esc(run.manifest.registered_target.execution_binding?.name || run.manifest.target_id)} · ${esc(run.manifest.agent_version || '버전 확인 중')}</p>`:''}
     <div class="run-meta-bar">
       <span>${state.settled?'수집 완료 · QA 보고서를 확인하세요.':'실행·근거 수집 중'}</span>
-      <span class="mono">모델: ${esc(model && typeof model==='object' ? JSON.stringify(model) : model || run.investigation?.model_metadata?.model_kind || run.manifest?.model_kind || '미지정')} · 조사: ${esc(run.investigation?.status || '—')}</span>
+      <span class="mono">모델: ${esc(model && typeof model==='object' ? JSON.stringify(model) : model || run.investigation?.model_metadata?.model_kind || run.manifest?.model_kind || '미지정')} · ${esc(investigationLabel(run))}</span>
     </div>
     <div class="live-flow-actions">${run.status==='WAITING_APPROVAL' && page!=='live'?'<button class="primary" data-live-go="live">승인 처리로 이동 →</button>':''}${state.settled?'<button class="secondary" data-live-go="prepare">새 시험 준비 →</button>':''}${page!=='execution'?'<button class="secondary" data-live-go="execution">이 실행 분석 →</button>':LIVE_COMPARISON_ENABLED && run.system_id && state.settled?'<button class="secondary" data-live-go="compare">실제 결과 비교 →</button>':''}</div>`;
   if(page==='live'){

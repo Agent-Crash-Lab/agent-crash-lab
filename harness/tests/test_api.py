@@ -180,7 +180,8 @@ def test_approver_workspace_requires_role_and_includes_pending_and_readable_repo
     stored = client.app.state.store.get_run(run_id)
     stored["status"] = "COMPLETED"
     client.app.state.store.put_run(stored)
-    row = next(r for r in client.get("/api/qa/approver/runs", headers=approver).json()["runs"] if r["run_id"] == run_id)
+    rows = client.get("/api/qa/approver/runs", headers=approver).json()["runs"]
+    row = next(r for r in rows if r["run_id"] == run_id)
     assert row["qa_report"]["narrative"]["expected_behavior"]
     assert row["qa_report"]["conclusion"] == "INSUFFICIENT_EVIDENCE"
 

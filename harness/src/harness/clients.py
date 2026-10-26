@@ -42,7 +42,10 @@ class _Http:
             raise ClientError(self.service, None, "TRANSPORT_ERROR") from exc
         if response.status_code >= 400:
             raise ClientError(self.service, response.status_code, _code(response))
-        return response.json() if response.content else {}
+        try:
+            return response.json() if response.content else {}
+        except ValueError:
+            raise ClientError(self.service, response.status_code, "INVALID_RESPONSE") from None
 
 
 class McpClient(_Http):

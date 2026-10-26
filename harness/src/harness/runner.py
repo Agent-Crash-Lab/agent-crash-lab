@@ -285,6 +285,9 @@ class Runner:
         except Exception:
             log.exception("run %s failed", run_id)
             run = self._run(run_id)
+            if run.get("investigation", {}).get("status") == "RUNNING":
+                run["investigation"].update(status="ERROR", status_reason="INVESTIGATION_FAILED")
+                self.store.put_run(run)
             if run["status"] in ACTIVE:
                 await self._set_status(run, "ERROR", "AGENT_SERVER_ERROR")
         finally:
@@ -483,6 +486,7 @@ class Runner:
         else:
             body["fixture_id"] = fixture_id
         agent, active, runner_timeout = None, 0.0, False
+        failure_reason = "INVESTIGATION_AGENT_ERROR"
         try:
             await self._start_agent(run_id, body)
             agent, active = await self._follow_agent(run_id, agent_run_id, None)
@@ -490,6 +494,7 @@ class Runner:
             agent, active, runner_timeout = exc.agent, exc.active_seconds, True
         except (ClientError, RunFailed):
             agent = None
+            failure_reason = "INVESTIGATION_SERVICE_UNAVAILABLE"
         await self.events.settle(run_id)
         all_events = self.store.list_events(run_id)
         termination = _termination(agent, runner_timeout)
@@ -502,7 +507,11 @@ class Runner:
         if test is not None and agent is not None and termination is not None:
             limit_check = self._judge_limits(run, test, measured, termination)
         if not agent or agent["status"] != "COMPLETED":
-            run["investigation"]["status"] = "ERROR"
+            reason = (agent or {}).get("reason")
+            if reason in {"LLM_KEY_NOT_CONFIGURED", "LLM_MODEL_NOT_CONFIGURED",
+                          "LLM_BUDGET_EXHAUSTED", "LLM_CALL_FAILED", "LLM_INPUT_LIMIT"}:
+                failure_reason = reason
+            run["investigation"].update(status="ERROR", status_reason=failure_reason)
             self.store.put_run(run)
             return None, None, limit_check
 
@@ -540,7 +549,20 @@ class Runner:
     # Agent polling
 
     async def _start_agent(self, run_id: str, body: dict):
-        agent = await self.agents.start(body)
+        try:
+            agent = await self.agents.start(body)
+        except ClientError as exc:
+            if exc.code != "TRANSPORT_ERROR" or exc.status is not None:
+                raise
+            # The POST may have succeeded before its response was lost. Confirm it by
+            # identity; never repeat an ambiguous start or attach to an unrelated run.
+            try:
+                agent = await self.agents.status(body["run_id"])
+            except ClientError:
+                raise exc from None
+            identity = ("run_id", "agent_kind", "mode", "target_run_id", "request")
+            if any(agent.get(key) != body[key] for key in identity if key in body):
+                raise ClientError("agents", 409, "AGENT_START_IDENTITY_MISMATCH") from None
         self.agent_cursor[body["run_id"]] = 0
         run = self._run(run_id)
         if body["agent_kind"] == "PURCHASE_AGENT":
